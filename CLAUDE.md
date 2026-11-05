@@ -4,11 +4,20 @@ Trạm kiểm soát link Zalo cho Windows/macOS: chặn link đáng ngờ bằng
 Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` để biết cấu trúc đầy đủ; file này chỉ ghi những gì README không nói.
 
 ## Trạng thái (cập nhật 2026-11-05)
-- Bản hiện tại **v1.5.0**, nhánh `main` đã push lên https://github.com/sanhkhoa57/CHOTTO (commit mới nhất 5587597).
-- v1.5.0 = giao diện HTML mới (phong cách "luxury": nền đen ấm, vàng đồng, chữ serif) thay giao diện Tk cũ, song ngữ EN/VI.
-- **Chưa commit:** đổi "AECC" thành "AECCUS" ở chân thanh bên (`chotto/web/app.html`, `app.js`, `i18n.js`). Chưa xem bằng mắt.
-- Chưa làm: build thử `.exe` (`packaging\build_windows.bat`), thử trên macOS, tag `v1.5.0`.
-- Chưa tracked: `index.html` ở thư mục gốc (không rõ từ đâu, hỏi người dùng trước khi động tới).
+- Bản hiện tại **v1.5.0**, nhánh `main` trên https://github.com/sanhkhoa57/CHOTTO (repo công khai, trang tải chạy bằng GitHub Pages từ `index.html`).
+- v1.5.0 = giao diện HTML mới (phong cách "luxury": nền đen ấm, vàng đồng, chữ serif) thay giao diện Tk cũ, song ngữ EN/VI. Icon chính: `assets/anime.png`
+  (sinh `.ico/.icns/PNG` bằng `tools/make_icon.py`, cần Pillow).
+- **Windows: xong và đã thử.** Bộ cài Inno Setup (`packaging/chotto.iss`, build bằng `packaginguild_windows.bat`, giao diện bộ cài tiếng Anh). Gói tải nằm trong `downloads/`:
+  `CHOTTO-Windows.zip` (Setup + README.txt) và `chotto-extension-chrome.zip` (extension + README.txt); tạo bằng `tools/build_downloads.py`,
+  nội dung hướng dẫn ở `packaging/guides/*.txt`. Đừng chạy `unins000.exe` khi thử: nó gỡ đăng ký handler đang dùng.
+- **macOS: CHƯA XÁC NHẬN.** Người dùng báo Mac vẫn hiện giao diện cũ (Tk). Nghi ngờ: `platform_setup.ui_host_argv()` dùng `[sys.executable, "ui-host"]` khi đóng gói,
+  có thể sai với py2app (agent thì đi qua `open -b`) nên host không chạy và `build_handler` lùi về Tk. Việc cần làm trên Mac: `git pull`, chạy `python3 main.py --force <url>`,
+  đọc `~/Library/Application Support/CHOTTO/chotto.log` (tìm "Giao diện HTML sẵn sàng" hoặc "Không khởi chạy được giao diện HTML").
+  Build `.app`: tạm đổi tên `pyproject.toml` rồi `python packaging/macos_setup.py py2app` (py2app từ chối `install_requires`), sau đó `codesign --force --deep --sign - dist/CHOTTO.app`.
+  Nút tải macOS trên `index.html` trỏ `releases/latest/download/CHOTTO-macOS.dmg`: file này chưa tồn tại (404).
+- CI: `.github/workflows/release.yml` chạy khi đẩy tag `v*` (Windows OK, extension đã sửa, macOS lỗi ở bước py2app, chưa rõ nguyên nhân). Tag `v1.5.0` đã đẩy nhưng CHƯA có Release.
+  Người dùng không cho xóa/tạo lại tag; tải file qua `downloads/` thay vì Release.
+- Chưa làm: thử trên macOS, SmartScreen/Safe Browsing cảnh báo vì chưa ký số (gợi ý: SignPath cho mã nguồn mở, cần file LICENSE).
 
 ## Kiến trúc giao diện (điều không hiển nhiên)
 - pywebview bắt buộc chạy trên luồng chính, mà luồng chính của agent thuộc Tk (IPC, Apple Event). Nên agent khởi chạy sẵn tiến trình con `main.py ui-host`
