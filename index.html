@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chotto – Download</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#05070b}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+a{color:#f3f5fa;text-decoration:none}a:hover{color:#ffffff}
+.dl{font-feature-settings:"calt","kern","liga","ss03"}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0}
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px;box-sizing:border-box}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:44px;padding:0 20px;border:0;border-radius:8px;font:500 15px/1 "Inter",system-ui,sans-serif;letter-spacing:.2px;cursor:pointer;white-space:nowrap;transition:transform .2s cubic-bezier(.2,.7,.2,1),background .2s,box-shadow .2s,color .2s,opacity .2s}
+.btn:active{transform:translateY(1px) scale(.985)}
+.btn-w{background:#ffffff;color:#05070b}
+.btn-w:hover{background:#ffffff;color:#05070b;box-shadow:0 0 0 4px rgba(120,165,255,.18),0 8px 30px -6px rgba(77,141,255,.55)}
+.btn-g{background:#10141c;color:#f3f5fa;box-shadow:inset 0 0 0 1px #1f2633}
+.btn-g:hover{box-shadow:inset 0 0 0 1px #3a4a66;color:#fff}
+.btn-o{background:transparent;color:#f3f5fa;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.btn-o:hover{box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);color:#fff}
+.btn:focus-visible,.tab:focus-visible,summary:focus-visible,.cap:focus-visible,.langbtn:focus-visible,.langitem:focus-visible{outline:2px solid #6fa0ff;outline-offset:3px}
+.bar{background:rgba(14,18,26,.62);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08),inset 0 1px 0 rgba(255,255,255,.08),0 10px 30px -10px rgba(0,0,0,.85),0 24px 60px -24px rgba(46,110,255,.25);transition:background .3s,box-shadow .3s}
+.bar:hover{background:rgba(16,21,30,.78)}
+.navl{font-size:14px;font-weight:500;color:#aab3c5;letter-spacing:.2px;transition:color .15s}
+.navl:hover{color:#ffffff}
+
+/* chuyển ngôn ngữ */
+.langbtn{height:38px;padding:0 9px 0 11px;display:inline-flex;align-items:center;gap:7px;border:0;border-radius:10px;background:rgba(255,255,255,.06);color:#dfe5f1;font:500 13px/1 "Inter",system-ui,sans-serif;letter-spacing:.3px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:background .2s,color .2s}
+.langbtn:hover{background:rgba(255,255,255,.11);color:#fff}
+.langbtn .chev{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+.langbtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.langmenu{position:absolute;right:0;top:100%;padding-top:10px;animation:menuIn .22s cubic-bezier(.16,1,.3,1) both}
+.langbox{min-width:168px;padding:6px;border-radius:14px;background:rgba(13,17,25,.94);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09),0 20px 50px -12px rgba(0,0,0,.9)}
+.langitem{display:flex;justify-content:space-between;align-items:center;gap:20px;width:100%;height:38px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:#bcc5d6;font:500 14px/1 "Inter",system-ui,sans-serif;text-align:left;cursor:pointer;transition:background .15s,color .15s}
+.langitem:hover{background:rgba(255,255,255,.07);color:#fff}
+.langitem[aria-checked="true"]{color:#fff}
+
+/* thẻ có viền sáng chạy theo chuột */
+.card{--mx:50%;--my:-30%;position:relative;isolation:isolate;background:#0a0d13;border-radius:12px;box-shadow:inset 0 0 0 1px #1a202b;transition:transform .4s cubic-bezier(.2,.7,.2,1)}
+.card::before{content:"";position:absolute;inset:0;border-radius:inherit;z-index:-1;background:radial-gradient(380px circle at var(--mx) var(--my),rgba(77,141,255,.13),transparent 60%);opacity:0;transition:opacity .4s}
+.card::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;background:radial-gradient(240px circle at var(--mx) var(--my),rgba(140,180,255,.9),rgba(77,141,255,.25) 40%,transparent 70%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .4s}
+.card:hover::before,.card:hover::after{opacity:1}
+
+/* phím 3D */
+.cap{position:relative;display:inline-grid;place-items:center;border:0;cursor:pointer;color:#dfe5f1;font:500 22px/1 "Inter",system-ui,sans-serif;border-radius:16px;background:linear-gradient(180deg,#1b212d,#11151d);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -2px 0 rgba(0,0,0,.6),0 0 0 1px #262e3d,0 10px 0 -2px #070a0f,0 10px 0 -1px #1b2230,0 24px 40px -12px rgba(0,0,0,.9);transition:transform .56s cubic-bezier(.34,1.56,.64,1),box-shadow .56s cubic-bezier(.34,1.56,.64,1)}
+.cap::before{content:"";position:absolute;inset:-4px;z-index:-1;border-radius:20px;padding:2px;opacity:0;background:#ffffff;box-shadow:0 0 30px 6px rgba(255,255,255,.65);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;transition:opacity .4s ease}
+.cap:active,.cap.down{transform:translateY(8px);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(0,0,0,.6),0 0 0 1px #2c4f9e,0 2px 0 -1px #1b2230,0 6px 24px -6px rgba(77,141,255,.6);transition:transform .08s cubic-bezier(.3,0,.5,1),box-shadow .08s cubic-bezier(.3,0,.5,1)}
+.cap:active::before,.cap.down::before{opacity:1}
+.key{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:5px;background:linear-gradient(180deg,#171c26,#0f131a);box-shadow:inset 0 0 0 1px #262e3d,inset 0 -1px 0 #05070b;font-size:12px;color:#c6cedd;font-weight:500}
+
+.tab{height:36px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:#aab3c5;font:500 14px/1 "Inter",system-ui,sans-serif;cursor:pointer;transition:background .2s,color .2s}
+.tab:hover{color:#fff}
+details{border-top:1px solid #161c26}
+details:last-of-type{border-bottom:1px solid #161c26}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:24px;padding:22px 0;font-size:18px;font-weight:500;letter-spacing:.2px;color:#f3f5fa}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-size:22px;font-weight:400;color:#7d879b;transition:transform .25s}
+details[open] summary::after{transform:rotate(45deg)}
+
+/* thanh kính trong hero */
+.beam{position:absolute;left:-5%;right:-5%;height:72px;border-radius:2px;transition:transform 1.2s cubic-bezier(.16,1,.3,1)}
+.beam i{position:absolute;inset:0;background:linear-gradient(90deg,transparent 2%,rgba(29,71,201,.85) 24%,#7fb0ff 47%,#e6efff 50%,#7fb0ff 53%,rgba(33,82,220,.85) 76%,transparent 98%);background-size:220% 100%;animation:sweep 8s cubic-bezier(.45,0,.55,1) infinite alternate}
+.beam b{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0) 35%,rgba(0,0,0,.25));mix-blend-mode:overlay}
+.beam s{position:absolute;inset:-30px 0;background:inherit;filter:blur(30px);opacity:.8}
+
+@keyframes sweep{from{background-position:0% 0}to{background-position:100% 0}}
+@keyframes wordIn{from{opacity:0;filter:blur(12px);transform:translateY(14px)}to{opacity:1;filter:blur(0);transform:none}}
+@keyframes menuIn{from{opacity:0;transform:translateY(-6px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes lift{from{opacity:0;transform:perspective(1600px) rotateX(18deg) translateY(80px) scale(.94)}to{opacity:1;transform:perspective(1600px) rotateX(0) translateY(0) scale(1)}}
+@keyframes caret{50%{opacity:0}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes travel{from{left:0%}to{left:100%}}
+.winBox{transition:opacity .45s cubic-bezier(.4,0,.2,1),transform .45s cubic-bezier(.4,0,.2,1),filter .45s cubic-bezier(.4,0,.2,1)}
+.winBox.winHide{opacity:0;transform:scale(.94) translateY(10px);filter:blur(6px)}
+.word{display:inline-block;animation:wordIn .9s cubic-bezier(.16,1,.3,1) both}
+.lift{animation:lift 1.4s cubic-bezier(.16,1,.3,1) .5s both}
+.fade{animation:wordIn 1s cubic-bezier(.16,1,.3,1) both}
+.rv-on .rv{opacity:0;filter:blur(1.5px);transform:translateY(16px);transition:opacity .7s cubic-bezier(.16,1,.3,1),filter .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
+.rv-on .rv.shown{opacity:1;filter:blur(0);transform:none}
+@media (prefers-reduced-motion:reduce){.word,.lift,.fade,.beam i,.dot,.langmenu,.cap::before{animation:none!important}.rv-on .rv{opacity:1!important;filter:none!important;transform:none!important}.beam{transition:none!important}}
+@media (max-width:760px){.wrap{padding:0 16px}.hidem{display:none!important}}
+</style>
+</head>
+<body>
+<div class="dl" style="width: 100%; min-height: 4300px; background: #05070b; color: #f3f5fa; font-family: 'Inter', system-ui, sans-serif; font-size: 16px; line-height: 1.6; overflow-x: clip">
+
+  <header class="topbar" style="position: sticky; top: 10px; z-index: 50; height: 0; padding: 0 16px">
+    <div class="bar" style="position: relative; top: 0; max-width: 1120px; height: 56px; margin: 0 auto; padding: 0 9px 0 22px; box-sizing: border-box; border-radius: 16px; display: flex; align-items: center; gap: 32px">
+      <div style="flex: 1 1 0; display: flex; align-items: center">
+        <a href="#" id="logo" style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.01em">
+          <svg width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="#ffffff" stroke-width="1.5"></circle><rect x="5.5" y="4.8" width="1.7" height="6.4" rx=".6" fill="#ffffff"></rect><rect x="8.8" y="4.8" width="1.7" height="6.4" rx=".6" fill="#ffffff"></rect></svg>
+          Chotto
+        </a>
+      </div>
+      <nav class="hidem" data-ta="aria-label:navLabel" style="display: flex; gap: 28px">
+        <a class="navl" href="#cach-hoat-dong" data-nav="cach-hoat-dong" data-t="navHow"></a>
+        <a class="navl" href="#cai-dat" data-nav="cai-dat" data-t="navInstall"></a>
+        <a class="navl" href="#hoi-dap" data-nav="hoi-dap" data-t="navFaq"></a>
+      </nav>
+      <div style="flex: 1 1 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px">
+        <div id="langWrap" style="position: relative">
+          <button class="langbtn" id="langBtn" aria-haspopup="menu" aria-expanded="false" data-ta="aria-label:langLabel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z"></path></svg>
+            <span id="langCode">EN</span>
+            <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"></path></svg>
+          </button>
+          <div class="langmenu" id="langMenu" role="menu" hidden>
+            <div class="langbox">
+              <button class="langitem" role="menuitemradio" data-lang="vi"><span>Tiếng Việt</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7fb0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"></path></svg></button>
+              <button class="langitem" role="menuitemradio" data-lang="en"><span>English</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#7fb0ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"></path></svg></button>
+            </div>
+          </div>
+        </div>
+        <a class="btn btn-w" href="#tai-xuong" data-t="navDl" style="height: 38px; padding: 0 18px; font-size: 14px; border-radius: 10px"></a>
+      </div>
+    </div>
+  </header>
+
+  <section id="hero" style="position: relative; padding: 112px 0 40px">
+    <div aria-hidden="true" style="position:absolute; left:-10%; right:-10%; top:-150px; height:620px; z-index:0; transform: skewY(-10deg); -webkit-mask-image: linear-gradient(180deg,#000 30%,transparent 92%); mask-image: linear-gradient(180deg,#000 30%,transparent 92%)">
+      <div class="beam" id="b1" style="top:130px"><s></s><i></i><b></b></div>
+      <div class="beam" id="b2" style="top:222px"><s></s><i style="animation-duration: 10s; opacity: .8"></i><b></b></div>
+      <div class="beam" id="b3" style="top:314px"><s></s><i style="animation-duration: 12s; opacity: .55"></i><b></b></div>
+    </div>
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 640px; background: radial-gradient(70% 60% at 50% 0%, transparent 40%, #05070b 85%); pointer-events: none"></div>
+
+    <div class="wrap" style="position: relative; z-index: 2; text-align: center">
+      <h1 id="heroH" style="margin: 0 auto; max-width: 15ch; font-size: 72px; line-height: 1.05; font-weight: 600; letter-spacing: -0.04em"></h1>
+      <p class="fade" data-t="heroSub" style="margin: 24px auto 0; max-width: 34em; font-size: 19px; font-style: normal; color: #c3cad8; animation-delay: .55s"></p>
+      <div class="fade" style="margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; animation-delay: .7s">
+        <a class="btn btn-w" href="#tai-xuong" style="height: 48px; padding: 0 22px; font-size: 16px">
+          <svg class="if-win" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><rect width="7.4" height="7.4" fill="#05070b"></rect><rect x="8.6" width="7.4" height="7.4" fill="#05070b"></rect><rect y="8.6" width="7.4" height="7.4" fill="#05070b"></rect><rect x="8.6" y="8.6" width="7.4" height="7.4" fill="#05070b"></rect></svg>
+          <span class="if-mac" aria-hidden="true" style="font-size: 17px">⌘</span>
+          <span data-hero-label></span>
+        </a>
+        <a class="btn btn-o" href="#tai-xuong" data-t="otherVer" style="height: 48px; padding: 0 22px; font-size: 16px"></a>
+      </div>
+      <p class="fade mono" style="margin: 18px 0 0; font-size: 13px; animation-delay: .8s"><a href="#tai-xuong" style="color: #8a93a6; text-decoration: underline; text-underline-offset: 3px">x86 · ARM</a></p>
+    </div>
+
+    <div class="wrap" style="position: relative; z-index: 2; margin-top: 76px">
+      <div class="lift" style="position: relative; max-width: 760px; margin: 0 auto">
+        <div aria-hidden="true" style="position: absolute; inset: 10% 0 -10%; background: radial-gradient(closest-side, rgba(46,110,255,.4), transparent); filter: blur(60px); z-index: -1"></div>
+        <figure role="img" data-ta="aria-label:mockAria" style="margin: 0; border-radius: 16px; background: rgba(12,15,22,.92); box-shadow: inset 0 0 0 1px #262e3d, inset 0 1px 0 rgba(255,255,255,.06), 0 50px 120px -30px rgba(0,0,0,.95); overflow: hidden; text-align: left">
+          <div style="height: 64px; display: flex; align-items: center; gap: 14px; padding: 0 20px; box-shadow: inset 0 -1px 0 #1a202b">
+            <svg width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="#9cc0ff" stroke-width="1.4"></circle><rect x="5.5" y="4.8" width="1.7" height="6.4" rx=".6" fill="#9cc0ff"></rect><rect x="8.8" y="4.8" width="1.7" height="6.4" rx=".6" fill="#9cc0ff"></rect></svg>
+            <span style="flex: 1; min-width: 0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><span id="typed" style="color: #f3f5fa"></span><i style="display: inline-block; width: 2px; height: 20px; margin-left: 2px; vertical-align: -4px; background: #7fb0ff; animation: caret 1s steps(1) infinite"></i></span>
+            <span class="key">Zalo</span>
+          </div>
+          <div style="padding: 8px; min-height: 236px">
+            <div data-t="resultsLbl" style="padding: 8px 12px 6px; font-size: 12px; font-weight: 500; color: #7d879b; letter-spacing: .3px"></div>
+            <div id="rows"></div>
+            <div id="verdictBox">
+              <span id="verdictDot"></span>
+              <span id="verdict" style="flex: 1; font-size: 15px; font-weight: 600"></span>
+              <span id="score" style="font-size: 13px; color: #8a93a6; font-variant-numeric: tabular-nums"></span>
+              <span class="key">⏎</span>
+            </div>
+          </div>
+          <div style="height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 16px; box-shadow: inset 0 1px 0 #1a202b; font-size: 13px; color: #8a93a6">
+            <span style="margin-right: auto">Chotto</span>
+            <span data-t="openLink"></span><span class="key">⏎</span><span style="width: 1px; height: 14px; background: #262e3d"></span><span data-t="close"></span><span class="key">Esc</span>
+          </div>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="cach-hoat-dong" style="padding: 160px 0 0">
+    <div class="wrap">
+      <h2 class="rv" style="margin: 0; max-width: 18ch; font-size: 52px; line-height: 1.08; font-weight: 600; letter-spacing: -0.035em"><span data-t="howA"></span><br><span data-t="howB" style="position: relative; top: 14px"></span></h2>
+      <p class="rv" data-t="howP" style="margin: 18px 0 0; max-width: 34em; font-size: 18px; color: #c3cad8; transition-delay: .08s"></p>
+
+      <div style="margin-top: 56px; position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px">
+        <div aria-hidden="true" class="hidem" style="position: absolute; left: 16%; right: 16%; top: 51px; height: 1px; background: linear-gradient(90deg, #1a202b, #2f4f9a, #1a202b); z-index: 1">
+          <i class="dot" style="position: absolute; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: #9cc0ff; box-shadow: 0 0 14px 2px #4d8dff; animation: travel 3.2s cubic-bezier(.6,0,.4,1) infinite"></i>
+        </div>
+        <div class="card rv" style="padding: 28px 24px">
+          <div style="width: 48px; height: 48px; border-radius: 10px; background: #121722; box-shadow: inset 0 0 0 1px #232b3a; display: grid; place-items: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c6cedd" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg></div>
+          <h3 data-t="how1T" style="margin: 22px 0 0; font-size: 20px; font-weight: 500; letter-spacing: .2px"></h3>
+          <p data-t="how1D" style="margin: 8px 0 0; font-size: 15px; color: #aab3c5"></p>
+        </div>
+        <div class="card rv" style="padding: 28px 24px; transition-delay: .08s">
+          <div style="width: 48px; height: 48px; border-radius: 10px; background: #0f1d3d; box-shadow: inset 0 0 0 1px #2c4f9e, 0 0 24px -4px rgba(77,141,255,.6); display: grid; place-items: center"><svg width="22" height="22" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="#9cc0ff" stroke-width="1.4"></circle><rect x="5.5" y="4.8" width="1.7" height="6.4" rx=".6" fill="#9cc0ff"></rect><rect x="8.8" y="4.8" width="1.7" height="6.4" rx=".6" fill="#9cc0ff"></rect></svg></div>
+          <h3 data-t="how2T" style="margin: 22px 0 0; font-size: 20px; font-weight: 500; letter-spacing: .2px"></h3>
+          <p data-t="how2D" style="margin: 8px 0 0; font-size: 15px; color: #aab3c5"></p>
+        </div>
+        <div class="card rv" style="padding: 28px 24px; transition-delay: .16s">
+          <div style="width: 48px; height: 48px; border-radius: 10px; background: #121722; box-shadow: inset 0 0 0 1px #232b3a; display: grid; place-items: center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c6cedd" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.3 8-8 9-4.7-1-8-4.5-8-9V6z"></path><path d="m9 12 2 2 4-4"></path></svg></div>
+          <h3 data-t="how3T" style="margin: 22px 0 0; font-size: 20px; font-weight: 500; letter-spacing: .2px"></h3>
+          <p data-t="how3D" style="margin: 8px 0 0; font-size: 15px; color: #aab3c5"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding: 160px 0 0">
+    <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 56px; align-items: center">
+      <div style="flex: 1 1 360px">
+        <h2 class="rv" data-t="escH" style="margin: 0; font-size: 52px; line-height: 1.08; font-weight: 600; letter-spacing: -0.035em"></h2>
+        <p class="rv" style="margin: 18px 0 0; max-width: 28em; font-size: 18px; color: #c3cad8; transition-delay: .08s"><span data-t="escP"></span><br><span data-t="escP2"></span><br><span data-t="escP3"></span></p>
+        <p class="rv" style="margin: 28px 0 0; display: flex; gap: 8px; align-items: center; font-size: 14px; color: #8a93a6; transition-delay: .16s"><span data-t="escHintA"></span> <span class="key">Esc</span> <span data-t="escHintB"></span></p>
+      </div>
+      <div class="card rv" style="flex: 1.2 1 460px; min-height: 420px; padding: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; overflow: hidden">
+        <div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(60% 50% at 50% 100%, rgba(46,110,255,.18), transparent 70%); z-index: -1"></div>
+        <div class="winBox" id="winBox" style="width: 100%; max-width: 380px; border-radius: 12px; background: #120a0b; box-shadow: inset 0 0 0 1px rgba(255,90,82,.28), 0 30px 60px -20px rgba(0,0,0,.9); overflow: hidden">
+          <div style="padding: 18px 20px; background: linear-gradient(160deg, #2a0e10, #170a0b)">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #ff8d86"><i style="width: 6px; height: 6px; border-radius: 50%; background: #ff5a52"></i><span data-t="escBlocked"></span></div>
+            <div data-t="escFake" style="margin-top: 8px; font-size: 22px; font-weight: 600; letter-spacing: -0.02em"></div>
+            <div style="margin-top: 6px; font-size: 13px; color: #c9b3b1; word-break: break-all">vietcombank.com.vn.<b style="color: #fff">xacthuc-tk.top</b></div>
+          </div>
+        </div>
+        <button class="cap" id="escCap" data-ta="aria-label:escBtnAria" style="width: 132px; height: 112px">Esc</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="tai-xuong" style="padding: 160px 0 0">
+    <div class="wrap">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 24px">
+        <h2 class="rv" data-t="dlH" style="margin: 0; font-size: 52px; line-height: 1.08; font-weight: 600; letter-spacing: -0.035em"></h2>
+      </div>
+      <div id="platforms" style="margin-top: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px"></div>
+      <p class="rv" data-t="linuxNote" style="margin: 20px 0 0; font-size: 14px; color: #8a93a6"></p>
+    </div>
+  </section>
+
+  <section id="cai-dat" style="padding: 160px 0 0">
+    <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 56px">
+      <div style="flex: 1 1 320px">
+        <h2 class="rv" data-t="instH" style="margin: 0; font-size: 52px; line-height: 1.08; font-weight: 600; letter-spacing: -0.035em"></h2>
+        <p class="rv" data-t="instP" style="margin: 18px 0 0; font-size: 18px; color: #c3cad8; max-width: 26em; transition-delay: .08s"></p>
+        <div class="rv" id="tabs" role="tablist" data-ta="aria-label:tabsAria" style="margin-top: 36px; display: flex; gap: 0; transition-delay: .16s">
+          <button class="tab" role="tab" data-tab="win" data-t="tabWin"></button>
+          <button class="tab" role="tab" data-tab="mac" data-t="tabMac"></button>
+          <button class="tab" role="tab" data-tab="ext" data-t="tabExt"></button>
+        </div>
+      </div>
+      <div class="rv" style="flex: 1.3 1 420px; padding: 8px 0 0">
+        <ol id="steps" style="margin: 0; padding: 0; list-style: none"></ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="hoi-dap" style="padding: 160px 0 0">
+    <div class="wrap" style="display: flex; flex-wrap: wrap; gap: 56px">
+      <h2 class="rv" data-t="faqH" style="flex: 1 1 280px; margin: 0; font-size: 52px; line-height: 1.08; font-weight: 600; letter-spacing: -0.035em"></h2>
+      <div class="rv" style="flex: 1.6 1 460px; transition-delay: .08s">
+        <div style="border-top: 1px solid #161c26"></div>
+        <div id="faqs"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="position: relative; margin-top: 180px; padding: 140px 0 48px; overflow: hidden; box-shadow: inset 0 1px 0 #121722">
+    <div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 300px; transform: skewY(-9deg); transform-origin: left; opacity: .5; -webkit-mask-image: linear-gradient(180deg, transparent, #000 45%, transparent); mask-image: linear-gradient(180deg, transparent, #000 45%, transparent)">
+      <div class="beam" style="top: 110px; height: 44px"><s></s><i style="animation-duration: 12s"></i><b></b></div>
+    </div>
+    <div class="wrap" style="position: relative; text-align: center">
+      <h2 class="rv" style="margin: 0; font-size: 60px; line-height: 1.05; font-weight: 600; letter-spacing: -0.04em"><span data-t="footA"></span><br><span data-t="footB"></span></h2>
+      <div class="rv" style="margin-top: 32px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; transition-delay: .1s">
+        <a class="btn btn-w" href="#tai-xuong" data-hero-label style="height: 48px; padding: 0 22px; font-size: 16px"></a>
+      </div>
+      <div class="mono" style="margin-top: 120px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; font-size: 13px; color: #6f788b">
+        <span data-t="footBrand"></span>
+        <span style="display: flex; gap: 20px"><a href="#hoi-dap" data-t="navFaq" style="color: #8a93a6"></a><a href="#" data-t="footSrc" style="color: #8a93a6"></a><a href="#" data-t="footContact" style="color: #8a93a6"></a></span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function dict(lang) {
+    if (lang === 'en') {
+      return {
+        navLabel: 'Main', navHow: 'How it works', navDl: 'Download', navInstall: 'Install', navFaq: 'FAQ', langLabel: 'Language',
+        hero: 'Think before you click',
+        heroSub: 'Chotto checks every link you tap in Zalo before it opens',
+        otherVer: 'Other versions', archs: 'Available for x86 (64-bit) and ARM.', heroMeta: 'Version 1.4.0 · Free · No account needed',
+        dlWin: 'Download for Windows', dlMac: 'Download for macOS',
+        mockAria: 'Chotto checks one link after another and gives a verdict',
+        resultsLbl: 'Check results', openLink: 'Open link', close: 'Close',
+        samples: [
+          { rows: [['Real domain', 'xacthuc-tk.top', 'bad'], ['Impersonating', 'Vietcombank', 'bad'], ['Domain age', '2 days', 'bad']], verdict: 'Blocked · fake Vietcombank page', score: '92/100', bad: true },
+          { rows: [['Real domain', 'vnexpress.net', 'ok'], ['Scam list', 'Not listed', 'ok'], ['Domain age', 'Over 20 years', 'ok']], verdict: 'Open now · safe', score: '4/100', bad: false },
+          { rows: [['Real domain', 'shopee-khuyenmai247.com', 'bad'], ['Impersonating', 'Shopee', 'bad'], ['Domain age', '3 days', 'bad']], verdict: 'Blocked · fake Shopee page', score: '71/100', bad: true }
+        ],
+        howA: 'You tap a link,', howB: 'Chotto looks first',
+        howP: 'Everything happens on your computer, before the browser loads the page. You do nothing extra.',
+        how1T: 'Link opened from Zalo', how1D: 'You tap a link someone sent. Chotto receives it before the browser does.',
+        how2T: 'Checked before it opens', how2D: 'Reads the real domain, checks the scam list and looks up the domain’s age.',
+        how3T: 'Open it, or block it', how3D: 'Safe links open as usual. Fake pages show a warning and advice.',
+        escH: 'Spot a fake page? One key.',
+        escP: 'The warning appears right in front of you and shows where the link really goes.', escP2: 'Press Esc to close it.', escP3: 'The scam page never opens.',
+        escHintA: 'Try clicking the', escHintB: 'key beside it',
+        escBlocked: 'Blocked · 92/100', escFake: 'This is a fake page.', escBtnAria: 'Esc key, click to close the warning',
+        dlH: 'Download Chotto', dlMeta: 'Version 1.5.0', current: 'Your computer',
+        fmt: 'Format', req: 'Requires', size: 'File size',
+        linuxNote: 'On Linux or mobile? Chotto isn’t available there yet.',
+        plat: {
+          win: { name: 'Windows', desc: 'Protects links opened from the Zalo app on PC.', format: '.exe installer', req: 'Windows 10 or later, 64-bit', size: '18 MB', cta: 'Download for Windows', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/CHOTTO-Setup.exe' },
+          mac: { name: 'macOS', desc: 'For Macs with Apple silicon (M1 and later).', format: '.dmg disk image', req: 'macOS 12 or later, Apple silicon', size: '[file size]', cta: 'Download for macOS', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/CHOTTO-macOS.dmg' },
+          ext: { name: 'Browser extension', desc: 'For Zalo Web on Chrome and Edge.', format: '.zip, manual install', req: 'Latest Chrome or Edge', size: '0.5 MB', cta: 'Download extension', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/chotto-extension-chrome.zip' }
+        },
+        instH: 'Four steps, then Chotto protects you.',
+        instP: 'Download, open, and Chotto starts protecting you right away. No account needed.',
+        tabsAria: 'Choose a platform', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Extension',
+        steps: {
+          win: [['Download the Setup file', 'Click “Download for Windows”. A file named CHOTTO-Setup.exe is saved to your computer.'], ['Open Setup', 'Double-click the file. If Windows shows a warning, choose “More info”, then “Run anyway”.'], ['Choose a folder', 'Pick where to install Chotto, then click Install.'], ['Done', 'A Chotto icon appears on your desktop. Open it and try tapping a link in Zalo.']],
+          mac: [['Download the disk image', 'Click “Download for macOS” to save CHOTTO-macOS.dmg.'], ['Move it to Applications', 'Open the .dmg and drag Chotto onto the Applications folder.'], ['Open it the first time', 'Right-click Chotto in Applications, choose Open, then confirm. Needed only once.'], ['Done', 'Chotto asks once to be your link opener. Then try tapping a link in Zalo.']],
+          ext: [['Download and unzip', 'Unzip the .zip file into a folder you will keep.'], ['Open the extensions page', 'Go to chrome://extensions or edge://extensions and turn on Developer mode.'], ['Load the unpacked extension', 'Choose “Load unpacked” and point it to the folder you just unzipped.'], ['Done', 'Pin Chotto to the toolbar, then open Zalo Web.']]
+        },
+        faqH: 'Frequently asked questions',
+        q1: 'Does Chotto cost anything?', a1: 'No. Chotto is free and needs no account.',
+        q2: 'Does Chotto read my Zalo messages?', a2: 'No. Chotto only receives a link when you tap it, and the log only keeps domain names on your computer.',
+        q3: 'What if Windows or macOS shows a warning when I open Chotto?', a3: 'Follow the install steps in the setup section above for your system.',
+        q4: 'How is the browser extension different from the desktop app?', a4: 'The extension checks links opened in Chrome or Edge, including Zalo Web. The desktop app also protects links opened from the Zalo app.',
+        footA: 'One pause.', footB: 'Before every click.',
+        footBrand: 'Developed by AECCUS', footSrc: 'Source code', footContact: 'Contact'
+      };
+    }
+    return {
+      navLabel: 'Mục chính', navHow: 'Cách hoạt động', navDl: 'Tải xuống', navInstall: 'Cài đặt', navFaq: 'Hỏi đáp', langLabel: 'Ngôn ngữ',
+      hero: 'Chậm một nhịp, rồi hãy bấm',
+      heroSub: 'Chotto kiểm tra mọi link bạn bấm trong Zalo trước khi mở',
+      otherVer: 'Các phiên bản khác', archs: 'Có bản x86 (64-bit) và ARM.', heroMeta: 'Phiên bản 1.4.0 · Miễn phí · Không cần tài khoản',
+      dlWin: 'Tải cho Windows', dlMac: 'Tải cho macOS',
+      mockAria: 'Chotto kiểm tra lần lượt từng link và đưa ra kết luận',
+      resultsLbl: 'Kết quả kiểm tra', openLink: 'Mở link', close: 'Đóng',
+      samples: [
+        { rows: [['Tên miền thật', 'xacthuc-tk.top', 'bad'], ['Đang giả danh', 'Vietcombank', 'bad'], ['Tuổi tên miền', '2 ngày', 'bad']], verdict: 'Chặn lại · trang giả danh Vietcombank', score: '92/100', bad: true },
+        { rows: [['Tên miền thật', 'vnexpress.net', 'ok'], ['Danh sách lừa đảo', 'Không có', 'ok'], ['Tuổi tên miền', 'Hơn 20 năm', 'ok']], verdict: 'Mở ngay · an toàn', score: '4/100', bad: false },
+        { rows: [['Tên miền thật', 'shopee-khuyenmai247.com', 'bad'], ['Đang giả danh', 'Shopee', 'bad'], ['Tuổi tên miền', '3 ngày', 'bad']], verdict: 'Chặn lại · trang giả danh Shopee', score: '71/100', bad: true }
+      ],
+      howA: 'Bạn bấm link,', howB: 'Chotto xem trước giúp bạn',
+      howP: 'Mọi việc diễn ra trên máy bạn, trước khi trình duyệt kịp tải trang. Bạn không phải làm gì thêm.',
+      how1T: 'Link mở từ Zalo', how1D: 'Bạn bấm một link ai đó gửi. Chotto nhận link trước trình duyệt.',
+      how2T: 'Kiểm tra trước khi mở', how2D: 'Soi tên miền thật, đối chiếu danh sách lừa đảo, tra tuổi tên miền.',
+      how3T: 'Mở ngay, hoặc chặn lại', how3D: 'Link an toàn mở như bình thường. Trang giả hiện cảnh báo và lời khuyên.',
+      escH: 'Gặp trang giả, chỉ cần một phím.',
+      escP: 'Cảnh báo hiện ngay trước mắt, nói rõ link thật dẫn tới đâu.', escP2: 'Nhấn Esc để đóng.', escP3: 'Trang lừa đảo không bao giờ được mở.',
+      escHintA: 'Thử bấm vào phím', escHintB: 'bên cạnh',
+      escBlocked: 'Đã chặn · 92/100', escFake: 'Đây là trang giả.', escBtnAria: 'Phím Esc, bấm để đóng cảnh báo',
+      dlH: 'Tải Chotto', dlMeta: 'Phiên bản 1.5.0', current: 'Máy của bạn',
+      fmt: 'Định dạng', req: 'Yêu cầu', size: 'Dung lượng',
+      linuxNote: 'Dùng Linux hoặc điện thoại? Chotto chưa có bản cho các nền tảng này.',
+      plat: {
+        win: { name: 'Windows', desc: 'Bảo vệ link mở từ ứng dụng Zalo trên PC.', format: 'Bộ cài .exe', req: 'Windows 10 trở lên, 64-bit', size: '18 MB', cta: 'Tải cho Windows', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/CHOTTO-Setup.exe' },
+        mac: { name: 'macOS', desc: 'Cho máy Mac chip Apple (M1 trở lên).', format: 'Ảnh đĩa .dmg', req: 'macOS 12 trở lên, chip Apple', size: '[dung lượng]', cta: 'Tải cho macOS', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/CHOTTO-macOS.dmg' },
+        ext: { name: 'Tiện ích trình duyệt', desc: 'Cho Zalo Web trên Chrome và Edge.', format: '.zip, cài thủ công', req: 'Chrome hoặc Edge mới nhất', size: '0.5 MB', cta: 'Tải tiện ích', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/chotto-extension-chrome.zip' }
+      },
+      instH: 'Bốn bước, rồi cứ yên tâm bấm.',
+      instP: 'Tải về, mở, và Chotto bắt đầu bảo vệ ngay. Không cần tạo tài khoản.',
+      tabsAria: 'Chọn nền tảng', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Tiện ích',
+      steps: {
+        win: [['Tải file cài đặt', 'Bấm “Tải cho Windows”. File CHOTTO-Setup.exe sẽ được lưu vào máy.'], ['Mở file cài đặt', 'Bấm đúp vào file. Nếu Windows cảnh báo, chọn “Thêm thông tin” rồi “Vẫn chạy”.'], ['Chọn thư mục', 'Chọn nơi cài Chotto rồi bấm Cài đặt.'], ['Xong', 'Biểu tượng Chotto xuất hiện trên màn hình Desktop. Mở lên và bấm thử một link trong Zalo.']],
+        mac: [['Tải ảnh đĩa', 'Bấm “Tải cho macOS” để lưu file CHOTTO-macOS.dmg.'], ['Chuyển vào Applications', 'Mở file .dmg rồi kéo Chotto thả vào thư mục Applications.'], ['Mở lần đầu', 'Nhấn chuột phải vào Chotto trong Applications, chọn Mở, rồi xác nhận. Chỉ cần làm một lần.'], ['Xong', 'Chotto hỏi một lần để làm trình mở link. Sau đó bấm thử một link trong Zalo.']],
+        ext: [['Tải và giải nén', 'Giải nén file .zip vào một thư mục bạn sẽ giữ lại.'], ['Mở trang tiện ích', 'Vào chrome://extensions hoặc edge://extensions, bật Chế độ nhà phát triển.'], ['Tải tiện ích đã giải nén', 'Chọn “Tải tiện ích đã giải nén” và trỏ tới thư mục vừa giải nén.'], ['Xong', 'Ghim Chotto lên thanh công cụ rồi mở Zalo Web.']]
+      },
+      faqH: 'Câu hỏi thường gặp',
+      q1: 'Chotto có mất phí không?', a1: 'Không. Chotto miễn phí và không cần tài khoản.',
+      q2: 'Chotto có đọc tin nhắn Zalo của tôi không?', a2: 'Không. Chotto chỉ nhận link khi bạn bấm vào, và nhật ký chỉ lưu tên miền trên máy bạn.',
+      q3: 'Windows hoặc macOS hiện cảnh báo khi mở Chotto thì sao?', a3: 'Hãy làm theo các bước cài đặt ở phần Cài đặt phía trên cho hệ điều hành của bạn.',
+      q4: 'Tiện ích trình duyệt khác gì bản cài trên máy?', a4: 'Tiện ích kiểm tra link mở trong Chrome hoặc Edge, kể cả Zalo Web. Bản cài trên máy bảo vệ cả link mở từ ứng dụng Zalo.',
+      footA: 'Một nhịp lặng,', footB: 'trước mỗi lần bấm.',
+      footBrand: 'Được phát triển bởi AECCUS', footSrc: 'Mã nguồn', footContact: 'Liên hệ'
+    };
+  }
+
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  var os = 'win';
+  try { if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) os = 'mac'; } catch (e) {}
+  var URLS = [
+    'https://vietcombank.com.vn.xacthuc-tk.top/dang-nhap',
+    'https://vnexpress.net/the-thao',
+    'https://shopee-khuyenmai247.com/qua-tang'
+  ];
+  var st = { tab: os, step: 0, faq: 0, sec: '', lang: 'en', s: 0, ch: 0, t: 0 };
+  try { var saved = localStorage.getItem('chotto-lang'); if (saved === 'en' || saved === 'vi') st.lang = saved; } catch (e) {}
+  var T = dict(st.lang);
+
+  // ---------- con trỏ sáng trên thẻ ----------
+  function glow(e) {
+    var el = e.currentTarget; var r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    el.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  }
+
+  // ---------- dựng các khối lặp ----------
+  var PLAT_ICON = {
+    win: '<svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><rect width="7.4" height="7.4" fill="#e9eef8"></rect><rect x="8.6" width="7.4" height="7.4" fill="#e9eef8"></rect><rect y="8.6" width="7.4" height="7.4" fill="#e9eef8"></rect><rect x="8.6" y="8.6" width="7.4" height="7.4" fill="#e9eef8"></rect></svg>',
+    mac: '<span aria-hidden="true" style="font-size: 26px; color: #e9eef8">⌘</span>',
+    ext: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e9eef8" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h4v2a2 2 0 1 0 4 0V4h3v6h-2a2 2 0 1 0 0 4h2v6h-6v-2a2 2 0 1 0-4 0v2H4v-6h2a2 2 0 1 0 0-4H4V4z"></path></svg>'
+  };
+  ['win', 'mac', 'ext'].forEach(function (id) {
+    var cur = id === os;
+    var d = document.createElement('div');
+    d.className = 'card rv';
+    d.setAttribute('data-plat', id);
+    d.setAttribute('style', 'padding: 28px; display: flex; flex-direction: column;' + (cur ? ' background: linear-gradient(180deg, #0d1424, #0a0d13 60%); box-shadow: inset 0 0 0 1px #2c4f9e, 0 30px 80px -40px rgba(46,110,255,.6);' : ''));
+    d.innerHTML =
+      '<div style="display: flex; justify-content: space-between; align-items: flex-start">' +
+        '<div style="width: 56px; height: 56px; border-radius: 12px; background: #121722; box-shadow: inset 0 0 0 1px #232b3a; display: grid; place-items: center">' + PLAT_ICON[id] + '</div>' +
+        (cur ? '<span data-t="current" style="font-size: 12px; font-weight: 500; letter-spacing: .3px; padding: 4px 10px; border-radius: 999px; background: rgba(77,141,255,.14); color: #9cc0ff"></span>' : '') +
+      '</div>' +
+      '<h3 data-p="name" style="margin: 24px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em"></h3>' +
+      '<p data-p="desc" style="margin: 6px 0 0; font-size: 15px; color: #aab3c5"></p>' +
+      '<dl class="mono" style="margin: 22px 0 0; display: grid; gap: 8px; font-size: 13px">' +
+        '<div style="display: flex; justify-content: space-between; gap: 12px"><dt data-t="fmt" style="color: #8a93a6"></dt><dd data-p="format" style="margin: 0"></dd></div>' +
+        '<div style="display: flex; justify-content: space-between; gap: 12px"><dt data-t="req" style="color: #8a93a6"></dt><dd data-p="req" style="margin: 0; text-align: right"></dd></div>' +
+        '<div style="display: flex; justify-content: space-between; gap: 12px"><dt data-t="size" style="color: #8a93a6"></dt><dd data-p="size" style="margin: 0"></dd></div>' +
+      '</dl>' +
+      '<a data-p="cta" class="' + (cur ? 'btn btn-w' : 'btn btn-g') + '" style="margin-top: 26px; width: 100%; box-sizing: border-box"></a>';
+    $('#platforms').appendChild(d);
+  });
+
+  for (var i = 0; i < 4; i++) {
+    (function (i) {
+      var li = document.createElement('li');
+      li.innerHTML = '<span aria-hidden="true"></span><div><strong style="display: block; font-weight: 500; font-size: 17px"></strong><span style="display: block; margin-top: 2px; font-size: 15px; color: #aab3c5"></span></div>';
+      li.addEventListener('mouseenter', function () { st.step = i; renderSteps(); });
+      $('#steps').appendChild(li);
+
+      var f = document.createElement('div');
+      f.style.borderBottom = '1px solid #161c26';
+      f.innerHTML = '<button type="button" style="all: unset; box-sizing: border-box; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 0; cursor: pointer; font-size: 18px; font-weight: 500; color: #ffffff"><span></span><span aria-hidden="true">+</span></button>' +
+        '<div><div><p style="margin: 0 0 24px; color: #aab3c5; max-width: 40em; font-size: 16px; line-height: 1.6"></p></div></div>';
+      f.querySelector('button').addEventListener('click', function () { st.faq = st.faq === i ? -1 : i; renderFaq(); });
+      $('#faqs').appendChild(f);
+    })(i);
+  }
+
+  $$('.card').forEach(function (c) { c.addEventListener('mousemove', glow); });
+
+  // ---------- vẽ theo trạng thái ----------
+  function renderSteps() {
+    $$('#tabs .tab').forEach(function (b) {
+      var on = b.getAttribute('data-tab') === st.tab;
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.setAttribute('style', 'border-radius: 0; padding: 8px 0; margin-right: 22px; ' + (on ? 'color: #ffffff; box-shadow: inset 0 -2px 0 #9cc0ff' : 'color: #8a93a6; box-shadow: none'));
+    });
+    var list = T.steps[st.tab];
+    $$('#steps li').forEach(function (li, i) {
+      var on = i === st.step;
+      li.setAttribute('style', 'display:flex; gap:16px; padding:18px 0; cursor:pointer; transition: opacity .35s; opacity:' + (on ? 1 : 0.45));
+      li.children[0].setAttribute('style', 'width:8px; height:8px; border-radius:50%; flex:none; margin-top:9px; background:' + (on ? '#9cc0ff' : '#2a3140') + '; transition: background .3s');
+      li.querySelector('strong').textContent = list[i][0];
+      li.querySelector('div > span').textContent = list[i][1];
+    });
+  }
+
+  function renderFaq() {
+    $$('#faqs > div').forEach(function (f, i) {
+      var open = st.faq === i;
+      var btn = f.querySelector('button');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.children[0].textContent = T['q' + (i + 1)];
+      btn.children[1].setAttribute('style', 'flex: none; font-size: 22px; line-height: 1; color: #8a93a6; transition: transform .45s cubic-bezier(.16,1,.3,1); transform: ' + (open ? 'rotate(45deg)' : 'rotate(0deg)'));
+      var wrap = f.children[1];
+      wrap.setAttribute('style', 'display: grid; grid-template-rows: ' + (open ? '1fr' : '0fr') + '; transition: grid-template-rows .45s cubic-bezier(.16,1,.3,1)');
+      wrap.children[0].setAttribute('style', 'min-height: 0; overflow: hidden; opacity: ' + (open ? 1 : 0) + '; transition: opacity .35s');
+      wrap.querySelector('p').textContent = T['a' + (i + 1)];
+    });
+  }
+
+  function renderNav() {
+    $$('[data-nav]').forEach(function (a) {
+      a.setAttribute('style', a.getAttribute('data-nav') === st.sec
+        ? 'color: #ffffff; text-decoration: underline; text-decoration-color: #9cc0ff; text-decoration-thickness: 2px; text-underline-offset: 8px; transition: color .15s'
+        : 'transition: color .15s');
+    });
+  }
+
+  function renderText() {
+    T = dict(st.lang);
+    document.documentElement.lang = st.lang;
+    $$('[data-t]').forEach(function (el) { el.textContent = T[el.getAttribute('data-t')]; });
+    $$('[data-ta]').forEach(function (el) {
+      var p = el.getAttribute('data-ta').split(':');
+      el.setAttribute(p[0], T[p[1]]);
+    });
+    $$('[data-hero-label]').forEach(function (el) { el.textContent = os === 'mac' ? T.dlMac : T.dlWin; });
+    $$('[data-plat]').forEach(function (card) {
+      var p = T.plat[card.getAttribute('data-plat')];
+      $$('[data-p]', card).forEach(function (el) { el.textContent = p[el.getAttribute('data-p')]; });
+      card.querySelector('[data-p="cta"]').setAttribute('href', p.href);
+    });
+    $('#heroH').innerHTML = '';
+    T.hero.split(' ').forEach(function (w, i) {
+      var s = document.createElement('span');
+      s.className = 'word';
+      s.style.animationDelay = (0.08 + i * 0.07).toFixed(2) + 's';
+      s.textContent = w;
+      $('#heroH').appendChild(s);
+      $('#heroH').appendChild(document.createTextNode(' '));
+    });
+    $('#langCode').textContent = st.lang === 'en' ? 'EN' : 'VI';
+    $$('.langitem').forEach(function (b) {
+      var on = b.getAttribute('data-lang') === st.lang;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.querySelector('svg').style.display = on ? '' : 'none';
+    });
+    renderSteps();
+    renderFaq();
+    renderDemo();
+  }
+
+  $$('.if-win').forEach(function (el) { if (os === 'mac') el.style.display = 'none'; });
+  $$('.if-mac').forEach(function (el) { if (os !== 'mac') el.style.display = 'none'; });
+
+  // ---------- chuyển ngôn ngữ ----------
+  var langBtn = $('#langBtn'), langMenu = $('#langMenu');
+  function setMenu(open) { langMenu.hidden = !open; langBtn.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+  langBtn.addEventListener('click', function () { setMenu(langMenu.hidden); });
+  $('#langWrap').addEventListener('mouseleave', function () { if (!langMenu.hidden) setMenu(false); });
+  $$('.langitem').forEach(function (b) {
+    b.addEventListener('click', function () {
+      st.lang = b.getAttribute('data-lang');
+      setMenu(false);
+      try { localStorage.setItem('chotto-lang', st.lang); } catch (e) {}
+      renderText();
+    });
+  });
+
+  $$('#tabs .tab').forEach(function (b) {
+    b.addEventListener('click', function () { st.tab = b.getAttribute('data-tab'); st.step = 0; renderSteps(); });
+  });
+
+  // ---------- hero: tia sáng theo chuột ----------
+  var beams = [[$('#b1'), 130, 26], [$('#b2'), 222, 16], [$('#b3'), 314, 8]];
+  function moveBeams(px, py) {
+    beams.forEach(function (b) { b[0].style.transform = 'translate3d(' + (px * b[2]) + 'px,' + (py * b[2] * 0.5) + 'px,0)'; });
+  }
+  $('#hero').addEventListener('mousemove', function (e) {
+    var r = e.currentTarget.getBoundingClientRect();
+    moveBeams(((e.clientX - r.left) / r.width - 0.5) * 2, ((e.clientY - r.top) / r.height - 0.5) * 2);
+  });
+
+  // ---------- hero: cửa sổ gõ link ----------
+  var col = { bad: '#ff5a52', ok: '#3fd08a' };
+  var rowEls = [];
+  for (var r = 0; r < 3; r++) {
+    var row = document.createElement('div');
+    row.innerHTML = '<span></span><span style="color: #aab3c5; font-size: 15px; width: 150px; flex: none"></span><span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"></span>';
+    $('#rows').appendChild(row);
+    rowEls.push(row);
+  }
+  function renderDemo() {
+    var smp = T.samples[st.s];
+    var url = URLS[st.s];
+    var typingDone = st.ch >= url.length;
+    var shownRows = typingDone ? Math.min(3, Math.floor(st.t / 7)) : 0;
+    var showVerdict = typingDone && st.t >= 28;
+    $('#typed').textContent = url.slice(0, st.ch);
+    smp.rows.forEach(function (rw, i) {
+      var el = rowEls[i];
+      el.setAttribute('style', 'display:flex; align-items:center; gap:12px; height:44px; padding:0 12px; border-radius:8px; transition: opacity .35s, transform .35s, filter .35s;' + (i < shownRows ? 'opacity:1; transform:none; filter:none' : 'opacity:0; transform: translateY(6px); filter: blur(4px)'));
+      el.children[0].setAttribute('style', 'width:8px; height:8px; border-radius:50%; flex:none; background:' + col[rw[2]] + '; box-shadow: 0 0 10px ' + col[rw[2]]);
+      el.children[1].textContent = rw[0];
+      el.children[2].textContent = rw[1];
+    });
+    $('#verdict').textContent = smp.verdict;
+    $('#score').textContent = smp.score;
+    $('#verdictBox').setAttribute('style', 'display:flex; align-items:center; gap:12px; height:48px; margin-top:4px; padding:0 12px; border-radius:8px; transition: opacity .4s, transform .4s; background:' + (smp.bad ? 'rgba(255,90,82,.12)' : 'rgba(63,208,138,.1)') + '; box-shadow: inset 0 0 0 1px ' + (smp.bad ? 'rgba(255,90,82,.3)' : 'rgba(63,208,138,.28)') + ';' + (showVerdict ? 'opacity:1; transform:none' : 'opacity:0; transform: translateY(6px)'));
+    $('#verdictDot').setAttribute('style', 'width:10px; height:10px; border-radius:50%; flex:none; background:' + (smp.bad ? '#ff5a52' : '#3fd08a'));
+  }
+  setInterval(function () {
+    var url = URLS[st.s];
+    if (st.ch < url.length) st.ch = Math.min(url.length, st.ch + 2);
+    else if (st.t < 110) st.t += 1;
+    else { st.s = (st.s + 1) % URLS.length; st.ch = 0; st.t = 0; }
+    renderDemo();
+  }, 40);
+
+  // ---------- phím Esc ----------
+  var cap = $('#escCap'), win = $('#winBox'), busy = false;
+  cap.addEventListener('click', function () {
+    if (busy) return;
+    busy = true;
+    cap.classList.add('down');
+    win.classList.add('winHide');
+    setTimeout(function () { cap.classList.remove('down'); }, 180);
+    setTimeout(function () { win.classList.remove('winHide'); busy = false; }, 1500);
+  });
+
+  // ---------- cuộn mượt + sáng mục trên thanh menu ----------
+  var ids = ['cach-hoat-dong', 'tai-xuong', 'cai-dat', 'hoi-dap'];
+  var navLock = false, navT = 0;
+  function onScroll() {
+    if (navLock) return;
+    var cur = '';
+    ids.forEach(function (id) { var el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= innerHeight * 0.4) cur = id; });
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) cur = ids[ids.length - 1];
+    if (cur !== st.sec) { st.sec = cur; renderNav(); }
+  }
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var id = (a.getAttribute('href') || '').slice(1);
+    var el = id && document.getElementById(id);
+    if (!el) return;
+    e.preventDefault();
+    var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' });
+    navLock = true;
+    clearTimeout(navT);
+    navT = setTimeout(function () { navLock = false; onScroll(); }, 1100);
+    st.sec = id; renderNav();
+  });
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // ---------- khởi động ----------
+  renderText();
+  renderNav();
+  onScroll();
+
+  // ---------- hiện dần khi cuộn tới ----------
+  try {
+    document.documentElement.classList.add('rv-on');
+    var els = $$('.rv');
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('shown'); io.unobserve(e.target); } });
+      }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
+      els.forEach(function (el) { io.observe(el); });
+    } else { els.forEach(function (el) { el.classList.add('shown'); }); }
+    setTimeout(function () { $$('.rv').forEach(function (el) { if (el.getBoundingClientRect().top < innerHeight) el.classList.add('shown'); }); }, 1200);
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

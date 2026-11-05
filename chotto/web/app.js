@@ -98,6 +98,31 @@
   $$("[data-tab]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); tab(a.dataset.tab); }));
   $$("[data-win]").forEach((b) => b.addEventListener("click", () => api && api.window(b.dataset.win)));
 
+  // Cửa sổ không viền: tự vẽ mép kéo giãn (độ dời tính bằng điểm ảnh vật lý, gộp theo khung hình).
+  $$(".rz").forEach((grip) => {
+    grip.addEventListener("pointerdown", (e) => {
+      if (!api || e.button !== 0) return;
+      e.preventDefault();
+      grip.setPointerCapture(e.pointerId);
+      const x0 = e.screenX, y0 = e.screenY, dpr = window.devicePixelRatio || 1;
+      let pending = null, queued = false;
+      api.resize_begin(grip.dataset.edge);
+      const flush = () => { queued = false; if (pending) { api.resize_move(pending[0], pending[1]); pending = null; } };
+      const move = (ev) => {
+        pending = [(ev.screenX - x0) * dpr, (ev.screenY - y0) * dpr];
+        if (!queued) { queued = true; requestAnimationFrame(flush); }
+      };
+      const end = () => {
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", end);
+        grip.removeEventListener("pointercancel", end);
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", end);
+      grip.addEventListener("pointercancel", end);
+    });
+  });
+
   // ---------- cài đặt: lưu ngay ----------
   async function save(patch, revert) {
     if (!api) return true;

@@ -16,3 +16,6 @@ extension/screenshots/
 # Bản thử giao diện và dữ liệu làm việc của công cụ thiết kế (không thuộc sản phẩm)
 design/
 .taste-skill/
+
+# sinh ra khi đóng gói
+CHOTTO.spec

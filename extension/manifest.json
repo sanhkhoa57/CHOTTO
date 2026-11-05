@@ -42,7 +42,7 @@
   "content_scripts": [
     {
       "matches": ["https://chat.zalo.me/*"],
-      "js": ["src/ui/friction.js", "src/content.js"],
+      "js": ["src/ui/icon-data.js", "src/ui/friction.js", "src/content.js"],
       "run_at": "document_start",
       "all_frames": true,
       "match_about_blank": true

@@ -6,6 +6,13 @@
 <title>Chotto</title>
 <link rel="stylesheet" href="style.css">
 <style>
+.rz { position: fixed; z-index: 50; touch-action: none; }
+.rz[data-edge="n"], .rz[data-edge="s"] { left: 8px; right: 8px; height: 5px; cursor: ns-resize; }
+.rz[data-edge="e"], .rz[data-edge="w"] { top: 8px; bottom: 8px; width: 5px; cursor: ew-resize; }
+.rz[data-edge="n"] { top: 0; } .rz[data-edge="s"] { bottom: 0; } .rz[data-edge="e"] { right: 0; } .rz[data-edge="w"] { left: 0; }
+.rz[data-edge="nw"], .rz[data-edge="ne"], .rz[data-edge="sw"], .rz[data-edge="se"] { width: 10px; height: 10px; }
+.rz[data-edge="nw"] { top: 0; left: 0; cursor: nwse-resize; } .rz[data-edge="se"] { bottom: 0; right: 0; cursor: nwse-resize; }
+.rz[data-edge="ne"] { top: 0; right: 0; cursor: nesw-resize; } .rz[data-edge="sw"] { bottom: 0; left: 0; cursor: nesw-resize; }
 .shell { height: 100vh; display: grid; grid-template-columns: 232px 1fr; grid-template-rows: 40px 1fr; }
 .tb { grid-column: 1 / -1; }
 .side { padding: 0 16px 20px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); min-height: 0; }
@@ -102,6 +109,8 @@
 </style>
 </head>
 <body>
+<div class="rz" data-edge="n"></div><div class="rz" data-edge="s"></div><div class="rz" data-edge="e"></div><div class="rz" data-edge="w"></div>
+<div class="rz" data-edge="nw"></div><div class="rz" data-edge="ne"></div><div class="rz" data-edge="sw"></div><div class="rz" data-edge="se"></div>
 <div class="shell">
   <div class="tb">
     <div class="drag pywebview-drag-region"></div>

@@ -31,6 +31,7 @@ PLIST = {
 OPTIONS: dict[str, Any] = {
     "py2app": {
         "plist": PLIST,
+        "iconfile": "packaging/chotto.icns",
         "packages": ["chotto", "webview"],       # kéo theo chotto/data và chotto/web (giao diện HTML, font)
         "includes": ["tkinter"],
         "argv_emulation": False,   # phải tắt: link http(s) đến qua Apple Event (::tk::mac::LaunchURL), không qua argv

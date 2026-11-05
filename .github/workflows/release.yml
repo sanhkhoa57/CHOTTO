@@ -1,0 +1,79 @@
+# Khi đẩy tag dạng v1.5.0: build bản Windows (Setup), macOS (.dmg) và extension, rồi đưa lên GitHub Release
+# với tên file CỐ ĐỊNH để link "latest/download/<tên>" trên trang tải luôn đúng.
+# Miễn phí với repo công khai. Chạy tay (Actions > Release > Run workflow) chỉ build và giữ file ở mục Artifacts.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: choco install innosetup -y --no-progress
+      - run: cmd /c packaging\build_windows.bat
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/CHOTTO-Setup.exe
+
+  macos:
+    runs-on: macos-14          # Apple silicon (arm64): bản .app build ra chạy trên chip M1 trở lên
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - run: python packaging/macos_setup.py py2app
+      - name: Ký tạm (ad-hoc) và tạo .dmg
+        run: |
+          codesign --force --deep --sign - dist/CHOTTO.app
+          mkdir dmg && cp -R dist/CHOTTO.app dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname CHOTTO -srcfolder dmg -ov -format UDZO dist/CHOTTO-macOS.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/CHOTTO-macOS.dmg
+
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python tools/build_extension.py
+      - run: |
+          cp dist/chotto-extension-chrome-*.zip dist/chotto-extension-chrome.zip
+          cp dist/chotto-extension-firefox-*.zip dist/chotto-extension-firefox.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension
+          path: |
+            dist/chotto-extension-chrome.zip
+            dist/chotto-extension-firefox.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos, extension]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          generate_release_notes: true

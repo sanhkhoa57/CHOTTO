@@ -86,6 +86,120 @@ def _activate(window: Any) -> None:
         _LOG.debug("Không kích hoạt được cửa sổ", exc_info=True)
 
 
+def _set_window_icon(window: Any) -> None:
+    """Đặt icon cho cửa sổ WinForms (thanh tác vụ, Alt+Tab). Bản đóng gói đã có icon trong exe; chạy từ mã nguồn thì cần cái này."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        user32.LoadImageW.restype = wintypes.HANDLE
+        user32.LoadImageW.argtypes = (wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT)
+        user32.SendMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+        ico = str(web_root().parent.parent / "packaging" / "chotto.ico")
+        if getattr(sys, "frozen", False) or not os.path.exists(ico):
+            return
+        hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
+        for which, size in ((0, 16), (1, 32)):                          # ICON_SMALL, ICON_BIG
+            handle = user32.LoadImageW(None, ico, 1, size, size, 0x10)  # IMAGE_ICON, LR_LOADFROMFILE
+            if handle:
+                user32.SendMessageW(hwnd, 0x0080, which, handle)        # WM_SETICON
+    except Exception:  # noqa: BLE001 - chỉ là phần hiển thị
+        _LOG.debug("Không đặt được icon cửa sổ", exc_info=True)
+
+
+def _enable_snap(window: Any) -> None:
+    """Cho cửa sổ không viền của WinForms dùng được chia cửa sổ của Windows (Win+←/→/↑, Snap layouts).
+
+    Windows chỉ cho snap cửa sổ có kiểu ``WS_THICKFRAME`` + ``WS_MAXIMIZEBOX``. Ta thêm các kiểu đó rồi chặn
+    ``WM_NCCALCSIZE`` để vùng nội dung vẫn phủ kín cửa sổ (không hiện khung hệ thống). Lỗi thì bỏ qua: cửa sổ
+    vẫn dùng bình thường, chỉ không snap được.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
+        lresult = ctypes.c_ssize_t
+        wndproc_t = ctypes.WINFUNCTYPE(lresult, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+        user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+        user32.GetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int)
+        user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+        user32.SetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
+        user32.CallWindowProcW.restype = lresult
+        user32.CallWindowProcW.argtypes = (ctypes.c_ssize_t, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+        user32.GetSystemMetricsForDpi.argtypes = (ctypes.c_int, wintypes.UINT)
+        user32.GetDpiForWindow.argtypes = (wintypes.HWND,)
+        user32.IsZoomed.argtypes = (wintypes.HWND,)
+
+        wm_nccalcsize = 0x0083
+        old_proc = user32.GetWindowLongPtrW(hwnd, -4)           # GWLP_WNDPROC
+
+        def proc(h: Any, msg: int, wparam: int, lparam: int) -> int:
+            if msg == wm_nccalcsize and wparam:
+                if user32.IsZoomed(h):                          # phóng to kiểu hệ thống: thụt vào bằng bề dày khung ẩn
+                    dpi = user32.GetDpiForWindow(h) or 96
+                    frame = user32.GetSystemMetricsForDpi(32, dpi) + user32.GetSystemMetricsForDpi(92, dpi)
+                    rect = ctypes.cast(lparam, ctypes.POINTER(wintypes.RECT)).contents
+                    rect.left += frame
+                    rect.top += frame
+                    rect.right -= frame
+                    rect.bottom -= frame
+                return 0
+            return int(user32.CallWindowProcW(old_proc, h, msg, wparam, lparam))
+
+        callback = wndproc_t(proc)
+        _SNAP_KEEPALIVE.append(callback)                         # giữ tham chiếu, nếu không GC sẽ làm sập tiến trình
+        user32.SetWindowLongPtrW(hwnd, -4, ctypes.cast(callback, ctypes.c_void_p).value or 0)
+        style = user32.GetWindowLongPtrW(hwnd, -16)             # GWL_STYLE
+        style |= 0x00040000 | 0x00010000 | 0x00020000           # THICKFRAME | MAXIMIZEBOX | MINIMIZEBOX
+        user32.SetWindowLongPtrW(hwnd, -16, style)
+        user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020)  # NOSIZE|NOMOVE|NOZORDER|NOACTIVATE|FRAMECHANGED
+    except Exception:  # noqa: BLE001 - chỉ là tiện ích, không bao giờ được làm hỏng cửa sổ
+        _LOG.debug("Không bật được snap cửa sổ", exc_info=True)
+
+
+def _fade(window: Any, start: int, end: int, ms: int = 160) -> None:
+    """Làm mờ/hiện dần cả cửa sổ (Windows, độ trong suốt 0-255), chặn luồng gọi trong ``ms`` mili giây.
+
+    Dùng lớp trong suốt của Windows nên không phụ thuộc trang web đã vẽ xong hay chưa. Lỗi thì bỏ qua.
+    Dừng ở ``255`` thì gỡ lớp trong suốt để WebView2 vẽ như thường.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.windll.user32
+        hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
+        user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
+        user32.GetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int)
+        user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
+        user32.SetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
+        user32.SetLayeredWindowAttributes.argtypes = (wintypes.HWND, wintypes.DWORD, ctypes.c_ubyte, wintypes.DWORD)
+        ex = user32.GetWindowLongPtrW(hwnd, -20)                       # GWL_EXSTYLE
+        user32.SetWindowLongPtrW(hwnd, -20, ex | 0x00080000)           # WS_EX_LAYERED
+        steps = max(1, ms // 16)
+        for i in range(steps + 1):
+            k = i / steps
+            user32.SetLayeredWindowAttributes(hwnd, 0, round(start + (end - start) * k), 0x2)   # LWA_ALPHA
+            if i < steps:
+                time.sleep(ms / 1000 / steps)
+        if end >= 255:
+            user32.SetWindowLongPtrW(hwnd, -20, ex & ~0x00080000)
+    except Exception:  # noqa: BLE001 - chỉ là hiệu ứng
+        _LOG.debug("Không làm mờ được cửa sổ", exc_info=True)
+
+
+_SNAP_KEEPALIVE: list[Any] = []
+
+
 class FrictionApi:
     """Cầu nối JavaScript của một màn hình đệm. Chỉ các phương thức không có dấu ``_`` được lộ ra JS."""
 
@@ -311,6 +425,14 @@ class AppApi:
         """Điều khiển cửa sổ từ thanh tiêu đề tự vẽ."""
         self._host.app_window_op(op)
 
+    def resize_begin(self, edge: str) -> None:
+        """Bắt đầu kéo giãn cửa sổ từ mép/góc ``edge`` (tổ hợp các chữ n, s, e, w)."""
+        self._host.app_resize_begin(str(edge))
+
+    def resize_move(self, dx: float, dy: float) -> None:
+        """Kéo giãn tiếp: ``dx``, ``dy`` là độ dời con trỏ (điểm ảnh vật lý) từ lúc bắt đầu."""
+        self._host.app_resize_move(float(dx), float(dy))
+
 
 class Host:
     """Vòng đời các cửa sổ pywebview trong tiến trình giao diện."""
@@ -328,6 +450,11 @@ class Host:
         self._read_line = read_line
         self._frictions: dict[int, tuple[Any, FrictionApi]] = {}
         self._app_window: Any = None
+        self._app_maximized = False
+        self._faded_out = False           # cửa sổ đang mờ hẳn vì thu nhỏ xuống thanh tác vụ
+        self._normal_rect: tuple[int, int, int, int] | None = None
+        self._anim_busy = False
+        self._resize: tuple[int, set[str], tuple[int, int, int, int], float] | None = None
         self._keeper: Any = None
         self._lock = threading.Lock()
 
@@ -383,6 +510,7 @@ class Host:
                 self._app_window.restore()
                 self._app_window.show()
                 _activate(self._app_window)
+                self._reveal_if_faded()
                 return
             except Exception:  # noqa: BLE001 - cửa sổ cũ hỏng: tạo cửa sổ mới
                 self._app_window = None
@@ -392,6 +520,37 @@ class Host:
         self._app_window = window
         window.events.closed += self._on_settings_closed
         window.events.shown += lambda: _activate(window)
+        window.events.shown += lambda: _enable_snap(window)
+        window.events.shown += lambda: _set_window_icon(window)
+        window.events.shown += lambda: _fade(window, 0, 0, 0)            # ẩn tới khi trang tải xong rồi hiện dần
+        opened = threading.Event()
+
+        def reveal() -> None:
+            if not opened.is_set():
+                opened.set()
+                _fade(window, 0, 255, 220)
+
+        window.events.loaded += lambda: threading.Timer(0.12, reveal).start()
+        threading.Timer(2.5, reveal).start()                             # phòng khi sự kiện loaded không đến
+        self._app_maximized = False
+        self._faded_out = False
+        self._normal_rect = None
+        window.events.maximized += lambda: setattr(self, "_app_maximized", True)
+        # Khôi phục sau khi thu nhỏ xuống thanh tác vụ không có nghĩa là hết phóng to kiểu tự vẽ (còn _normal_rect).
+        window.events.restored += self._on_app_restored
+
+    def _on_app_restored(self) -> None:
+        """Cửa sổ được khôi phục (từ thanh tác vụ hoặc từ phóng to của hệ điều hành)."""
+        self._app_maximized = self._normal_rect is not None
+        self._reveal_if_faded()
+
+    def _reveal_if_faded(self) -> None:
+        """Hiện dần lại cửa sổ đã mờ hẳn khi thu nhỏ (gọi ở mọi đường mở lại để không bao giờ kẹt trong suốt)."""
+        window = self._app_window
+        if window is None or not self._faded_out:
+            return
+        self._faded_out = False
+        threading.Thread(target=_fade, args=(window, 0, 255, 200), name="chotto-reveal", daemon=True).start()
 
     def _on_settings_closed(self) -> None:
         self._app_window = None
@@ -403,14 +562,119 @@ class Host:
         if window is None:
             return
         if op == "minimize":
+            self._faded_out = True
+            _fade(window, 255, 0, 140)          # mờ dần rồi mới thu xuống thanh tác vụ; mở lại sẽ hiện dần
             window.minimize()
         elif op == "toggle_maximize":
-            if getattr(window, "maximized", False):
-                window.restore()
-            else:
-                window.maximize()
+            if not self._animate_maximize(window):       # không làm được hiệu ứng thì dùng phóng to/thu nhỏ của hệ điều hành
+                if self._app_maximized:       # ``window.maximized`` của pywebview chỉ là tham số khởi tạo, không theo dõi trạng thái
+                    window.restore()
+                else:
+                    window.maximize()
         elif op == "close":
+            _fade(window, 255, 0, 150)
             window.destroy()
+
+    def _animate_maximize(self, window: Any) -> bool:
+        """Phóng to / thu nhỏ có hiệu ứng chuyển dần (Windows). ``False`` nếu không làm được (người gọi dùng cách thường).
+
+        Cửa sổ không viền không có hiệu ứng của hệ điều hành, nên ta tự dời/giãn cửa sổ giữa kích thước thường và
+        vùng làm việc của màn hình (không che thanh tác vụ). Không dùng WindowState, nên bấm lần nữa là về đúng kích thước cũ.
+        """
+        if sys.platform != "win32" or self._anim_busy:
+            return self._anim_busy
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            user32 = ctypes.windll.user32
+            hwnd = int(window.native.Handle.ToInt64())
+            rect = wintypes.RECT()
+            user32.GetWindowRect(hwnd, ctypes.byref(rect))
+            current = (rect.left, rect.top, rect.right, rect.bottom)
+            if self._app_maximized and self._normal_rect is None:
+                return False                              # đã phóng to bằng hệ điều hành (vd. Win+Up): để nó tự khôi phục
+            if self._app_maximized:
+                target = self._normal_rect
+            else:
+                class MonitorInfo(ctypes.Structure):
+                    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                                ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+                info = MonitorInfo()
+                info.cbSize = ctypes.sizeof(MonitorInfo)
+                monitor = user32.MonitorFromWindow(hwnd, 2)          # MONITOR_DEFAULTTONEAREST
+                if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                    return False
+                work = info.rcWork
+                self._normal_rect = current
+                target = (work.left, work.top, work.right, work.bottom)
+            if target is None:
+                return False
+        except Exception:  # noqa: BLE001 - hiệu ứng chỉ là phần thêm
+            _LOG.debug("Không dựng được hiệu ứng phóng to", exc_info=True)
+            return False
+        going_up = not self._app_maximized
+        self._app_maximized = going_up
+        if not going_up:
+            self._normal_rect = None
+        self._anim_busy = True
+
+        def run() -> None:
+            try:
+                steps, duration = 14, 0.16
+                for i in range(1, steps + 1):
+                    k = 1 - (1 - i / steps) ** 3                      # ease-out cubic
+                    l, t, r, b = (round(a + (z - a) * k) for a, z in zip(current, target))
+                    user32.SetWindowPos(hwnd, 0, l, t, r - l, b - t, 0x0214)   # NOZORDER|NOACTIVATE|NOOWNERZORDER
+                    time.sleep(duration / steps)
+            except Exception:  # noqa: BLE001
+                _LOG.debug("Hiệu ứng phóng to bị gián đoạn", exc_info=True)
+            finally:
+                self._anim_busy = False
+
+        threading.Thread(target=run, name="chotto-anim", daemon=True).start()
+        return True
+
+    def app_resize_begin(self, edge: str) -> None:
+        """Cửa sổ không viền của WinForms không có mép để kéo, nên giao diện tự vẽ mép và gọi vào đây."""
+        self._resize = None
+        window = self._app_window
+        if window is None or self._app_maximized or sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            hwnd = int(window.native.Handle.ToInt64())
+            rect = wintypes.RECT()
+            ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+            dpi = ctypes.windll.user32.GetDpiForWindow(hwnd) or 96
+            self._resize = (hwnd, set(edge) & set("nsew"), (rect.left, rect.top, rect.right, rect.bottom), dpi / 96)
+        except Exception:  # noqa: BLE001 - chỉ là tiện ích kéo giãn
+            _LOG.debug("Không bắt đầu được kéo giãn", exc_info=True)
+
+    def app_resize_move(self, dx: float, dy: float) -> None:
+        """Áp kích thước mới trong lúc kéo giãn (không nhỏ hơn kích thước tối thiểu)."""
+        state = self._resize
+        if state is None:
+            return
+        hwnd, edges, (left, top, right, bottom), scale = state
+        min_w, min_h = round(760 * scale), round(560 * scale)
+        if "e" in edges:
+            right = max(right + round(dx), left + min_w)
+        if "w" in edges:
+            left = min(left + round(dx), right - min_w)
+        if "s" in edges:
+            bottom = max(bottom + round(dy), top + min_h)
+        if "n" in edges:
+            top = min(top + round(dy), bottom - min_h)
+        try:
+            import ctypes
+
+            ctypes.windll.user32.SetWindowPos(hwnd, 0, left, top, right - left, bottom - top, 0x0214)  # NOZORDER|NOACTIVATE|NOOWNERZORDER
+        except Exception:  # noqa: BLE001
+            _LOG.debug("Không kéo giãn được", exc_info=True)
 
     def ask_save_path(self, filename: str) -> str:
         """Hộp thoại lưu file của hệ thống; rỗng nếu người dùng hủy."""

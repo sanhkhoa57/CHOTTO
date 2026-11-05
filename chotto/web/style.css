@@ -42,10 +42,9 @@ h1, h2, p { text-wrap: pretty; }
 .tb .ctl svg { width: 10px; height: 10px; stroke: var(--muted); stroke-width: 1.1; fill: none; }
 .tb .ctl:hover svg { stroke: var(--ink); }
 
-.mark { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--accent); display: inline-grid; grid-auto-flow: column; gap: 2.5px; place-content: center; flex: none; }
-.mark i { width: 2px; height: 7px; border-radius: 1px; background: var(--accent); }
-.mark--lg { width: 30px; height: 30px; gap: 4px; box-shadow: inset 0 0 0 2px var(--accent); }
-.mark--lg i { width: 3px; height: 11px; }
+.mark { width: 22px; height: 22px; display: inline-block; flex: none; background: url(icon.png) center / contain no-repeat; }
+.mark i { display: none; }
+.mark--lg { width: 38px; height: 38px; }
 
 .h2 { margin: 0 0 18px; font: 400 24px/1.2 var(--serif); letter-spacing: -.01em; }
 
