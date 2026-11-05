@@ -38,7 +38,10 @@ WizardSelectDir=Chọn thư mục cài đặt
 SelectDirDesc=Bạn muốn cài CHOTTO vào đâu?
 SelectDirLabel3=CHOTTO sẽ được cài vào thư mục dưới đây.
 SelectDirBrowseLabel=Bấm Cài đặt để tiếp tục, hoặc bấm Chọn… để đổi thư mục khác.
-ButtonBrowse=Chọn…
+ButtonBrowse=Chọn thư mục…
+ButtonWizardBrowse=Chọn thư mục…
+DiskSpaceMBLabel=Cần ít nhất [mb] MB dung lượng trống.
+DiskSpaceGBLabel=Cần ít nhất [gb] GB dung lượng trống.
 ButtonInstall=Cài đặt
 ButtonCancel=Hủy
 ButtonNext=Tiếp tục
@@ -52,6 +55,7 @@ FinishedLabel=CHOTTO đã được cài vào máy của bạn. Biểu tượng C
 RunEntryExec=Mở CHOTTO
 
 [Files]
+Source: "pick_dir.ps1"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "..\dist\CHOTTO\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
@@ -81,4 +85,45 @@ begin
       Sleep(1500);
     end;
   end;
+end;
+
+// Nút "Chọn thư mục…": mở hộp thoại kiểu Explorer (thanh địa chỉ, thư mục hay dùng) thay cho hộp dạng cây của Inno Setup.
+procedure BrowseClick(Sender: TObject);
+var
+  ResultCode: Integer;
+  OutFile, Chosen: String;
+  Lines: TArrayOfString;
+begin
+  ExtractTemporaryFile('pick_dir.ps1');
+  OutFile := ExpandConstant('{tmp}\chotto_dir.txt');
+  DeleteFile(OutFile);
+  if Exec('powershell.exe',
+          '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ' + AddQuotes(ExpandConstant('{tmp}\pick_dir.ps1')) +
+          ' -Start ' + AddQuotes(WizardForm.DirEdit.Text) + ' -Out ' + AddQuotes(OutFile),
+          '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    if LoadStringsFromFile(OutFile, Lines) and (GetArrayLength(Lines) > 0) then
+    begin
+      Chosen := RemoveBackslashUnlessRoot(Trim(Lines[0]));
+      if Chosen <> '' then
+      begin
+        // Cài vào thư mục con CHOTTO để file không lẫn với thư mục người dùng vừa chọn (và gỡ cài đặt không đụng tới file khác).
+        if CompareText(ExtractFileName(Chosen), 'CHOTTO') <> 0 then
+          Chosen := AddBackslash(Chosen) + 'CHOTTO';
+        WizardForm.DirEdit.Text := Chosen;
+      end;
+    end;
+  end
+  else
+  begin
+    // Không chạy được PowerShell: dùng hộp chọn thư mục có sẵn của Inno Setup.
+    Chosen := WizardForm.DirEdit.Text;
+    if BrowseForFolder('Chọn thư mục để cài CHOTTO', Chosen, True) then
+      WizardForm.DirEdit.Text := Chosen;
+  end;
+end;
+
+procedure InitializeWizard;
+begin
+  WizardForm.DirBrowseButton.OnClick := @BrowseClick;
 end;

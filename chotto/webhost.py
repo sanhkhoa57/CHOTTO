@@ -466,14 +466,23 @@ class Host:
             screen_h = 900
         return max(560, min(940, screen_h - 80))
 
+    def _centered(self, width: int, height: int) -> dict[str, int]:
+        """``x``/``y`` để cửa sổ ``width`` x ``height`` nằm giữa màn hình chính (không chỉ vị trí thì Windows xếp vào góc)."""
+        try:
+            screen = self._webview.screens[0]
+            return {"x": max(0, (int(screen.width) - width) // 2), "y": max(0, (int(screen.height) - height) // 2)}
+        except Exception:  # noqa: BLE001 - không đọc được màn hình: để hệ điều hành tự đặt
+            return {}
+
     def open_friction(self, fid: int, payload: dict[str, Any]) -> None:
         """Mở màn hình đệm ``fid``."""
         api = FrictionApi(fid, payload, float(payload.get("lock_s", 0)), self._wire, self._close_friction)
+        height = self._friction_height()
         window = self._webview.create_window(
             _msg(str(payload.get("view", {}).get("lang", "en")), "friction_title"),
             url=str(web_root() / "friction.html"), js_api=api,
-            width=820, height=self._friction_height(), min_size=(600, 520), frameless=True, easy_drag=False,
-            on_top=True, background_color=BG, text_select=True)
+            width=820, height=height, min_size=(600, 520), frameless=True, easy_drag=False,
+            on_top=True, background_color=BG, text_select=True, **self._centered(820, height))
         api._window = window  # noqa: SLF001 - cùng mô-đun
         with self._lock:
             self._frictions[fid] = (window, api)
@@ -516,7 +525,8 @@ class Host:
                 self._app_window = None
         window = self._webview.create_window(
             "Chotto", url=str(web_root() / "app.html"), js_api=AppApi(self), width=1100, height=760,
-            min_size=(760, 560), frameless=True, easy_drag=False, background_color=BG, text_select=True)
+            min_size=(760, 560), frameless=True, easy_drag=False, background_color=BG, text_select=True,
+            **self._centered(1100, 760))
         self._app_window = window
         window.events.closed += self._on_settings_closed
         window.events.shown += lambda: _activate(window)
