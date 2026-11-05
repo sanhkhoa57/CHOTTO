@@ -3,8 +3,10 @@ name = "chotto"
 version = "0.1.0"
 requires-python = ">=3.15"
 dependencies = [
+    "pywebview>=6.0",
     "mypy==2.4.0",
     "py2app>=0.28 ; sys_platform == 'darwin'",
     "pyinstaller>=6.10 ; sys_platform == 'win32'",
     "setuptools>=70",
+    "pillow>=10",
 ]
