@@ -35,7 +35,11 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install -r requirements.txt
-      - run: python packaging/macos_setup.py py2app
+      - name: Đóng gói bằng py2app
+        run: |
+          # py2app từ chối build nếu setuptools đọc được [project] dependencies trong pyproject.toml (install_requires).
+          mv pyproject.toml pyproject.toml.off
+          python packaging/macos_setup.py py2app
       - name: Ký tạm (ad-hoc) và tạo .dmg
         run: |
           codesign --force --deep --sign - dist/CHOTTO.app

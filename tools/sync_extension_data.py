@@ -41,12 +41,13 @@ DEFAULT_OUT: Final[Path] = ROOT / "extension" / "data"
 
 
 def _sha256(path: Path) -> str:
-    """SHA-256 dạng hex của một file.
+    """SHA-256 dạng hex của một file, không phụ thuộc kiểu xuống dòng (CRLF/LF) để Windows và Linux cho cùng kết quả.
 
     Raises:
         OSError: Không đọc được file.
     """
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    crlf, lf = bytes([13, 10]), bytes([10])
+    return hashlib.sha256(path.read_bytes().replace(crlf, lf)).hexdigest()
 
 
 def _dump(data: Any) -> str:
