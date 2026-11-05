@@ -172,20 +172,26 @@ def _own_process_names() -> set[str]:
 
 
 # ---------------- macOS ----------------
+def _lsappinfo(*args: str) -> str:
+    return subprocess.run(["lsappinfo", *args], capture_output=True, text=True,
+                          timeout=_LSAPPINFO_TIMEOUT_S, check=False).stdout
+
+
 def _macos_front_bundle() -> str | None:
-    """Bundle id ứng dụng ở foreground qua ``lsappinfo``; lỗi/timeout trả ``None``."""
+    """Bundle id ứng dụng ở foreground, bỏ qua chính CHOTTO; lỗi/timeout trả ``None``.
+
+    macOS đưa CHOTTO lên trước khi giao link, nên ``lsappinfo front`` luôn là CHOTTO. ``visibleProcessList``
+    xếp ứng dụng từ trước ra sau: ứng dụng đầu tiên không phải CHOTTO là nơi người dùng vừa bấm link.
+    """
     try:
-        asn = subprocess.run(["lsappinfo", "front"], capture_output=True, text=True,
-                             timeout=_LSAPPINFO_TIMEOUT_S, check=False).stdout.strip()
-        if not asn:
-            return None
-        info = subprocess.run(["lsappinfo", "info", "-only", "bundleid", asn], capture_output=True, text=True,
-                              timeout=_LSAPPINFO_TIMEOUT_S, check=False).stdout
+        asns = re.findall(r"ASN:0x[0-9a-f]+-0x[0-9a-f]+", _lsappinfo("visibleProcessList"))
+        for asn in asns[:_MAX_ANCESTORS]:
+            match = re.search(r'="([^"]+)"', _lsappinfo("info", "-only", "bundleid", asn))
+            if match and match.group(1).lower() != _OWN_BUNDLE:
+                return match.group(1).lower()
     except (OSError, subprocess.SubprocessError):
         _LOG.warning("lsappinfo lỗi", exc_info=True)
-        return None
-    match = re.search(r'="([^"]+)"', info)
-    return match.group(1).lower() if match else None
+    return None
 
 
 def detect_caller(cfg: Mapping[str, Any]) -> Caller:

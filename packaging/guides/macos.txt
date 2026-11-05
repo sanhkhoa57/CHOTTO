@@ -1,0 +1,106 @@
+CHOTTO for macOS - Installation and Usage Guide  /  Hướng dẫn cài đặt và sử dụng CHOTTO cho macOS
+======================================================================================================
+
+ENGLISH
+-------
+What it does
+  CHOTTO checks every link you tap in the Zalo app before it opens. Safe links open
+  right away. Suspicious links show a "Hold on" warning that reveals where the link
+  really goes; the "Open anyway" button stays locked for a few seconds so you have
+  time to think.
+
+Requirements
+  A Mac with Apple silicon (M1 or later), macOS 12 or later. Intel Macs are not supported yet.
+
+Install (about 2 minutes)
+  1. Double-click this .zip file to extract it (Safari may already have done this).
+  2. Double-click CHOTTO-macOS.dmg. In the window that opens, drag CHOTTO onto the
+     Applications folder.
+  3. Open Applications and double-click CHOTTO.
+     macOS will say it cannot verify CHOTTO. This only appears because the app is not
+     notarized by Apple yet. Click "Done" (not "Move to Trash"), then:
+       - Open System Settings > Privacy & Security.
+       - Scroll down to the message about CHOTTO and click "Open Anyway".
+       - Confirm with your password or Touch ID, then click "Open Anyway" again.
+     You only need to do this once.
+  4. You can now eject the CHOTTO disk image and delete the .dmg and .zip files.
+
+  CHOTTO has no Dock icon while it runs in the background. To open its window later,
+  press Command + Space, type CHOTTO, and press Return.
+
+First-time setup
+  1. On the Overview screen, click "Set Chotto as link handler".
+  2. macOS asks whether to change your default web browser to CHOTTO.
+     Click "Use "CHOTTO"".
+  After that, links you tap in Zalo go through CHOTTO first. Safe links open in the
+  browser you used before (for example Safari or Chrome).
+
+Daily use
+  - Just use Zalo as usual. Nothing to do for safe links.
+  - When a warning appears, read the reasons. "Close, don't open" is the safe choice.
+    "Open anyway" unlocks after the countdown and is meant for links you fully trust.
+  - "Check a link" lets you paste a link and test it without opening it.
+  - "Settings" lets you turn online domain-age lookup and the activity log on or off.
+
+Privacy
+  Links are checked on your Mac. Only if you leave "Look up domain age online"
+  on, the domain name (never the full link) is sent to public domain-registry servers.
+
+Uninstall
+  1. Settings > "Stop using Chotto as link handler". macOS asks whether to switch
+     back to your previous browser: confirm.
+  2. Drag CHOTTO from Applications to the Trash.
+  If links stop opening, choose your browser again in System Settings > Desktop & Dock >
+  Default web browser.
+
+
+TIẾNG VIỆT
+----------
+Chotto làm gì
+  CHOTTO kiểm tra mọi link bạn bấm trong ứng dụng Zalo trước khi mở. Link an toàn mở ngay.
+  Link đáng ngờ hiện màn hình cảnh báo "Khoan đã" cho thấy link thật sự dẫn tới đâu; nút
+  "Vẫn mở link" bị khóa vài giây để bạn kịp suy nghĩ.
+
+Yêu cầu
+  Máy Mac chip Apple (M1 trở lên), macOS 12 trở lên. Chưa hỗ trợ máy Mac chip Intel.
+
+Cài đặt (khoảng 2 phút)
+  1. Bấm đúp vào file .zip này để giải nén (Safari có thể đã tự giải nén).
+  2. Bấm đúp vào CHOTTO-macOS.dmg. Trong cửa sổ hiện ra, kéo CHOTTO thả vào thư mục
+     Applications (Ứng dụng).
+  3. Mở thư mục Applications, bấm đúp vào CHOTTO.
+     macOS sẽ báo không thể xác minh CHOTTO. Thông báo này chỉ hiện vì ứng dụng chưa được
+     Apple công chứng. Bấm "Xong" (đừng bấm "Chuyển vào Thùng rác"), rồi:
+       - Mở Cài đặt hệ thống > Quyền riêng tư & Bảo mật.
+       - Kéo xuống dòng thông báo về CHOTTO, bấm "Vẫn mở".
+       - Xác nhận bằng mật khẩu hoặc Touch ID, rồi bấm "Vẫn mở" lần nữa.
+     Chỉ cần làm một lần.
+  4. Giờ bạn có thể đẩy ổ đĩa CHOTTO ra và xóa file .dmg, .zip.
+
+  CHOTTO không hiện biểu tượng trên Dock khi chạy nền. Muốn mở lại cửa sổ, bấm
+  Command + Space, gõ CHOTTO rồi nhấn Return.
+
+Thiết lập lần đầu
+  1. Ở màn hình Tổng quan, bấm "Đặt Chotto làm trình mở link".
+  2. macOS hỏi có đổi trình duyệt web mặc định sang CHOTTO không.
+     Bấm "Dùng "CHOTTO"".
+  Từ đó, link bạn bấm trong Zalo sẽ đi qua CHOTTO trước. Link an toàn mở bằng trình duyệt
+  bạn dùng trước đó (ví dụ Safari hoặc Chrome).
+
+Sử dụng hằng ngày
+  - Cứ dùng Zalo như bình thường. Link an toàn không cần làm gì thêm.
+  - Khi có cảnh báo, hãy đọc lý do. "Đóng, không mở" là lựa chọn an toàn.
+    "Vẫn mở link" chỉ mở khóa sau khi đếm ngược, dành cho link bạn hoàn toàn tin tưởng.
+  - "Kiểm tra link": dán link vào để thử mà không mở trang.
+  - "Cài đặt": bật/tắt tra tuổi tên miền qua mạng và nhật ký hoạt động.
+
+Quyền riêng tư
+  Link được kiểm tra ngay trên máy Mac của bạn. Chỉ khi để bật "Tra tuổi tên miền qua mạng",
+  tên miền (không phải cả link) mới được gửi tới máy chủ tra cứu tên miền công khai.
+
+Gỡ cài đặt
+  1. Cài đặt > "Gỡ Chotto khỏi trình mở link". macOS hỏi có đổi về trình duyệt
+     cũ không: bấm đồng ý.
+  2. Kéo CHOTTO từ thư mục Applications vào Thùng rác.
+  Nếu link không mở được nữa, chọn lại trình duyệt trong Cài đặt hệ thống > Màn hình nền &
+  Dock > Trình duyệt web mặc định.

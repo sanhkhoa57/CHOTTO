@@ -73,8 +73,28 @@ class Wire:
                 _LOG.info("Không gửi được thông điệp cho agent (agent đã thoát?)")
 
 
+def _reload_on_show(window: Any, url: str) -> None:
+    """macOS: cửa sổ tạo sau khi vòng lặp GUI chạy sẽ ra đen nếu chỉ tải trang lúc tạo; tải lại khi cửa sổ đã hiện."""
+    if sys.platform == "darwin":
+        window.events.shown += lambda: window.load_url(url)
+
+
 def _activate(window: Any) -> None:
     """Cố đưa cửa sổ lên trước và lấy focus (Windows: kích hoạt Form của WinForms); lỗi thì bỏ qua."""
+    if sys.platform == "darwin":
+        try:
+            from AppKit import NSApplication  # type: ignore[import-untyped,unused-ignore]
+            from PyObjCTools import AppHelper  # type: ignore[import-untyped,unused-ignore]
+
+            def front() -> None:
+                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
+                if window.native is not None:
+                    window.native.makeKeyAndOrderFront_(None)
+
+            AppHelper.callAfter(front)       # AppKit chỉ được gọi từ luồng chính
+        except Exception:  # noqa: BLE001 - chỉ là tiện ích hiển thị
+            _LOG.debug("Không đưa cửa sổ lên trước được (macOS)", exc_info=True)
+        return
     try:
         native = window.native
         if native is None:
@@ -484,6 +504,7 @@ class Host:
             width=820, height=height, min_size=(600, 520), frameless=True, easy_drag=False,
             on_top=True, background_color=BG, text_select=True, **self._centered(820, height))
         api._window = window  # noqa: SLF001 - cùng mô-đun
+        _reload_on_show(window, str(web_root() / "friction.html"))
         with self._lock:
             self._frictions[fid] = (window, api)
         window.events.closed += lambda: self._on_friction_closed(fid)
@@ -528,6 +549,7 @@ class Host:
             min_size=(760, 560), frameless=True, easy_drag=False, background_color=BG, text_select=True,
             **self._centered(1100, 760))
         self._app_window = window
+        _reload_on_show(window, str(web_root() / "app.html"))
         window.events.closed += self._on_settings_closed
         window.events.shown += lambda: _activate(window)
         window.events.shown += lambda: _enable_snap(window)

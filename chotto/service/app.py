@@ -81,7 +81,7 @@ def install_action() -> str:
 
 def uninstall_action() -> str:
     """Tác vụ gỡ đăng ký: gỡ handler, tắt tự khởi động và tắt agent đang chạy."""
-    message = platform_setup.uninstall()
+    message = platform_setup.uninstall(load_config())
     agent_mod.stop_agent()
     return message
 

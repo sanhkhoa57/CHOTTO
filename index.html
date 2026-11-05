@@ -305,7 +305,7 @@ details[open] summary::after{transform:rotate(45deg)}
         linuxNote: 'On Linux or mobile? Chotto isn’t available there yet.',
         plat: {
           win: { name: 'Windows', desc: 'Protects links opened from the Zalo app on PC.', format: '.zip (installer + guide)', req: 'Windows 10 or later, 64-bit', size: '18 MB', cta: 'Download for Windows', href: 'downloads/CHOTTO-Windows.zip' },
-          mac: { name: 'macOS', desc: 'For Macs with Apple silicon (M1 and later).', format: '.dmg disk image', req: 'macOS 12 or later, Apple silicon', size: '[file size]', cta: 'Download for macOS', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/CHOTTO-macOS.dmg' },
+          mac: { name: 'macOS', desc: 'For Macs with Apple silicon (M1 and later).', format: '.zip (disk image + guide)', req: 'macOS 12 or later, Apple silicon', size: '30 MB', cta: 'Download for macOS', href: 'downloads/CHOTTO-macOS.zip' },
           ext: { name: 'Browser extension', desc: 'For Zalo Web on Chrome and Edge.', format: '.zip, manual install', req: 'Latest Chrome or Edge', size: '0.5 MB', cta: 'Download extension', href: 'downloads/chotto-extension-chrome.zip' }
         },
         instH: 'Four steps, then Chotto protects you.',
@@ -313,7 +313,7 @@ details[open] summary::after{transform:rotate(45deg)}
         tabsAria: 'Choose a platform', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Extension',
         steps: {
           win: [['Download and unzip', 'Click “Download for Windows”, then right-click the .zip file and choose “Extract All”.'], ['Run the installer', 'Open the folder and double-click CHOTTO-Setup.exe. If Windows shows a warning, choose “More info”, then “Run anyway”.'], ['Choose a folder', 'Pick where to install Chotto (or keep the default), then click Install.'], ['Done', 'A Chotto icon appears on your desktop. Open it and follow README.txt (English and Vietnamese) in the folder.']],
-          mac: [['Download the disk image', 'Click “Download for macOS” to save CHOTTO-macOS.dmg.'], ['Move it to Applications', 'Open the .dmg and drag Chotto onto the Applications folder.'], ['Open it the first time', 'Right-click Chotto in Applications, choose Open, then confirm. Needed only once.'], ['Done', 'Chotto asks once to be your link opener. Then try tapping a link in Zalo.']],
+          mac: [['Download and unzip', 'Click “Download for macOS”, then double-click the .zip. Inside are CHOTTO-macOS.dmg and a README guide.'], ['Move it to Applications', 'Open the .dmg and drag Chotto onto the Applications folder.'], ['Open it the first time', 'If macOS says it can’t verify Chotto, click Done, then go to System Settings › Privacy & Security and click “Open Anyway”. Needed only once.'], ['Done', 'Click “Set Chotto as link handler” and confirm “Use CHOTTO”. Then try tapping a link in Zalo.']],
           ext: [['Download and unzip', 'Unzip the .zip file into a folder you will keep.'], ['Open the extensions page', 'Go to chrome://extensions or edge://extensions and turn on Developer mode.'], ['Load the unpacked extension', 'Choose “Load unpacked” and point it to the folder you just unzipped.'], ['Done', 'Pin Chotto to the toolbar, then open Zalo Web. The folder also has README.txt (English and Vietnamese).']]
         },
         faqH: 'Frequently asked questions',
@@ -352,7 +352,7 @@ details[open] summary::after{transform:rotate(45deg)}
       linuxNote: 'Dùng Linux hoặc điện thoại? Chotto chưa có bản cho các nền tảng này.',
       plat: {
         win: { name: 'Windows', desc: 'Bảo vệ link mở từ ứng dụng Zalo trên PC.', format: '.zip (bộ cài + hướng dẫn)', req: 'Windows 10 trở lên, 64-bit', size: '18 MB', cta: 'Tải cho Windows', href: 'downloads/CHOTTO-Windows.zip' },
-        mac: { name: 'macOS', desc: 'Cho máy Mac chip Apple (M1 trở lên).', format: 'Ảnh đĩa .dmg', req: 'macOS 12 trở lên, chip Apple', size: '[dung lượng]', cta: 'Tải cho macOS', href: 'https://github.com/sanhkhoa57/CHOTTO/releases/latest/download/CHOTTO-macOS.dmg' },
+        mac: { name: 'macOS', desc: 'Cho máy Mac chip Apple (M1 trở lên).', format: '.zip (ảnh đĩa + hướng dẫn)', req: 'macOS 12 trở lên, chip Apple', size: '30 MB', cta: 'Tải cho macOS', href: 'downloads/CHOTTO-macOS.zip' },
         ext: { name: 'Tiện ích trình duyệt', desc: 'Cho Zalo Web trên Chrome và Edge.', format: '.zip, cài thủ công', req: 'Chrome hoặc Edge mới nhất', size: '0.5 MB', cta: 'Tải tiện ích', href: 'downloads/chotto-extension-chrome.zip' }
       },
       instH: 'Bốn bước, rồi cứ yên tâm bấm.',
@@ -360,7 +360,7 @@ details[open] summary::after{transform:rotate(45deg)}
       tabsAria: 'Chọn nền tảng', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Tiện ích',
       steps: {
         win: [['Tải và giải nén', 'Bấm “Tải cho Windows”, rồi nhấn chuột phải vào file .zip và chọn “Giải nén tất cả”.'], ['Chạy bộ cài', 'Mở thư mục, bấm đúp CHOTTO-Setup.exe. Nếu Windows cảnh báo, chọn “Thêm thông tin” rồi “Vẫn chạy”.'], ['Chọn thư mục', 'Chọn nơi cài Chotto (hoặc giữ mặc định) rồi bấm Install.'], ['Xong', 'Biểu tượng Chotto xuất hiện trên màn hình Desktop. Mở lên và làm theo file README.txt (tiếng Anh và tiếng Việt) trong thư mục.']],
-        mac: [['Tải ảnh đĩa', 'Bấm “Tải cho macOS” để lưu file CHOTTO-macOS.dmg.'], ['Chuyển vào Applications', 'Mở file .dmg rồi kéo Chotto thả vào thư mục Applications.'], ['Mở lần đầu', 'Nhấn chuột phải vào Chotto trong Applications, chọn Mở, rồi xác nhận. Chỉ cần làm một lần.'], ['Xong', 'Chotto hỏi một lần để làm trình mở link. Sau đó bấm thử một link trong Zalo.']],
+        mac: [['Tải và giải nén', 'Bấm “Tải cho macOS” rồi bấm đúp file .zip. Bên trong có CHOTTO-macOS.dmg và file hướng dẫn README.'], ['Chuyển vào Applications', 'Mở file .dmg rồi kéo Chotto thả vào thư mục Applications.'], ['Mở lần đầu', 'Nếu macOS báo không thể xác minh Chotto, bấm Xong, rồi vào Cài đặt hệ thống › Quyền riêng tư & Bảo mật, bấm “Vẫn mở”. Chỉ cần làm một lần.'], ['Xong', 'Bấm “Đặt Chotto làm trình mở link” rồi chọn “Dùng CHOTTO”. Sau đó bấm thử một link trong Zalo.']],
         ext: [['Tải và giải nén', 'Giải nén file .zip vào một thư mục bạn sẽ giữ lại.'], ['Mở trang tiện ích', 'Vào chrome://extensions hoặc edge://extensions, bật Chế độ nhà phát triển.'], ['Tải tiện ích đã giải nén', 'Chọn “Tải tiện ích đã giải nén” và trỏ tới thư mục vừa giải nén.'], ['Xong', 'Ghim Chotto lên thanh công cụ rồi mở Zalo Web. Trong thư mục còn có file README.txt (tiếng Anh và tiếng Việt).']]
       },
       faqH: 'Câu hỏi thường gặp',

@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -206,6 +207,9 @@ def agent_argv() -> list[str]:
 def ui_host_argv() -> list[str]:
     """Lệnh chạy tiến trình giao diện HTML (``main.py ui-host``), nói chuyện qua stdin/stdout."""
     if getattr(sys, "frozen", False):
+        if sys.platform == "darwin":
+            # py2app: ``sys.executable`` là trình thông dịch trần (không chạy main.py); phải gọi bộ khởi chạy của .app.
+            return [str(Path(sys.executable).with_name(Path(sys.executable).parent.parent.parent.stem)), "ui-host"]
         return [sys.executable, "ui-host"]
     python = Path(sys.executable)
     pythonw = python.with_name("pythonw.exe")
@@ -552,13 +556,39 @@ def _mac_current_default_bundle() -> str | None:
     return None
 
 
+_SAFE_BUNDLE = re.compile(r"^[A-Za-z0-9.-]+$")
+
+
+def _mac_set_url_handler(bundle: str) -> bool:
+    """Đặt ``bundle`` làm trình xử lý http/https qua LaunchServices (macOS hiện hộp thoại xác nhận).
+
+    Không chờ kết quả: hộp thoại nằm ở tiến trình ``osascript``. ``False`` nếu không chạy được lệnh.
+    """
+    if not _SAFE_BUNDLE.match(bundle):          # bundle id đi vào mã JavaScript: chỉ nhận ký tự an toàn
+        _LOG.error("Bundle id không hợp lệ")
+        return False
+    script = ('ObjC.import("CoreServices"); '
+              f'$.LSSetDefaultHandlerForURLScheme($("http"), $("{bundle}")); '
+              f'$.LSSetDefaultHandlerForURLScheme($("https"), $("{bundle}"));')
+    try:
+        subprocess.Popen(["/usr/bin/osascript", "-l", "JavaScript", "-e", script],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        _LOG.warning("Không gọi được LaunchServices để đặt trình xử lý link", exc_info=True)
+        return False
+    return True
+
+
 def install_macos(cfg: MutableMapping[str, Any]) -> str:
     """Ghi nhớ trình duyệt thật hiện tại để chuyển tiếp (đăng ký handler do CHOTTO.app đảm nhiệm)."""
     cfg["browser_bundle_id"] = _mac_current_default_bundle() or next(
         (bundle for bundle, path in _MAC_FALLBACKS if os.path.exists(path)), "com.apple.safari"
     )
-    return ("macOS cần CHOTTO.app (build bằng packaging/macos_setup.py). Sau khi cài vào /Applications, mở "
-            "Cài đặt Hệ thống > Máy tính để bàn & Dock > Trình duyệt web mặc định và chọn CHOTTO.")
+    # Danh sách "Trình duyệt web mặc định" của Cài đặt Hệ thống không liệt kê CHOTTO (không khai báo kiểu tài liệu
+    # HTML), nên gọi thẳng LaunchServices: macOS tự hiện hộp thoại hỏi người dùng có đổi sang CHOTTO không.
+    if not _mac_set_url_handler(OWN_BUNDLE):
+        return "Không đặt được tự động. Hãy đặt CHOTTO làm trình duyệt mặc định trong Cài đặt Hệ thống."
+    return "macOS sẽ hỏi bạn có đổi trình duyệt mặc định sang CHOTTO không: hãy chọn \"Dùng CHOTTO\"."
 
 
 def _mac_candidates(cfg: Mapping[str, Any]) -> Iterator[str]:
@@ -633,12 +663,16 @@ def install(cfg: MutableMapping[str, Any]) -> str:
     return message
 
 
-def uninstall() -> str:
-    """Gỡ đăng ký CHOTTO theo nền tảng."""
+def uninstall(cfg: Mapping[str, Any] | None = None) -> str:
+    """Gỡ đăng ký CHOTTO theo nền tảng. macOS: trả trình duyệt mặc định về trình duyệt đã ghi nhớ lúc cài."""
     disable_autostart()
     if sys.platform == "win32":
         return uninstall_windows()
-    return "Xóa CHOTTO.app và chọn lại trình duyệt mặc định."
+    if sys.platform == "darwin" and is_default_handler():
+        bundle = next(_mac_candidates(cfg or {}), "com.apple.safari")
+        if _mac_set_url_handler(bundle):
+            return "macOS sẽ hỏi bạn có đổi trình duyệt mặc định về trình duyệt cũ không: hãy đồng ý."
+    return "Hãy chọn lại trình duyệt mặc định trong Cài đặt Hệ thống > Màn hình nền & Dock."
 
 
 def open_in_real_browser(url: str, cfg: Mapping[str, Any]) -> bool:

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Tạo hai gói để đặt trên trang tải (thư mục ``downloads/``), mỗi gói kèm file hướng dẫn song ngữ Anh/Việt.
+"""Tạo các gói để đặt trên trang tải (thư mục ``downloads/``), mỗi gói kèm file hướng dẫn song ngữ Anh/Việt.
 
 - ``downloads/CHOTTO-Windows.zip``: ``CHOTTO-Setup.exe`` + ``README.txt`` (cần chạy ``packaging\\build_windows.bat`` trước).
+- ``downloads/CHOTTO-macOS.zip``: ``CHOTTO-macOS.dmg`` + ``README.txt`` (cần build ``dist/CHOTTO.app`` trên Mac trước;
+  xem ``packaging/macos_setup.py``).
 - ``downloads/chotto-extension-chrome.zip``: các file tiện ích (``manifest.json`` ở gốc) + ``README.txt``.
 
-Nội dung hướng dẫn nằm ở ``packaging/guides/*.txt``. Dùng: python tools/build_downloads.py
+Nội dung hướng dẫn nằm ở ``packaging/guides/*.txt``.
+Dùng: python tools/build_downloads.py [windows] [macos] [extension]   (không ghi gì = windows + extension)
 """
 from __future__ import annotations
 
@@ -50,6 +53,30 @@ def build_windows() -> None:
     })
 
 
+def build_macos() -> None:
+    """Gói macOS: ảnh đĩa .dmg (CHOTTO.app + lối tắt Applications) + hướng dẫn. Chỉ chạy được trên Mac."""
+    import shutil
+    import tempfile
+
+    app = ROOT / "dist" / "CHOTTO.app"
+    if sys.platform != "darwin":
+        raise SystemExit("Gói macOS cần chạy trên Mac (dùng hdiutil).")
+    if not app.is_dir():
+        raise SystemExit("Chưa có dist/CHOTTO.app. Build bằng packaging/macos_setup.py py2app và ký trước.")
+    with tempfile.TemporaryDirectory() as tmp:
+        stage = Path(tmp) / "stage"
+        stage.mkdir()
+        shutil.copytree(app, stage / "CHOTTO.app", symlinks=True)
+        (stage / "Applications").symlink_to("/Applications")
+        dmg = Path(tmp) / "CHOTTO-macOS.dmg"
+        subprocess.run(["hdiutil", "create", "-volname", "CHOTTO", "-srcfolder", str(stage), "-ov",
+                        "-format", "UDZO", str(dmg)], check=True, stdout=subprocess.DEVNULL)
+        _write(DOWNLOADS / "CHOTTO-macOS.zip", {
+            "CHOTTO-macOS.dmg": dmg.read_bytes(),
+            "README.txt": _guide("macos.txt"),
+        })
+
+
 def build_extension() -> None:
     """Gói tiện ích: dựng lại bản Chrome rồi thêm hướng dẫn vào gốc gói."""
     subprocess.run([sys.executable, str(ROOT / "tools" / "build_extension.py")], check=True, stdout=subprocess.DEVNULL)
@@ -63,9 +90,14 @@ def build_extension() -> None:
 
 
 def main() -> None:
-    """Tạo cả hai gói."""
-    build_windows()
-    build_extension()
+    """Tạo các gói được chỉ định (mặc định: Windows + tiện ích, như trước)."""
+    builders = {"windows": build_windows, "macos": build_macos, "extension": build_extension}
+    targets = sys.argv[1:] or ["windows", "extension"]
+    unknown = [t for t in targets if t not in builders]
+    if unknown:
+        raise SystemExit(f"Không biết gói: {', '.join(unknown)}. Chọn trong: {', '.join(builders)}")
+    for target in targets:
+        builders[target]()
 
 
 if __name__ == "__main__":

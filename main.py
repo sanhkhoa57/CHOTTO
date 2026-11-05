@@ -136,7 +136,7 @@ def _run_command(target: str | None, argument: str | None, force: bool, gui: boo
     elif target == "uninstall":
         from chotto.service.agent import stop_agent
 
-        print(platform_setup.uninstall())
+        print(platform_setup.uninstall(load_config()))
         stop_agent()
     elif target == "agent":
         from chotto.service.app import run_resident
