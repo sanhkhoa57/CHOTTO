@@ -1,4 +1,4 @@
-# CHOTTO cho Zalo Web – tiện ích trình duyệt (v1.4.0)
+# CHOTTO cho Zalo Web – tiện ích trình duyệt (v1.5.0)
 
 Tiện ích Manifest V3 cho **Chrome, Edge** (≥ 111) và **Firefox** (≥ 128). Khi bạn bấm một liên kết trên
 `chat.zalo.me`, CHOTTO thẩm định nó **ngay trong trình duyệt** bằng đúng engine 3 tầng của bản Desktop.
@@ -8,14 +8,14 @@ bị khóa vài giây.
 ## Cài đặt
 
 ### Chrome / Edge (chế độ nhà phát triển)
-1. Giải nén `chotto-extension-chrome-1.4.0.zip`, hoặc dùng thẳng thư mục `extension/` này.
+1. Giải nén `chotto-extension-chrome-1.5.0.zip`, hoặc dùng thẳng thư mục `extension/` này.
 2. Mở `chrome://extensions` (Edge: `edge://extensions`) và bật **Developer mode**.
 3. Bấm **Load unpacked** rồi chọn thư mục vừa giải nén.
 4. Trang cài đặt của CHOTTO tự mở. Sau đó mở hoặc tải lại `chat.zalo.me`.
 
 ### Firefox
 1. Mở `about:debugging#/runtime/this-firefox`, bấm **Load Temporary Add-on…** rồi chọn file
-   `chotto-extension-firefox-1.4.0.zip`. Muốn cài vĩnh viễn thì gói phải được Mozilla ký.
+   `chotto-extension-firefox-1.5.0.zip`. Muốn cài vĩnh viễn thì gói phải được Mozilla ký.
 2. Firefox coi quyền truy cập trang web là quyền tùy chọn. Vào `about:addons` → CHOTTO → **Permissions**
    và bật quyền cho `chat.zalo.me`, `rdap.org`, `data.iana.org` và các nguồn danh sách đen.
 
@@ -65,7 +65,7 @@ node e2e/screenshots.mjs out/     # chụp ảnh minh họa trải nghiệm
 cd ..
 python tools/sync_extension_data.py            # sau khi sửa chotto/data hoặc chotto/advisor.py
 python tools/gen_engine_vectors.py --phish ... --crux ...   # sinh lại bộ URL dùng chung khi đổi luật
-python tools/build_extension.py                # dist/chotto-extension-{chrome,firefox}-1.4.0.zip
+python tools/build_extension.py                # dist/chotto-extension-{chrome,firefox}-1.5.0.zip
 ```
 **Quy tắc khi đổi luật:** sửa `chotto/data/rules.json`, rồi chạy `sync_extension_data.py` và
 `gen_engine_vectors.py`. Sau đó cả `python -m unittest` lẫn `npm test` phải xanh. `tests/test_parity.py`

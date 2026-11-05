@@ -6,7 +6,7 @@
  * @module engine/url
  */
 
-import { domainToUnicode } from "./punycode.js";
+import { PunycodeError, decode as punycodeDecode, domainToUnicode } from "./punycode.js";
 
 export const MAX_URL_LENGTH = 32768;
 export const SUPPORTED_SCHEMES = Object.freeze(["http", "https"]);
@@ -91,6 +91,30 @@ export function getScheme(raw) {
   return match ? match[1].toLowerCase() : null;
 }
 
+const INVALID_LABEL_RE = /[\p{Cc}\p{Cs}\p{Co}\p{Cn}]/u;
+
+/**
+ * Nhãn ``xn--`` phải giải mã được thành Unicode hợp lệ (giống ``chotto.core.url._label_to_ascii``),
+ * vì trình duyệt không luôn từ chối chúng; nhãn hỏng ⇒ coi như không phân tích được (fail-safe).
+ * @param {string} host
+ * @throws {URLParseError}
+ */
+function assertValidPunycodeLabels(host) {
+  for (const label of host.split(".")) {
+    if (!label.toLowerCase().startsWith("xn--")) continue;
+    let decoded;
+    try {
+      decoded = punycodeDecode(label.slice(4).toLowerCase());
+    } catch (error) {
+      if (error instanceof PunycodeError) throw new URLParseError(`Nhãn punycode không hợp lệ: ${label}`);
+      throw error;
+    }
+    if (!decoded || /^[\x00-\x7f]*$/.test(decoded) || INVALID_LABEL_RE.test(decoded)) {
+      throw new URLParseError(`Nhãn punycode không hợp lệ: ${label}`);
+    }
+  }
+}
+
 /**
  * Phân tích một URL http/https đúng như trình duyệt.
  * @param {string} raw Chuỗi URL (từ thẻ ``<a>``, ``window.open`` hoặc tham số của link bọc).
@@ -116,6 +140,7 @@ export function parseUrl(raw) {
   let hostKind = "domain";
   if (host.startsWith("[")) hostKind = "ipv6";
   else if (IPV4_RE.test(host)) hostKind = "ipv4";
+  else assertValidPunycodeLabels(host);
   const href = url.href;
   const beforeFragment = url.hash || href.endsWith("#") ? href.slice(0, href.lastIndexOf("#")) : href;
   const hasQuery = url.search !== "" || beforeFragment.endsWith("?");

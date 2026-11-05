@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "CHOTTO – Khoan đã!",
   "short_name": "CHOTTO",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Chặn link lừa đảo trên Zalo Web: kiểm tra mọi liên kết ngay trên máy trước khi mở, dừng lại khi đáng ngờ.",
   "minimum_chrome_version": "111",
   "icons": {

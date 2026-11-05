@@ -51,7 +51,7 @@
   // ---------- ngôn ngữ ----------
   function applyLanguage(lang) {
     I18N.apply(lang);
-    $("#credit").innerHTML = esc(t("footer")).replace("AECC", "<b>AECC</b>");
+    $("#credit").innerHTML = esc(t("footer")).replace("AECCUS", "<b>AECCUS</b>");
     $$("[data-lang-switch] button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === I18N.lang));
     $$("#seconds button").forEach((b) => { b.textContent = t("sec", { n: b.dataset.s }); });
     if (state) renderState(state);

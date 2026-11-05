@@ -8,7 +8,7 @@
   const STRINGS = {
     en: {
       "nav.home": "Overview", "nav.check": "Check a link", "nav.log": "Activity", "nav.settings": "Settings",
-      "nav.aria": "Main sections", "footer": "Developed by AECC", "lang.aria": "Language",
+      "nav.aria": "Main sections", "footer": "Developed by AECCUS", "lang.aria": "Language",
       "win.min": "Minimize", "win.max": "Maximize", "win.close": "Close window",
       "home.h": "Overview", "home.sub": "Every link you tap in Zalo goes through Chotto before it opens.",
       "guard.on": "This computer is protected", "guard.off": "Chotto isn’t receiving links from Zalo yet",
@@ -55,7 +55,7 @@
     },
     vi: {
       "nav.home": "Tổng quan", "nav.check": "Kiểm tra link", "nav.log": "Nhật ký", "nav.settings": "Cài đặt",
-      "nav.aria": "Mục chính", "footer": "Được phát triển bởi AECC", "lang.aria": "Ngôn ngữ",
+      "nav.aria": "Mục chính", "footer": "Được phát triển bởi AECCUS", "lang.aria": "Ngôn ngữ",
       "win.min": "Thu nhỏ", "win.max": "Phóng to", "win.close": "Đóng cửa sổ",
       "home.h": "Tổng quan", "home.sub": "Mọi link bấm trong Zalo đều đi qua Chotto trước khi mở.",
       "guard.on": "Máy này đang được bảo vệ", "guard.off": "Chotto chưa nhận link từ Zalo",
