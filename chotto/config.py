@@ -32,6 +32,8 @@ __all__ = [
 _LOG = logging.getLogger(__name__)
 
 UnknownCallerPolicy = Literal["inspect", "forward"]
+UILanguage = Literal["en", "vi"]
+UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
 
 
 class Config(TypedDict):
@@ -52,6 +54,7 @@ class Config(TypedDict):
     browser_bundle_id: str
     agent_enabled: bool
     auto_update: bool
+    ui_language: UILanguage
 
 
 DEFAULTS: Final[Config] = {
@@ -70,6 +73,7 @@ DEFAULTS: Final[Config] = {
     "browser_bundle_id": "",        # macOS
     "agent_enabled": True,          # Chạy nền thường trú (mở link nhanh); tắt = mỗi link một tiến trình như bản 1.0
     "auto_update": True,            # Agent tự cập nhật danh sách đen mỗi ngày (tải tăng dần theo ETag)
+    "ui_language": "en",            # Ngôn ngữ giao diện HTML: "en" | "vi" (giao diện Tk dự phòng luôn tiếng Việt)
 }
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
@@ -189,6 +193,8 @@ def validate_config(raw: Mapping[str, Any]) -> Config:
             accepted = _as_str_list(value)
         elif key == "unknown_caller_policy":
             accepted = value if value in ("inspect", "forward") else None
+        elif key == "ui_language":
+            accepted = value if value in UI_LANGUAGES else None
         elif isinstance(default, str):
             accepted = value if isinstance(value, str) else None
         if accepted is None:

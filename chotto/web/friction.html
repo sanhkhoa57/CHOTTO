@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chotto · link mở từ Zalo</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.shell { height: 100vh; display: flex; flex-direction: column; }
+.scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.verdict { padding: 28px 44px 32px; display: grid; grid-template-columns: 1fr 244px; gap: 28px; align-items: end; transition: background .8s var(--ease); }
+.verdict[data-level="HIGH"], .verdict[data-level="BLOCKED"] { background: var(--danger-field); }
+.verdict[data-level="WARN"] { background: var(--warn-field); }
+.verdict h1 { margin: 0; font: 400 46px/1.02 var(--serif); letter-spacing: -.025em; }
+.verdict h1 .k { font-size: 58px; line-height: 1; }
+.verdict h1 span { display: block; }
+.verdict[data-level="HIGH"] .k, .verdict[data-level="BLOCKED"] .k { color: var(--danger-ink); }
+.verdict[data-level="WARN"] .k { color: var(--warn-ink); }
+.verdict p { margin: 14px 0 0; font-size: 18px; max-width: 44ch; }
+.meter { text-align: right; }
+.meter b { display: block; font: 300 76px/.85 var(--serif); letter-spacing: -.04em; }
+.meter .lbl { display: block; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.track { margin-top: 16px; height: 4px; display: grid; grid-template-columns: 30fr 30fr 40fr; gap: 4px; }
+.track span { border-radius: 2px; background: rgba(244, 239, 231, .12); overflow: hidden; }
+.track i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); transition: transform .8s var(--ease); }
+[data-level="HIGH"] .track i, [data-level="BLOCKED"] .track i { background: var(--danger); }
+[data-level="WARN"] .track i { background: var(--warn); }
+.scale { display: grid; grid-template-columns: 30fr 30fr 40fr; gap: 4px; margin-top: 8px; font-size: 12px; color: var(--muted); text-align: left; white-space: nowrap; }
+.scale span:nth-child(3) { text-align: right; }
+
+.wbody { padding: 28px 44px 28px; }
+.anatomy { background: var(--surface); border-radius: var(--r-lg); padding: 30px 32px 26px; box-shadow: inset 0 0 0 1px var(--line); }
+.full { margin: 18px 0 0; font-size: 13px; color: var(--faint); word-break: break-all; user-select: text; }
+.two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 16px; }
+.reasons { background: var(--surface); border-radius: var(--r-lg); padding: 28px 32px; box-shadow: inset 0 0 0 1px var(--line); }
+.reasons ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.reasons li { display: grid; grid-template-columns: 12px 1fr; gap: 14px; }
+.reasons .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 9px; background: var(--danger); }
+.shell[data-level="WARN"] .reasons .dot { background: var(--warn); }
+.reasons .dot.pending { background: var(--muted); animation: pulse 1.1s ease-in-out infinite; }
+.reasons li.fresh { animation: arrive .6s var(--ease); }
+.reasons .src { margin: 20px 0 0; font-size: 13px; color: var(--muted); }
+.advice { background: var(--accent-soft); border-radius: var(--r-lg); padding: 28px 32px; }
+.advice .h2 { color: var(--accent-hi); }
+.advice p { margin: 0; }
+.advice p + p { margin-top: 14px; color: var(--accent-hi); font-size: 15px; }
+
+.actionbar { flex: none; padding: 20px 44px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 14px; background: var(--bg); }
+.actionbar .hint { font-size: 14px; color: var(--muted); margin-right: auto; }
+.actionbar kbd { font: 500 13px var(--sans); padding: 4px 10px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.ring { width: 20px; height: 20px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 2; }
+.ring .bgc { stroke: var(--line-strong); }
+.ring .fg { stroke: var(--accent); stroke-linecap: round; }
+#btnOpen:not([disabled]) .ring { display: none; }
+
+@media (max-width: 700px) {
+  .verdict { grid-template-columns: 1fr; gap: 28px; padding: 28px 22px; }
+  .verdict h1 { font-size: 38px; }
+  .verdict h1 .k { font-size: 48px; }
+  .meter { text-align: left; }
+  .wbody { padding: 24px 22px 8px; }
+  .two { grid-template-columns: 1fr; }
+  .actionbar { padding: 16px 22px; flex-wrap: wrap; }
+  .actionbar .hint { width: 100%; }
+  .actionbar .btn { flex: 1; }
+  .part code { font-size: 19px; }
+}
+</style>
+</head>
+<body>
+<div class="shell" id="shell" data-level="HIGH">
+  <div class="tb">
+    <div class="drag pywebview-drag-region"><span class="mark" aria-hidden="true"><i></i><i></i></span><span data-i18n="f.tb">Chotto · link from Zalo</span></div>
+    <button class="ctl" id="btnMin" data-i18n-attr="aria-label:f.min" aria-label="Minimize"><svg viewBox="0 0 10 10"><path d="M0 5h10"/></svg></button>
+    <button class="ctl close" id="btnX" data-i18n-attr="aria-label:f.x" aria-label="Close without opening the link"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></svg></button>
+  </div>
+
+  <div class="scroll">
+    <section class="verdict" id="verdict" data-level="HIGH" aria-live="polite">
+      <div>
+        <h1><span class="k" data-i18n="f.hold">Hold on.</span><span id="vTitle"></span></h1>
+        <p id="vText"></p>
+      </div>
+      <div class="meter">
+        <b id="vScore">0</b><span class="lbl" data-i18n="f.score">risk score out of 100</span>
+        <div class="track" aria-hidden="true"><span><i></i></span><span><i></i></span><span><i></i></span></div>
+        <div class="scale" aria-hidden="true"><span data-i18n="f.safe">Safe</span><span data-i18n="f.suspicious">Suspicious</span><span data-i18n="f.dangerous">Dangerous</span></div>
+      </div>
+    </section>
+
+    <div class="wbody">
+      <section class="anatomy">
+        <h2 class="h2" data-i18n="f.anatomy">Where this link really goes</h2>
+        <div class="parts" id="parts"></div>
+        <div class="compare" id="compare" hidden></div>
+        <p class="full" id="full"></p>
+      </section>
+      <div class="two">
+        <section class="reasons"><h2 class="h2" id="reasonsTitle"></h2><ul id="reasons"></ul><p class="src" id="src"></p></section>
+        <section class="advice"><h2 class="h2" data-i18n="f.advice">What to do</h2><p id="adviceText"></p><p id="general"></p></section>
+      </div>
+    </div>
+  </div>
+
+  <div class="actionbar">
+    <span class="hint" data-i18n-html="f.hint">Press <kbd>Esc</kbd> to close</span>
+    <button class="btn btn--secondary" id="btnOpen" disabled>
+      <svg class="ring" viewBox="0 0 20 20" aria-hidden="true"><circle class="bgc" cx="10" cy="10" r="8"/><circle class="fg" id="ring" cx="10" cy="10" r="8" stroke-dasharray="50.27" stroke-dashoffset="50.27"/></svg>
+      <span id="openLabel" data-i18n="f.open">Open anyway</span>
+    </button>
+    <button class="btn btn--primary" id="btnClose" data-i18n="f.close">Close, don’t open</button>
+  </div>
+</div>
+<script src="i18n.js"></script>
+<script src="friction.js"></script>
+</body>
+</html>

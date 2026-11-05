@@ -1,0 +1,97 @@
+/* CHOTTO – giao diện HTML (phương án luxury). Một hệ thống cho cả màn hình đệm và cửa sổ ứng dụng.
+   Màu: warm-black-gold. Chữ: Newsreader (tiêu đề, con số) + Onest (chữ đọc), cả hai có bộ tiếng Việt. */
+@import url("fonts/fonts.css");
+
+:root {
+  color-scheme: dark;
+  --bg: #0c0a08; --surface: #161310; --surface2: #1f1b16; --ink: #f4efe7; --muted: #a89f92; --faint: #6f675d;
+  --line: rgba(244, 239, 231, .1); --line-strong: rgba(244, 239, 231, .2);
+  --accent: #c9a45a; --accent-ink: #17110a; --accent-hi: #d8b874; --accent-soft: rgba(201, 164, 90, .12);
+  --danger: #e5484d; --danger-field: #230c0b; --danger-ink: #ff9c8f; --danger-chip: rgba(229, 72, 77, .16);
+  --warn: #e0a84a; --warn-field: #221906; --warn-ink: #f0c47a; --warn-chip: rgba(224, 168, 74, .16);
+  --ok: #7fc8a0; --ok-chip: rgba(127, 200, 160, .14);
+  --serif: "Newsreader", Georgia, serif;
+  --sans: "Onest", "Segoe UI", system-ui, sans-serif;
+  --r-lg: 20px; --r-sm: 8px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased; overflow: hidden; user-select: none;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+h1, h2, p { text-wrap: pretty; }
+[hidden] { display: none !important; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(244, 239, 231, .14); border-radius: 999px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: rgba(244, 239, 231, .26); }
+::-webkit-scrollbar-button { display: none; height: 0; }
+.selectable { user-select: text; }
+
+/* ---- thanh tiêu đề tự vẽ (cửa sổ không viền) ---- */
+.tb { height: 40px; flex: none; display: flex; align-items: center; gap: 10px; padding-left: 16px; font-size: 13px; color: var(--muted); }
+.tb .drag { flex: 1; align-self: stretch; display: flex; align-items: center; gap: 10px; }
+.tb .ctl { width: 46px; height: 40px; display: grid; place-items: center; transition: background .15s; }
+.tb .ctl:hover { background: rgba(244, 239, 231, .06); }
+.tb .ctl.close:hover { background: #c42b1c; }
+.tb .ctl svg { width: 10px; height: 10px; stroke: var(--muted); stroke-width: 1.1; fill: none; }
+.tb .ctl:hover svg { stroke: var(--ink); }
+
+.mark { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--accent); display: inline-grid; grid-auto-flow: column; gap: 2.5px; place-content: center; flex: none; }
+.mark i { width: 2px; height: 7px; border-radius: 1px; background: var(--accent); }
+.mark--lg { width: 30px; height: 30px; gap: 4px; box-shadow: inset 0 0 0 2px var(--accent); }
+.mark--lg i { width: 3px; height: 11px; }
+
+.h2 { margin: 0 0 18px; font: 400 24px/1.2 var(--serif); letter-spacing: -.01em; }
+
+/* ---- nút ---- */
+.btn { white-space: nowrap; height: 50px; padding: 0 28px; border-radius: 999px; font-size: 16px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 10px; transition: transform .15s var(--ease), background .2s, box-shadow .2s, color .2s; }
+.btn:active { transform: translateY(1px) scale(.985); }
+.btn--primary { background: var(--accent); color: var(--accent-ink); }
+.btn--primary:hover { background: var(--accent-hi); transform: translateY(-1px); }
+.btn--secondary { box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--ink); }
+.btn--secondary:not([disabled]):hover { box-shadow: inset 0 0 0 1px var(--ink); transform: translateY(-1px); }
+.btn[disabled] { color: var(--muted); cursor: not-allowed; }
+.btn--primary[disabled] { background: var(--surface2); }
+.link-danger { color: var(--danger-ink); font-weight: 600; padding: 8px; }
+.link-danger:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+/* ---- giải phẫu đường link ---- */
+.parts { display: flex; flex-wrap: wrap; align-items: flex-start; row-gap: 16px; }
+.part { display: flex; flex-direction: column; min-width: 0; }
+.part code { font: 500 22px/1.25 var(--sans); letter-spacing: -.015em; padding: 8px 2px; border-radius: 8px; word-break: break-all; user-select: text; }
+.part small { margin-top: 10px; padding: 0 2px; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.part small::before { content: ""; display: block; height: 2px; border-radius: 1px; margin-bottom: 7px; background: currentColor; opacity: .6; }
+.part.dim code { color: var(--faint); }
+.part.decoy code { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: rgba(229, 72, 77, .6); }
+.part.decoy small { color: var(--danger-ink); }
+.part.real code, .part.warnpart code { padding: 8px 14px; margin: 0 6px; }
+.part.real small, .part.warnpart small { margin-left: 6px; margin-right: 6px; }
+.part.real code { background: var(--danger-chip); color: var(--danger-ink); font-weight: 700; }
+.part.real small { color: var(--danger-ink); }
+.part.warnpart code { background: var(--warn-chip); color: var(--warn-ink); font-weight: 700; }
+.part.warnpart small { color: var(--warn-ink); }
+.compare { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: center; }
+.compare .ok { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--ok-chip); display: grid; place-items: center; }
+.compare .ok svg { width: 14px; height: 14px; stroke: var(--ok); stroke-width: 2.4; fill: none; }
+.compare strong { color: var(--ok); font-weight: 600; }
+
+/* ---- nhãn trạng thái ---- */
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip.high { background: var(--danger-chip); color: var(--danger-ink); }
+.chip.warn { background: var(--warn-chip); color: var(--warn-ink); }
+.chip.ok { background: var(--ok-chip); color: var(--ok); }
+
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px); opacity: 0; padding: 12px 20px; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 500; transition: opacity .25s, transform .25s var(--ease); pointer-events: none; box-shadow: 0 12px 30px rgba(0, 0, 0, .5); z-index: 20; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.toast.err { background: var(--danger-ink); }
+
+@keyframes pulse { 50% { opacity: .3; } }
+@keyframes arrive { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

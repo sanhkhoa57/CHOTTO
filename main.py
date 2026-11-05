@@ -6,6 +6,7 @@
   main.py                        : mở cửa sổ cài đặt
   main.py agent                  : chạy agent thường trú (tự khởi động cùng hệ thống sau khi cài)
   main.py agent-status | agent-stop : xem trạng thái / tắt agent
+  main.py ui-host                : tiến trình giao diện HTML (agent tự khởi chạy, nói chuyện qua stdin/stdout)
   main.py check <url>            : in kết quả thẩm định (JSON) - để kiểm thử
   main.py install | uninstall    : đăng ký / gỡ đăng ký handler (kèm tự khởi động agent)
   main.py log                    : in đường dẫn và 30 dòng cuối của chotto.log
@@ -141,6 +142,10 @@ def _run_command(target: str | None, argument: str | None, force: bool, gui: boo
         from chotto.service.app import run_resident
 
         return run_resident(show_settings_now=gui)
+    elif target == "ui-host":
+        from chotto.webhost import run_host
+
+        return run_host()
     elif target == "agent-status":
         from chotto.service.agent import ping
 

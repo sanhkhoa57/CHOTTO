@@ -9,8 +9,11 @@ if errorlevel 1 (
     echo Can Python 3.11 tro len.
     exit /b 1
 )
+REM chotto\web: giao diện HTML (HTML/CSS/JS + font). --collect-all webview: pywebview và WebView2 loader.
 pyinstaller --noconfirm --clean --noconsole --onedir --name CHOTTO ^
     --add-data "chotto\data;chotto\data" ^
+    --add-data "chotto\web;chotto\web" ^
+    --collect-all webview ^
     main.py
 if errorlevel 1 (
     echo Dong goi that bai.

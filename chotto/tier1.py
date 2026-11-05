@@ -46,6 +46,7 @@ __all__ = [
     "BlacklistError",
     "Fingerprints",
     "entry_keys",
+    "last_update_success",
     "update_due",
     "update_from_sources",
 ]
@@ -640,6 +641,16 @@ def _record_update(succeeded: bool) -> None:
         atomic_write_text(path, json.dumps(state))
     except OSError:
         _LOG.warning("Không ghi được %s", path, exc_info=True)
+
+
+def last_update_success() -> float | None:
+    """Thời điểm (epoch) danh sách đen được cập nhật thành công lần cuối; ``None`` nếu chưa từng."""
+    try:
+        state = json.loads((data_dir() / _UPDATE_STATE).read_text("utf-8"))
+    except (OSError, ValueError):
+        return None
+    success = state.get("last_success") if isinstance(state, dict) else None
+    return float(success) if isinstance(success, (int, float)) else None
 
 
 def update_due(interval_s: float = 86400.0, retry_s: float = 3600.0, now: float | None = None) -> bool:

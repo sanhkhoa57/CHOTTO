@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chotto</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.shell { height: 100vh; display: grid; grid-template-columns: 232px 1fr; grid-template-rows: 40px 1fr; }
+.tb { grid-column: 1 / -1; }
+.side { padding: 0 16px 20px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line); min-height: 0; }
+.brand { display: flex; align-items: center; gap: 12px; padding: 14px 12px 32px; }
+.brand b { font: 400 26px/1 var(--serif); letter-spacing: -.02em; }
+.nav a { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: var(--r-sm); text-decoration: none; color: var(--muted); font-size: 15px; font-weight: 500; transition: color .15s, background .15s; }
+.nav a:hover { color: var(--ink); background: rgba(244, 239, 231, .04); }
+.nav a[aria-current="page"] { color: var(--ink); background: var(--surface2); }
+.nav a[aria-current="page"] svg { stroke: var(--accent); }
+.nav svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.side .foot { margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+.side .credit { font-size: 13px; color: var(--muted); }
+.side .credit b { color: var(--accent-hi); font-weight: 600; letter-spacing: .02em; }
+.seg--sm { align-self: flex-start; }
+.seg--sm button { padding: 6px 14px; font-size: 13px; }
+.main { overflow-y: auto; padding: 40px 48px 48px; min-width: 0; }
+.page-h { margin: 0; font: 400 40px/1.05 var(--serif); letter-spacing: -.025em; }
+.page-sub { margin: 10px 0 32px; color: var(--muted); }
+
+/* khối trạng thái, nền ánh vàng hạt nhám (CSS + SVG, không tải thư viện) */
+.guard { position: relative; isolation: isolate; border-radius: var(--r-lg); overflow: hidden; min-height: 260px; padding: 36px; display: flex; flex-direction: column; justify-content: flex-end; background: #120e0a; }
+.guard::before { content: ""; position: absolute; inset: -30%; z-index: -2;
+  background: radial-gradient(40% 45% at 72% 38%, rgba(201, 164, 90, .55), transparent 70%),
+              radial-gradient(30% 35% at 92% 85%, rgba(120, 92, 44, .5), transparent 70%),
+              radial-gradient(35% 40% at 20% 10%, rgba(70, 52, 26, .45), transparent 70%);
+  animation: drift 22s ease-in-out infinite alternate; }
+.guard::after { content: ""; position: absolute; inset: 0; z-index: -1; opacity: .35; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.guard.off::before { background: radial-gradient(40% 45% at 72% 38%, rgba(229, 72, 77, .35), transparent 70%), radial-gradient(35% 40% at 20% 10%, rgba(70, 30, 26, .45), transparent 70%); }
+@keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-6%, 4%, 0) scale(1.08); } }
+.guard .row1 { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.guard h2 { margin: 0; font: 400 40px/1.05 var(--serif); letter-spacing: -.025em; max-width: 20ch; }
+.guard p { margin: 12px 0 0; color: #d9cdb8; }
+.guard .btn { margin-top: 20px; }
+.guard .big { text-align: right; flex: none; }
+.guard .big b { display: block; font: 300 88px/.85 var(--serif); letter-spacing: -.04em; }
+.guard .big span { display: block; margin-top: 10px; font-size: 14px; color: #d9cdb8; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.tile { background: var(--surface); border-radius: var(--r-lg); padding: 26px; box-shadow: inset 0 0 0 1px var(--line); }
+.tile b { display: block; font: 300 48px/1 var(--serif); letter-spacing: -.03em; }
+.tile span { display: block; margin-top: 12px; }
+.tile small { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+
+.list { margin-top: 16px; background: var(--surface); border-radius: var(--r-lg); padding: 8px 28px; box-shadow: inset 0 0 0 1px var(--line); }
+.list .h2 { margin: 20px 0 6px; }
+.row { display: grid; grid-template-columns: 1fr auto auto; gap: 20px; align-items: center; padding: 15px 0; border-top: 1px solid var(--line); }
+.list .row:first-of-type { border-top: 0; }
+.row .d { font-weight: 500; word-break: break-all; user-select: text; }
+.row .t { color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.empty { padding: 28px 0; color: var(--muted); }
+
+.checker { background: var(--surface); border-radius: var(--r-lg); padding: 32px; box-shadow: inset 0 0 0 1px var(--line); }
+.field { display: flex; gap: 12px; }
+.field input { flex: 1; min-width: 0; height: 54px; padding: 0 22px; border-radius: 999px; border: 0; box-shadow: inset 0 0 0 1px var(--line-strong); background: var(--bg); font-size: 17px; user-select: text; }
+.field input::placeholder { color: var(--faint); }
+.field input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.result { margin-top: 28px; padding-top: 26px; border-top: 1px solid var(--line); }
+.result .top { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.result .top b { font: 400 26px/1.1 var(--serif); letter-spacing: -.015em; }
+.result .top .sc { margin-left: auto; color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+.result ul { margin: 22px 0 0; padding-left: 20px; color: var(--ink); }
+.result li + li { margin-top: 6px; }
+.busy { color: var(--muted); animation: pulse 1.1s ease-in-out infinite; }
+
+.group { background: var(--surface); border-radius: var(--r-lg); padding: 8px 28px; margin-bottom: 16px; box-shadow: inset 0 0 0 1px var(--line); }
+.group .h2 { margin: 22px 0 6px; }
+.opt { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 17px 0; border-top: 1px solid var(--line); }
+.group .opt:first-of-type { border-top: 0; }
+.opt strong { display: block; font-weight: 500; }
+.opt small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+.switch { flex: none; width: 46px; height: 28px; border-radius: 999px; background: #3a342c; position: relative; transition: background .25s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); transition: transform .3s var(--ease), background .25s; }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(18px); background: var(--accent-ink); }
+.seg { display: flex; border-radius: 999px; padding: 4px; flex: none; box-shadow: inset 0 0 0 1px var(--line); }
+.seg button { padding: 8px 16px; border-radius: 999px; font-size: 15px; font-weight: 500; color: var(--muted); transition: background .2s, color .2s; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.btn-row .link-danger { margin-left: auto; }
+
+@media (max-width: 820px) {
+  .shell { grid-template-columns: 1fr; grid-template-rows: 40px auto 1fr; }
+  .side { flex-direction: row; flex-wrap: wrap; align-items: center; border-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .brand { padding: 8px; }
+  .nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .side .foot { display: none; }
+  .main { padding: 28px 22px 32px; }
+  .guard .row1 { flex-direction: column; align-items: flex-start; }
+  .guard .big { text-align: left; }
+  .tiles { grid-template-columns: 1fr; }
+  .field { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="tb">
+    <div class="drag pywebview-drag-region"></div>
+    <button class="ctl" data-win="minimize" data-i18n-attr="aria-label:win.min" aria-label="Minimize"><svg viewBox="0 0 10 10"><path d="M0 5h10"/></svg></button>
+    <button class="ctl" data-win="toggle_maximize" data-i18n-attr="aria-label:win.max" aria-label="Maximize"><svg viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9"/></svg></button>
+    <button class="ctl close" data-win="close" data-i18n-attr="aria-label:win.close" aria-label="Close window"><svg viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></svg></button>
+  </div>
+
+  <aside class="side">
+    <div class="brand"><span class="mark mark--lg" aria-hidden="true"><i></i><i></i></span><b>Chotto</b></div>
+    <nav class="nav" data-i18n-attr="aria-label:nav.aria" aria-label="Main sections">
+      <a href="#home" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.3 8-8 9-4.7-1-8-4.5-8-9V6z"/></svg><span data-i18n="nav.home">Overview</span></a>
+      <a href="#check" data-tab="check"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span data-i18n="nav.check">Check a link</span></a>
+      <a href="#log" data-tab="log"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span data-i18n="nav.log">Activity</span></a>
+      <a href="#settings" data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c0-.4.1-.8.1-1.2z"/></svg><span data-i18n="nav.settings">Settings</span></a>
+    </nav>
+    <div class="foot">
+      <div class="seg seg--sm" role="group" data-lang-switch data-i18n-attr="aria-label:lang.aria" aria-label="Language">
+        <button data-lang="en" aria-pressed="true">EN</button><button data-lang="vi" aria-pressed="false">VI</button>
+      </div>
+      <div class="credit" id="credit">Developed by <b>AECC</b></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section data-pane="home">
+      <h1 class="page-h" data-i18n="home.h">Overview</h1>
+      <p class="page-sub" data-i18n="home.sub">Every link you tap in Zalo goes through Chotto before it opens.</p>
+      <div class="guard" id="guard">
+        <div class="row1">
+          <div>
+            <h2 id="guardTitle" data-i18n="guard.on">This computer is protected</h2>
+            <p id="guardText"></p>
+            <button class="btn btn--primary" id="guardInstall" data-i18n="guard.install" hidden>Set Chotto as link handler</button>
+          </div>
+          <div class="big"><b id="sTotal">0</b><span data-i18n="guard.total">links checked in the last 7 days</span></div>
+        </div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><b id="sSafe">0</b><span data-i18n="tile.safe">safe links, opened right away</span><small data-i18n="tile.safeSub">nothing for you to do</small></div>
+        <div class="tile"><b id="sWarned">0</b><span data-i18n="tile.warned">warnings shown</span><small id="sClosed"></small></div>
+        <div class="tile"><b id="sBlocked">0</b><span data-i18n="tile.blocked">known scam links</span><small data-i18n="tile.blockedSub">on the scam list</small></div>
+      </div>
+      <div class="list"><h2 class="h2" data-i18n="recent.h">Recent</h2><div id="recentShort"></div></div>
+    </section>
+
+    <section data-pane="check" hidden>
+      <h1 class="page-h" data-i18n="check.h">Check a link</h1>
+      <p class="page-sub" data-i18n="check.sub">Paste a link someone sent you. Chotto checks it without opening the page.</p>
+      <div class="checker">
+        <form class="field" id="checkForm">
+          <input id="checkInput" type="text" inputmode="url" autocomplete="off" spellcheck="false" data-i18n-attr="aria-label:check.aria;placeholder:check.placeholder" aria-label="Link to check" placeholder="Paste a link here">
+          <button class="btn btn--primary" type="submit" id="checkBtn" data-i18n="check.btn">Check</button>
+        </form>
+        <div class="result" id="checkResult" hidden aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section data-pane="log" hidden>
+      <h1 class="page-h" data-i18n="log.h">Activity</h1>
+      <p class="page-sub" data-i18n="log.sub">Only domain names are kept on this computer, never full addresses or content.</p>
+      <div class="list" style="margin-top:0"><div id="recentFull"></div></div>
+      <div class="btn-row" style="margin-top:16px"><button class="btn btn--secondary" data-action="export" data-i18n="log.export">Export to CSV</button></div>
+    </section>
+
+    <section data-pane="settings" hidden>
+      <h1 class="page-h" data-i18n="set.h">Settings</h1>
+      <p class="page-sub" data-i18n="set.sub">Changes are saved right away.</p>
+      <div class="group">
+        <h2 class="h2" data-i18n="set.general">General</h2>
+        <div class="opt"><div><strong data-i18n="set.language">Language</strong><small data-i18n="set.languageSub">Used in every Chotto window</small></div>
+          <div class="seg" role="group" data-lang-switch data-i18n-attr="aria-label:lang.aria" aria-label="Language">
+            <button data-lang="en" aria-pressed="true">English</button><button data-lang="vi" aria-pressed="false">Tiếng Việt</button>
+          </div></div>
+      </div>
+      <div class="group">
+        <h2 class="h2" data-i18n="set.privacy">Privacy</h2>
+        <div class="opt"><div><strong data-i18n="set.tier3">Look up domain age online</strong><small data-i18n="set.tier3Sub">Turn off to keep Chotto fully offline</small></div><button class="switch" role="switch" data-key="tier3_enabled" aria-checked="false" data-i18n-attr="aria-label:set.tier3" aria-label="Look up domain age online"></button></div>
+        <div class="opt"><div><strong data-i18n="set.log">Keep an activity log on this computer</strong><small data-i18n="set.logSub">Domain names only, so you can review them</small></div><button class="switch" role="switch" data-key="log_decisions" aria-checked="false" data-i18n-attr="aria-label:set.log" aria-label="Keep an activity log on this computer"></button></div>
+      </div>
+      <div class="group">
+        <h2 class="h2" data-i18n="set.suspicious">When a link looks suspicious</h2>
+        <div class="opt"><div><strong data-i18n="set.advice">Show advice</strong><small data-i18n="set.adviceSub">Tips on what to do, generated on this computer</small></div><button class="switch" role="switch" data-key="ai_advice" aria-checked="false" data-i18n-attr="aria-label:set.advice" aria-label="Show advice"></button></div>
+        <div class="opt"><div><strong data-i18n="set.unknown">Also check links from unknown sources</strong><small data-i18n="set.unknownSub">Links that may not come from Zalo</small></div><button class="switch" role="switch" data-key="unknown_caller_policy" aria-checked="false" data-i18n-attr="aria-label:set.unknown" aria-label="Also check links from unknown sources"></button></div>
+        <div class="opt"><div><strong data-i18n="set.wait">Wait before “Open anyway” unlocks</strong><small data-i18n="set.waitSub">Time to think it over; dangerous links wait 3 to 5 seconds longer</small></div>
+          <div class="seg" role="group" id="seconds" data-i18n-attr="aria-label:set.waitAria" aria-label="Waiting time">
+            <button data-s="3" aria-pressed="false"></button><button data-s="5" aria-pressed="false"></button><button data-s="8" aria-pressed="false"></button><button data-s="15" aria-pressed="false"></button>
+          </div></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn--secondary" data-action="install" data-i18n="act.install">Set as link handler</button>
+        <button class="btn btn--secondary" data-action="update" data-i18n="act.update">Update scam list</button>
+        <button class="link-danger" data-action="uninstall" data-i18n="act.uninstall">Stop using Chotto as link handler</button>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

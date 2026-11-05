@@ -13,6 +13,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from collections.abc import Callable
 from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any, Final
@@ -24,7 +25,9 @@ from ..engine import Engine, Result
 from ..tier1 import BlacklistError, update_due, update_from_sources
 from . import agent as agent_mod
 from . import ipc
+from . import webui as webui_mod
 from .handler import LinkHandler, SecondsFor
+from .webui import WebUI, WebUIError
 
 if TYPE_CHECKING:
     import tkinter as tk
@@ -40,7 +43,7 @@ _POLL_MS: Final[int] = 50
 _AUTO_UPDATE_FIRST_MS: Final[int] = 2 * 60 * 1000       # để máy khởi động xong rồi mới tải
 _AUTO_UPDATE_EVERY_MS: Final[int] = 15 * 60 * 1000
 _SETTINGS_KEYS: Final[tuple[str, ...]] = (
-    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds",
+    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
 )
 
 
@@ -97,11 +100,43 @@ def export_action(path: str) -> str:
     return f"Đã xuất {logdb.export_csv(path)} dòng ra {path}."
 
 
-def build_handler(cfg: Config, root: tk.Tk | None) -> LinkHandler:
-    """Dựng ``LinkHandler`` dùng giao diện Tk thật (hoặc hộp thoại hệ thống nếu không có Tk)."""
+def _pump(root: tk.Tk | None) -> Callable[[], None]:
+    """Hàm cho vòng lặp Tk xử lý sự kiện trong lúc chờ giao diện HTML (không có Tk: không làm gì)."""
+    def pump() -> None:
+        if root is None:
+            return
+        try:
+            root.update()
+        except Exception:  # noqa: BLE001 - Tk đã bị hủy: chờ tiếp bằng event.wait
+            _LOG.debug("Không cập nhật được Tk", exc_info=True)
+
+    return pump
+
+
+def make_webui() -> WebUI | None:
+    """Giao diện HTML của phiên này; ``None`` khi người dùng ép dùng Tk (``CHOTTO_UI=tk``)."""
+    return WebUI() if webui_mod.enabled() else None
+
+
+def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None) -> LinkHandler:
+    """Dựng ``LinkHandler``: giao diện HTML nếu có, không được thì Tk, cuối cùng là hộp thoại hệ thống."""
     from .. import ui
 
+    rules: dict[str, Any] = {}
+
+    def view_of(result: Result, checking: bool) -> dict[str, Any]:
+        from ..viewmodel import friction_view
+
+        if not rules:
+            rules.update(load_rules())
+        return friction_view(result, checking, rules, cfg["ui_language"])
+
     def present(result: Result, seconds_for: SecondsFor, pending: Future[Result] | None) -> tuple[bool, int, Result]:
+        if web is not None:
+            try:
+                return web.present(view_of, result, seconds_for, pending, _pump(root))
+            except WebUIError:
+                _LOG.warning("Giao diện HTML không dùng được, chuyển sang Tk", exc_info=True)
         if root is None:
             raise RuntimeError("Không có giao diện Tk")
         return ui.show_friction(root, result, seconds_for, pending)
@@ -156,11 +191,29 @@ def run_once(url: str | None = None, force: bool = False, gui: bool = False, cal
     if url and not force and caller is None:
         caller = detect_caller(cfg)        # phải đo TRƯỚC khi tạo cửa sổ
     root = _create_root()
-    handler = build_handler(cfg, root)
+    web = make_webui()
+    if web is not None:
+        web.start()                        # khởi động lạnh song song với việc thẩm định
+    try:
+        return _run_once_ui(url, force, gui, caller, cfg, root, web)
+    finally:
+        if web is not None:
+            web.stop()
 
+
+def _run_once_ui(url: str | None, force: bool, gui: bool, caller: Caller | None, cfg: Config, root: tk.Tk | None,
+                 web: WebUI | None) -> int:
+    """Thân của ``run_once`` sau khi đã có cửa sổ gốc Tk (nếu có) và giao diện HTML (nếu có)."""
+    from .. import ui
+
+    handler = build_handler(cfg, root, web)
     if root is None:
         if url:
             handler.handle(url, caller, force)
+            return 0
+        if web is not None and web.open_settings(_pump(None)):
+            while web.settings_open:
+                time.sleep(0.2)
             return 0
         ui.native_alert("CHOTTO", "Không mở được giao diện CHOTTO (thiếu Tk).")
         return 1
@@ -191,6 +244,15 @@ def run_once(url: str | None = None, force: bool = False, gui: bool = False, cal
 
     def open_settings() -> None:
         state["settings"] = True
+        if web is not None and web.open_settings(_pump(window)):
+            def watch() -> None:
+                if web.settings_open or state["busy"]:
+                    window.after(200, watch)
+                elif window.winfo_exists():
+                    window.destroy()             # cửa sổ ứng dụng HTML đã đóng: thoát như bản Tk
+
+            window.after(200, watch)
+            return
         ui.show_settings(window, cfg, save_settings, _settings_actions())
 
     if sys.platform == "darwin":
@@ -259,9 +321,10 @@ class AutoUpdater:
 class _HandlerCache:
     """Giữ ``LinkHandler`` (và engine trong RAM); dựng lại khi ``config.json`` thay đổi."""
 
-    def __init__(self, root: tk.Tk) -> None:
-        """Tạo bộ đệm cho cửa sổ gốc ``root``."""
+    def __init__(self, root: tk.Tk, web: WebUI | None = None) -> None:
+        """Tạo bộ đệm cho cửa sổ gốc ``root`` (và giao diện HTML ``web`` nếu có)."""
         self._root = root
+        self._web = web
         self._stamp: tuple[int, int] | None = None
         self._handler: LinkHandler | None = None
 
@@ -281,7 +344,7 @@ class _HandlerCache:
             if self._handler is not None:
                 _LOG.info("config.json thay đổi, nạp lại cấu hình")
             self._stamp = stamp
-            self._handler = build_handler(load_config(), self._root)
+            self._handler = build_handler(load_config(), self._root, self._web)
         return self._handler
 
     @property
@@ -324,7 +387,10 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
             window.destroy()
             return 1
 
-    handlers = _HandlerCache(window)
+    web = make_webui()
+    if web is not None:
+        web.start()                    # giữ sẵn: màn hình đệm sau hiện trong khoảng 0,2 giây
+    handlers = _HandlerCache(window, web)
     state: dict[str, Any] = {"busy": False, "handled": False, "settings": None}
 
     def drain() -> None:
@@ -352,6 +418,8 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
             window.destroy()
 
     def open_settings() -> None:
+        if web is not None and web.open_settings(_pump(window)):
+            return
         existing = state["settings"]
         if existing is not None and existing.winfo_exists():
             existing.deiconify()
@@ -391,4 +459,6 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
     finally:
         if server is not None:
             server.stop()
+        if web is not None:
+            web.stop()
     return 0

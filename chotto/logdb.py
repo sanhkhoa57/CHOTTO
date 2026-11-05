@@ -21,7 +21,7 @@ from .config import data_dir
 if TYPE_CHECKING:
     from .engine import Result
 
-__all__ = ["export_csv", "record"]
+__all__ = ["export_csv", "recent", "record", "summary"]
 
 _LOG = logging.getLogger(__name__)
 _SCHEMA_VERSION: Final[int] = 2
@@ -88,6 +88,48 @@ def record(result: Result, decision: str, dwell_ms: int, source: str, retention_
         _LOG.exception("Không ghi được nhật ký quyết định")
         return False
     return True
+
+
+def summary(days: int = 7, now: float | None = None) -> dict[str, int]:
+    """Số liệu cho màn hình Tổng quan trong ``days`` ngày gần nhất (chỉ nguồn Desktop).
+
+    Returns:
+        ``total`` (mọi link đã kiểm tra), ``safe`` (mở ngay), ``warned`` (đã hiện màn hình đệm),
+        ``closed`` (người dùng bấm "Đóng"), ``blocked`` (nằm trong danh sách đen). Lỗi đọc ⇒ toàn số 0.
+    """
+    counts = {"total": 0, "safe": 0, "warned": 0, "closed": 0, "blocked": 0}
+    since = (time.time() if now is None else now) - max(1, days) * 86400
+    try:
+        with _connect() as con:
+            rows = con.execute("SELECT level, decision FROM decisions WHERE ts >= ? AND source = 'desktop'",
+                               (since,)).fetchall()
+    except (sqlite3.Error, OSError):
+        _LOG.exception("Không đọc được nhật ký quyết định")
+        return counts
+    for level, decision in rows:
+        counts["total"] += 1
+        if decision == "auto_open":
+            counts["safe"] += 1
+        else:
+            counts["warned"] += 1
+        if decision == "cancel":
+            counts["closed"] += 1
+        if level == "BLOCKED":
+            counts["blocked"] += 1
+    return counts
+
+
+def recent(limit: int = 30) -> list[dict[str, object]]:
+    """Các quyết định mới nhất (mới trước): ``ts``, ``host``, ``score``, ``level``, ``decision``. Lỗi ⇒ ``[]``."""
+    try:
+        with _connect() as con:
+            rows = con.execute("SELECT ts, host, score, level, decision FROM decisions ORDER BY ts DESC LIMIT ?",
+                               (max(1, limit),)).fetchall()
+    except (sqlite3.Error, OSError):
+        _LOG.exception("Không đọc được nhật ký quyết định")
+        return []
+    return [{"ts": float(ts), "host": str(host), "score": int(score), "level": str(level), "decision": str(decision)}
+            for ts, host, score, level, decision in rows]
 
 
 def export_csv(path: str | Path) -> int:

@@ -1,4 +1,4 @@
-# CHOTTO – Khoan đã! (v1.4.0)
+# CHOTTO – Khoan đã! (v1.5.0)
 
 Trạm kiểm soát link Zalo trên máy tính (Windows / macOS). CHOTTO đăng ký làm trình duyệt mặc định,
 nhận link được bấm trong Zalo, chấm điểm rủi ro rồi mới quyết định mở thẳng hay hiện màn hình cảnh báo
@@ -21,7 +21,9 @@ cùng mức, cùng lý do và cùng lời khuyên.
 
 ## Yêu cầu
 - Python **3.11+** (cần có `tkinter`; trên Linux: `sudo apt install python3-tk`).
-- Chạy chương trình: **không cần cài thư viện ngoài**, chỉ dùng thư viện chuẩn.
+- Lõi chương trình chỉ dùng thư viện chuẩn. Giao diện HTML (màn hình đệm và cửa sổ ứng dụng kiểu mới) cần
+  **pywebview** (`pip install -r requirements.txt`); trên Windows dùng WebView2 có sẵn trong Windows 10/11.
+  Thiếu pywebview hoặc WebView2 thì CHOTTO tự dùng giao diện Tk như cũ; đặt `CHOTTO_UI=tk` để luôn dùng Tk.
 - Đóng gói ra `.exe` / `.app`: `pip install -r requirements.txt` (xem file `requirements.txt`).
 
 ## Cấu trúc
@@ -37,7 +39,10 @@ CHOTTO/
 │   ├── advisor.py            AI's Advices: lời khuyên cục bộ theo tổ hợp dấu hiệu, rồi từng dấu hiệu
 │   ├── caller.py             nhận diện link có xuất phát từ Zalo hay không
 │   ├── platform_setup.py     đăng ký URL handler + chuyển tiếp sang trình duyệt thật
-│   ├── ui.py                 giao diện Tkinter Dark Mode: màn hình đệm + cửa sổ cài đặt
+│   ├── ui.py                 giao diện Tkinter Dark Mode (dự phòng): màn hình đệm + cửa sổ cài đặt
+│   ├── viewmodel.py          Result → dữ liệu hiển thị (tách đường link thành phần ngụy trang / nơi thật sự tới)
+│   ├── webhost.py            tiến trình giao diện HTML (pywebview): màn hình đệm + cửa sổ ứng dụng
+│   ├── web/                  HTML/CSS/JS của giao diện + font Newsreader, Onest (SIL OFL)
 │   ├── logdb.py              nhật ký quyết định (SQLite) + xuất CSV
 │   ├── config.py             cấu hình người dùng, đường dẫn dữ liệu
 │   ├── util.py               hàm dùng chung (tên miền đăng ký, skeleton đồng hình, Damerau, chuẩn hóa tiếng Việt...)
@@ -45,6 +50,7 @@ CHOTTO/
 │   │   ├── ipc.py            kênh IPC cục bộ (Named Pipe / Unix socket) + xác thực HMAC hai chiều
 │   │   ├── agent.py          giao thức launcher ↔ agent, hàng đợi link
 │   │   ├── handler.py        luồng xử lý một link (chính sách an toàn, Tầng 3 chạy nền)
+│   │   ├── webui.py          phía agent của giao diện HTML: giữ sẵn ui-host, gửi kết quả, nhận quyết định, lùi về Tk
 │   │   └── app.py            vòng đời giao diện: agent thường trú và chế độ một tiến trình
 │   ├── core/
 │   │   ├── url.py            bộ phân tích URL theo chuẩn WHATWG (giống trình duyệt), IDNA/UTS46, IPv4 dạng số
@@ -119,10 +125,20 @@ python packaging/macos_setup.py py2app
 Chép `dist/CHOTTO.app` vào `/Applications`, rồi vào **Cài đặt hệ thống ▸ Máy tính để bàn & Dock ▸ Trình duyệt web mặc định** và chọn CHOTTO.
 Mở CHOTTO.app một lần và bấm **Cài làm trình duyệt mặc định** trong cửa sổ cài đặt: CHOTTO ghi nhớ trình duyệt thật và tạo LaunchAgent để tự chạy nền khi đăng nhập.
 
-### Cửa sổ cài đặt
-Chạy `python main.py` không tham số (hoặc mở `CHOTTO.app` trực tiếp) để mở cửa sổ cài đặt:
-bật/tắt Tầng 3, chỉnh thời gian khóa nút “vẫn mở” (3–15 giây), bật/tắt nhật ký, cập nhật danh sách đen,
-xuất nhật ký CSV, cài/gỡ handler.
+### Cửa sổ ứng dụng
+Chạy `python main.py` không tham số (hoặc mở `CHOTTO.app` trực tiếp) để mở cửa sổ ứng dụng gồm bốn mục:
+**Tổng quan** (trạng thái bảo vệ, số liệu 7 ngày từ nhật ký), **Kiểm tra link** (dán một link để xem phân tích
+mà không mở trang), **Nhật ký** (xuất CSV) và **Cài đặt** (lưu ngay: Tầng 3, lời khuyên, nhật ký, link không
+rõ nguồn, thời gian khóa nút “vẫn mở”; cài/gỡ handler, cập nhật danh sách đen). Với giao diện Tk dự phòng,
+cửa sổ cài đặt giữ như bản cũ.
+
+### Giao diện HTML hoạt động thế nào
+pywebview phải chạy trên luồng chính, mà luồng chính của agent thuộc về Tk (IPC, Apple Event). Vì vậy agent
+khởi chạy sẵn một tiến trình `main.py ui-host` và nói chuyện với nó bằng từng dòng JSON qua stdin/stdout
+(`chotto/webhost.py` ghi rõ giao thức). Host tự kiểm lại thời gian khóa (không tin JavaScript), đóng cửa sổ
+bằng bất kỳ cách nào đều là “không mở”, và host tự thoát khi agent thoát. Host không chạy được hoặc chết
+giữa chừng thì màn hình đệm được hiện lại bằng Tk. Xem giao diện với dữ liệu mẫu trong trình duyệt thường:
+mở `chotto/web/friction.html?demo` hoặc `chotto/web/app.html?demo`.
 
 ## Các lệnh CLI
 | Lệnh | Tác dụng |
@@ -192,6 +208,7 @@ Gồm `config.json`, `agent.key` (khóa xác thực IPC, chỉ người dùng hi
 ## Xử lý sự cố
 - **Bấm link không thấy CHOTTO phản ứng**: chạy `python main.py agent-status` và `python main.py log`. Nếu báo “chưa có dòng nào” nghĩa là CHOTTO chưa từng được gọi, hãy kiểm tra lại bước đặt trình duyệt mặc định.
 - **Muốn xem giao diện cảnh báo mà link không từ Zalo**: dùng `--force`.
+- **Màn hình đệm hiện giao diện Tk cũ thay vì giao diện mới**: kiểm tra `pip show pywebview` và tìm dòng “Giao diện HTML” trong `main.py log`; trên Windows cần WebView2 Runtime (có sẵn trên Windows 11).
 - **`ModuleNotFoundError: tkinter`** (Linux): cài `python3-tk`.
 - **py2app báo “Multiple top-level packages”**: bạn đang chạy lệnh sai thư mục, hãy chạy từ thư mục gốc dự án.
 - **Muốn tắt agent nền**: đặt `"agent_enabled": false` trong `config.json` rồi chạy `main.py agent-stop`.
@@ -200,6 +217,9 @@ Gồm `config.json`, `agent.key` (khóa xác thực IPC, chỉ người dùng hi
 
 ## Hạn chế đã biết
 - **Chưa kiểm thử trên máy thật** các phần: giao diện Tkinter, ghi registry, gọi WinAPI nhận diện Zalo, khởi chạy trình duyệt thật, `::tk::mac::LaunchURL`. Phần logic thuần của chúng (tách lệnh registry, dựng argv, quyết định nguồn gọi, luồng xử lý link) đã có test; phần gọi hệ điều hành cần thử tay.
+- **Giao diện HTML**: đã chạy thử trên Windows 11 (WebView2). Chưa thử trên macOS và chưa thử bản đóng gói
+  PyInstaller/py2app. Ở chế độ một tiến trình (agent chưa chạy), tiến trình giao diện khởi động lạnh nên
+  màn hình đệm hiện chậm hơn khoảng 1 giây; agent thường trú giữ sẵn nên không bị.
 - **Launcher vẫn là một tiến trình Python**: thời gian khởi động trình thông dịch (~0,1 giây trên máy thử Linux, có thể lâu hơn trên Windows) cộng ~10 ms giao link. Mục tiêu dưới 100 ms của lộ trình cần launcher viết bằng ngôn ngữ biên dịch; để sau.
 - **Agent chưa chạy** (vừa cài, bị tắt, hoặc `agent_enabled = false` trong `config.json`): launcher tự xử lý link như bản 1.0 và khởi động agent cho lần sau. Agent khác phiên bản launcher (vừa cập nhật) sẽ tự tắt.
 - **Cấu trúc gói**: mới tách phần dịch vụ ra `chotto/service/`; việc dời các module còn lại vào `detect/`, `platform/`, `storage/` như lộ trình chỉ là đổi chỗ file, chưa làm để tránh xáo trộn.
@@ -214,6 +234,7 @@ Gồm `config.json`, `agent.key` (khóa xác thực IPC, chỉ người dùng hi
 - **AI's Advices** hiện là bộ tư vấn dựa trên luật, không phải mô hình ngôn ngữ. Giữ nguyên chữ ký `advise(result) -> str` thì có thể thay bằng LLM chạy local (Ollama...) sau này.
 - **Báo nhầm** ở vùng xám vẫn có thể xảy ra (ví dụ tên miền hợp pháp chứa từ “momo”); Tầng 3 giúp giảm nhưng không loại bỏ.
 ## Giấy phép dữ liệu đi kèm
+- `chotto/web/fonts/`: Newsreader và Onest, SIL Open Font License 1.1 (`OFL-newsreader.txt`, `OFL-onest.txt`), tải từ Google Fonts.
 - `chotto/data/public_suffix_list.dat`: Public Suffix List, Mozilla Public License 2.0 (https://publicsuffix.org). Cập nhật bằng cách thay file này bằng bản mới từ publicsuffix.org.
 - `chotto/data/confusables_ascii.json`: rút gọn từ Unicode TR39 `confusables.txt`, theo Unicode License v3.
 - `chotto/data/popular_vn.txt`: sinh từ Chrome UX Report (Google, CC BY 4.0) qua https://github.com/zakird/crux-top-lists. Sinh lại bằng `tools/build_popular.py`.

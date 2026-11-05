@@ -1,9 +1,11 @@
 # CHOTTO Desktop
-# Chạy chương trình KHÔNG cần thư viện ngoài: chỉ dùng thư viện chuẩn của Python 3.11+
-# (tkinter, sqlite3, urllib, winreg/ctypes...). Phần dưới chỉ cần khi đóng gói hoặc kiểm tra kiểu.
+# Lõi chương trình chỉ dùng thư viện chuẩn của Python 3.11+ (tkinter, sqlite3, urllib, winreg/ctypes...).
+# Giao diện HTML (màn hình đệm, cửa sổ ứng dụng) cần pywebview; thiếu pywebview hoặc WebView2 thì CHOTTO
+# tự dùng giao diện Tk như cũ. Các gói còn lại chỉ cần khi đóng gói hoặc kiểm tra kiểu.
 #
 # Cài:  pip install -r requirements.txt
 
+pywebview>=6.0                                   # giao diện HTML (Windows: WebView2 qua pythonnet; macOS: WKWebView)
 setuptools>=70                                   # dùng bởi packaging/macos_setup.py
 py2app>=0.28;   sys_platform == "darwin"        # đóng gói CHOTTO.app trên macOS
 pyinstaller>=6.10;   sys_platform == "win32"    # đóng gói CHOTTO (thư mục onedir) trên Windows

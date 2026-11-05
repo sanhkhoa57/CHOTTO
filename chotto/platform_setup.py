@@ -23,7 +23,9 @@ __all__ = [
     "agent_argv",
     "disable_autostart",
     "enable_autostart",
+    "is_default_handler",
     "spawn_agent",
+    "ui_host_argv",
     "OWN_BUNDLE",
     "PROGID",
     "PlatformSetupError",
@@ -199,6 +201,15 @@ def agent_argv() -> list[str]:
     python = Path(sys.executable)
     pythonw = python.with_name("pythonw.exe")
     return [str(pythonw if pythonw.exists() else python), str(_main_script()), "agent"]
+
+
+def ui_host_argv() -> list[str]:
+    """Lệnh chạy tiến trình giao diện HTML (``main.py ui-host``), nói chuyện qua stdin/stdout."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "ui-host"]
+    python = Path(sys.executable)
+    pythonw = python.with_name("pythonw.exe")
+    return [str(pythonw if pythonw.exists() else python), str(_main_script()), "ui-host"]
 
 
 def spawn_agent() -> bool:
@@ -508,6 +519,23 @@ def _open_windows(url: str, cfg: Mapping[str, Any]) -> bool:
 
 
 # ---------------- macOS ----------------
+def is_default_handler() -> bool | None:
+    """CHOTTO có đang là trình xử lý link https mặc định không; ``None`` nếu không xác định được."""
+    try:
+        if sys.platform == "win32":
+            return _user_choice_progid("https") == PROGID
+        if sys.platform == "darwin":
+            path = Path.home() / "Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist"
+            handlers = plistlib.loads(path.read_bytes()).get("LSHandlers", [])
+            for handler in handlers:
+                if isinstance(handler, dict) and handler.get("LSHandlerURLScheme") == "https":
+                    return str(handler.get("LSHandlerRoleAll") or "").lower() == OWN_BUNDLE
+            return False
+    except (OSError, ValueError, plistlib.InvalidFileException, PlatformSetupError):
+        _LOG.warning("Không xác định được trình xử lý link mặc định", exc_info=True)
+    return None
+
+
 def _mac_current_default_bundle() -> str | None:
     """Bundle id trình duyệt mặc định trong LaunchServices (bỏ qua CHOTTO)."""
     path = Path.home() / "Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist"
