@@ -30,7 +30,6 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   setup-python nên KHÔNG phải lỗi zlib; máy người dùng chưa có `gh` để xem log). Tag `v1.5.0` đã đẩy nhưng CHƯA có Release.
   Người dùng không cho xóa/tạo lại tag; tải file qua `downloads/` thay vì Release.
 - Chưa làm: ký số (Windows SmartScreen; Mac cần Apple Developer 99 USD/năm để công chứng; gợi ý SignPath cho Windows, cần file LICENSE).
-  `packaging/guides/windows.txt` ghi nút gỡ ở "Overview" nhưng thật ra nằm ở Settings (chưa sửa).
 
 ## Kiến trúc giao diện (điều không hiển nhiên)
 - pywebview bắt buộc chạy trên luồng chính, mà luồng chính của agent thuộc Tk (IPC, Apple Event). Nên agent khởi chạy sẵn tiến trình con `main.py ui-host`

@@ -36,7 +36,7 @@ Privacy
   on, the domain name (never the full link) is sent to public domain-registry servers.
 
 Uninstall
-  Overview > "Stop using Chotto as link handler", then Windows Settings > Apps >
+  In CHOTTO: Settings > "Stop using Chotto as link handler". Then Windows Settings > Apps >
   Installed apps > CHOTTO > Uninstall. Choose your preferred browser again if asked.
 
 
@@ -74,5 +74,5 @@ Quyền riêng tư
   tên miền (không phải cả link) mới được gửi tới máy chủ tra cứu tên miền công khai.
 
 Gỡ cài đặt
-  Tổng quan > "Gỡ Chotto khỏi vai trò trình mở link", rồi vào Cài đặt Windows >
+  Trong CHOTTO: Cài đặt > "Gỡ Chotto khỏi trình mở link". Sau đó vào Cài đặt Windows >
   Ứng dụng > Ứng dụng đã cài đặt > CHOTTO > Gỡ cài đặt. Chọn lại trình duyệt mặc định nếu được hỏi.
