@@ -101,9 +101,25 @@ def _activate(window: Any) -> None:
             return
         from System import Action  # type: ignore[import-not-found]  # pythonnet, chỉ có trên Windows
 
-        native.Invoke(Action(native.Activate))
+        def focus() -> None:
+            native.Activate()
+            _force_foreground(int(native.Handle.ToInt64()))
+            for control in native.Controls:                              # vùng WebView2 phải có focus thì Esc mới tới trang
+                control.Focus()
+
+        native.Invoke(Action(focus))
     except Exception:  # noqa: BLE001 - chỉ là tiện ích hiển thị, không bao giờ được làm hỏng màn hình đệm
         _LOG.debug("Không kích hoạt được cửa sổ", exc_info=True)
+
+
+def _force_foreground(hwnd: int) -> None:
+    """Windows chặn tiến trình nền tự giành foreground; nhấn-nhả Alt ảo trước thì SetForegroundWindow được chấp nhận."""
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    user32.keybd_event(0x12, 0, 0, 0)                                    # VK_MENU xuống
+    user32.keybd_event(0x12, 0, 2, 0)                                    # VK_MENU lên
+    user32.SetForegroundWindow(hwnd)
 
 
 def _set_window_icon(window: Any) -> None:
@@ -509,6 +525,8 @@ class Host:
             self._frictions[fid] = (window, api)
         window.events.closed += lambda: self._on_friction_closed(fid)
         window.events.shown += lambda: _activate(window)
+        if sys.platform == "win32":
+            window.events.loaded += lambda: _activate(window)             # trang tải xong: lấy focus lần nữa để Esc dùng được ngay
 
     def _on_friction_closed(self, fid: int) -> None:
         with self._lock:

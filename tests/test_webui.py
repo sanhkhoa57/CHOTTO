@@ -236,6 +236,7 @@ class _Window:
         self.events = type("E", (), {})()
         self.events.closed = _Events()
         self.events.shown = _Events()
+        self.events.loaded = _Events()
 
     def destroy(self) -> None:
         if not self.destroyed:
