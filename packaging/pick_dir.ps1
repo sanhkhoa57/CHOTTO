@@ -6,9 +6,9 @@ $owner = New-Object System.Windows.Forms.Form
 $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
 $owner.StartPosition = 'CenterScreen'; $owner.Show()
 $dlg = New-Object System.Windows.Forms.OpenFileDialog
-$dlg.Title = 'Chọn thư mục để cài CHOTTO'
+$dlg.Title = 'Choose a folder to install CHOTTO'
 $dlg.ValidateNames = $false; $dlg.CheckFileExists = $false; $dlg.CheckPathExists = $true
-$dlg.FileName = 'Chọn thư mục này'
+$dlg.FileName = 'Select this folder'
 if ($Start -and (Test-Path -LiteralPath $Start)) { $dlg.InitialDirectory = $Start }
 elseif ($Start -and (Test-Path -LiteralPath (Split-Path -Parent $Start))) { $dlg.InitialDirectory = Split-Path -Parent $Start }
 if ($dlg.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) {

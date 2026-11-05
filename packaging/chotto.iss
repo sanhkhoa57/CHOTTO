@@ -1,5 +1,5 @@
 ﻿; CHOTTO – bộ cài Windows (Inno Setup 6). Biên dịch bằng packaging\build_windows.bat (cần đã có dist\CHOTTO).
-; Luồng cho người dùng: bấm đúp Setup -> chọn thư mục -> Cài đặt -> Hoàn tất. Có sẵn biểu tượng trên Desktop.
+; Luồng cho người dùng: bấm đúp Setup -> chọn thư mục -> Install -> Finish. Có sẵn biểu tượng trên Desktop. Giao diện bộ cài dùng tiếng Anh.
 ; Không cần quyền quản trị: cài vào thư mục của người dùng, đúng với việc CHOTTO ghi cấu hình vào HKCU.
 #ifndef AppVersion
   #define AppVersion "1.5.0"
@@ -31,29 +31,6 @@ RestartApplications=no
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
 
-[Messages]
-SetupAppTitle=Cài đặt CHOTTO
-SetupWindowTitle=Cài đặt CHOTTO
-WizardSelectDir=Chọn thư mục cài đặt
-SelectDirDesc=Bạn muốn cài CHOTTO vào đâu?
-SelectDirLabel3=CHOTTO sẽ được cài vào thư mục dưới đây.
-SelectDirBrowseLabel=Bấm Cài đặt để tiếp tục, hoặc bấm Chọn… để đổi thư mục khác.
-ButtonBrowse=Chọn thư mục…
-ButtonWizardBrowse=Chọn thư mục…
-DiskSpaceMBLabel=Cần ít nhất [mb] MB dung lượng trống.
-DiskSpaceGBLabel=Cần ít nhất [gb] GB dung lượng trống.
-ButtonInstall=Cài đặt
-ButtonCancel=Hủy
-ButtonNext=Tiếp tục
-ButtonBack=Quay lại
-ButtonFinish=Hoàn tất
-WizardInstalling=Đang cài đặt
-InstallingLabel=Vui lòng đợi trong lúc CHOTTO được cài vào máy của bạn.
-FinishedHeadingLabel=Đã cài xong CHOTTO
-FinishedLabelNoIcons=CHOTTO đã được cài vào máy của bạn.
-FinishedLabel=CHOTTO đã được cài vào máy của bạn. Biểu tượng CHOTTO đã có trên màn hình Desktop.
-RunEntryExec=Mở CHOTTO
-
 [Files]
 Source: "pick_dir.ps1"; DestDir: "{tmp}"; Flags: dontcopy
 Source: "..\dist\CHOTTO\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -63,7 +40,7 @@ Name: "{autodesktop}\CHOTTO"; Filename: "{app}\CHOTTO.exe"; IconFilename: "{app}
 Name: "{autoprograms}\CHOTTO"; Filename: "{app}\CHOTTO.exe"; IconFilename: "{app}\CHOTTO.exe"
 
 [Run]
-Filename: "{app}\CHOTTO.exe"; Description: "Mở CHOTTO"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\CHOTTO.exe"; Description: "Launch CHOTTO"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 Filename: "{app}\CHOTTO.exe"; Parameters: "agent-stop"; Flags: runhidden; RunOnceId: "StopAgent"
@@ -87,7 +64,7 @@ begin
   end;
 end;
 
-// Nút "Chọn thư mục…": mở hộp thoại kiểu Explorer (thanh địa chỉ, thư mục hay dùng) thay cho hộp dạng cây của Inno Setup.
+// Nút "Browse...": mở hộp thoại kiểu Explorer (thanh địa chỉ, thư mục hay dùng) thay cho hộp dạng cây của Inno Setup.
 procedure BrowseClick(Sender: TObject);
 var
   ResultCode: Integer;
@@ -118,7 +95,7 @@ begin
   begin
     // Không chạy được PowerShell: dùng hộp chọn thư mục có sẵn của Inno Setup.
     Chosen := WizardForm.DirEdit.Text;
-    if BrowseForFolder('Chọn thư mục để cài CHOTTO', Chosen, True) then
+    if BrowseForFolder('Choose a folder to install CHOTTO', Chosen, True) then
       WizardForm.DirEdit.Text := Chosen;
   end;
 end;
