@@ -1,0 +1,69 @@
+CHOTTO Browser Extension for Zalo Web - Guide  /  Hướng dẫn tiện ích CHOTTO cho Zalo Web
+=========================================================================================
+
+ENGLISH
+-------
+What it does
+  Checks every link you click on chat.zalo.me before it opens. Safe links open as usual.
+  Suspicious links show a "Khoan đã!" ("Hold on!") warning that reveals where the link
+  really goes; the open button stays locked for a few seconds. Works in Chrome and Edge.
+  Note: the extension's screens are in Vietnamese; English meanings are given below.
+
+Install (about 1 minute)
+  1. Unzip this file into a folder you will KEEP. Do not delete or move it afterwards:
+     the browser reads the extension from that folder.
+  2. Open chrome://extensions  (in Edge: edge://extensions).
+  3. Turn on "Developer mode" (top-right switch).
+  4. Click "Load unpacked" and select the folder that contains the file manifest.json.
+  5. Open or reload chat.zalo.me. A CHOTTO settings page opens by itself.
+  Tip: click the puzzle-piece icon in the toolbar and pin CHOTTO for quick access.
+
+Daily use
+  - Click links in Zalo Web as usual. Safe links open normally.
+  - When a warning appears, read the reasons. The safe choice is the gold button
+    "Đóng, không mở" (Close, don't open). The other button, "Tôi hiểu rủi ro, vẫn mở"
+    (I understand the risk, open anyway), unlocks after the countdown.
+  - Open the CHOTTO settings page (click its toolbar icon) to test a link, turn online
+    domain-age lookup on or off, and review the activity log.
+
+Good to know
+  - On startup Chrome may ask about "developer mode extensions". Just close the message;
+    do not choose "Disable".
+  - To update: replace the folder with the new version, then click the reload icon on
+    chrome://extensions.
+  - Privacy: links are checked inside your browser. Only if you keep the online
+    domain-age lookup on, the domain name (never the full link) is sent to public
+    domain-registry servers.
+  - To remove: chrome://extensions > CHOTTO > Remove.
+
+
+TIẾNG VIỆT
+----------
+Tiện ích làm gì
+  Kiểm tra mọi link bạn bấm trên chat.zalo.me trước khi mở. Link an toàn mở như bình thường.
+  Link đáng ngờ hiện cảnh báo "Khoan đã" cho thấy link thật sự dẫn tới đâu; nút mở link
+  bị khóa vài giây. Dùng được trên Chrome và Edge.
+
+Cài đặt (khoảng 1 phút)
+  1. Giải nén file này vào một thư mục bạn sẽ GIỮ LẠI. Không xóa hay di chuyển thư mục sau đó:
+     trình duyệt đọc tiện ích trực tiếp từ thư mục này.
+  2. Mở chrome://extensions  (Edge: edge://extensions).
+  3. Bật "Chế độ nhà phát triển" (Developer mode, công tắc ở góc trên bên phải).
+  4. Bấm "Tải tiện ích đã giải nén" (Load unpacked) rồi chọn thư mục có chứa file manifest.json.
+  5. Mở hoặc tải lại chat.zalo.me. Trang cài đặt CHOTTO sẽ tự mở.
+  Mẹo: bấm biểu tượng mảnh ghép trên thanh công cụ và ghim CHOTTO để mở nhanh.
+
+Sử dụng hằng ngày
+  - Cứ bấm link trong Zalo Web như bình thường. Link an toàn mở bình thường.
+  - Khi có cảnh báo, hãy đọc lý do. "Đóng, không mở" là lựa chọn an toàn.
+    "Tôi hiểu rủi ro, vẫn mở" chỉ mở khóa sau khi đếm ngược.
+  - Mở trang cài đặt CHOTTO (bấm biểu tượng trên thanh công cụ) để thử một link, bật/tắt
+    tra tuổi tên miền qua mạng và xem nhật ký.
+
+Cần biết
+  - Khi khởi động, Chrome có thể hỏi về "tiện ích ở chế độ nhà phát triển". Chỉ cần đóng
+    thông báo, đừng chọn "Vô hiệu hóa".
+  - Cập nhật: thay thư mục bằng bản mới, rồi bấm biểu tượng tải lại ở chrome://extensions.
+  - Riêng tư: link được kiểm tra ngay trong trình duyệt. Chỉ khi để bật tra tuổi tên miền
+    qua mạng, tên miền (không phải cả link) mới được gửi tới máy chủ tra cứu công khai.
+  - Gỡ: chrome://extensions > CHOTTO > Remove (Xóa).

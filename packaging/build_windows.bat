@@ -42,4 +42,5 @@ if errorlevel 1 (
 )
 copy /y "dist\CHOTTO-Setup-%VERSION%.exe" "dist\CHOTTO-Setup.exe" >nul
 echo Xong: dist\CHOTTO-Setup-%VERSION%.exe (ban sao ten co dinh: dist\CHOTTO-Setup.exe, dung cho link tai tren trang web)
+%PY% toolsuild_downloads.py
 endlocal

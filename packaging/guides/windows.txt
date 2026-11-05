@@ -1,0 +1,78 @@
+CHOTTO for Windows - Installation and Usage Guide  /  Hướng dẫn cài đặt và sử dụng CHOTTO cho Windows
+==========================================================================================================
+
+ENGLISH
+-------
+What it does
+  CHOTTO checks every link you tap in the Zalo app before it opens. Safe links open
+  right away. Suspicious links show a "Hold on" warning that reveals where the link
+  really goes; the "Open anyway" button stays locked for a few seconds so you have
+  time to think.
+
+Install (about 1 minute)
+  1. Right-click this .zip file and choose "Extract All...".
+  2. Open the extracted folder and double-click CHOTTO-Setup.exe.
+     If Windows shows "Windows protected your PC": click "More info", then "Run anyway".
+     (This only appears because the installer is not code-signed yet.)
+  3. Click "Browse..." if you want a different folder, then click "Install".
+  4. Click "Finish". A CHOTTO icon is now on your Desktop.
+     No administrator rights needed.
+
+First-time setup
+  1. Open CHOTTO from the Desktop icon.
+  2. On the Overview screen, click "Set Chotto as link handler".
+  3. In the Windows window that appears, choose CHOTTO as your default app for links.
+  After that, links you tap in Zalo go through CHOTTO first.
+
+Daily use
+  - Just use Zalo as usual. Nothing to do for safe links.
+  - When a warning appears, read the reasons. "Close, don't open" is the safe choice.
+    "Open anyway" unlocks after the countdown and is meant for links you fully trust.
+  - "Check a link" lets you paste a link and test it without opening it.
+  - "Settings" lets you turn online domain-age lookup and the activity log on or off.
+
+Privacy
+  Links are checked on your computer. Only if you leave "Look up domain age online"
+  on, the domain name (never the full link) is sent to public domain-registry servers.
+
+Uninstall
+  Overview > "Stop using Chotto as link handler", then Windows Settings > Apps >
+  Installed apps > CHOTTO > Uninstall. Choose your preferred browser again if asked.
+
+
+TIẾNG VIỆT
+----------
+Chotto làm gì
+  CHOTTO kiểm tra mọi link bạn bấm trong ứng dụng Zalo trước khi mở. Link an toàn mở ngay.
+  Link đáng ngờ hiện màn hình cảnh báo "Khoan đã" cho thấy link thật sự dẫn tới đâu; nút
+  "Vẫn mở link" bị khóa vài giây để bạn kịp suy nghĩ.
+
+Cài đặt (khoảng 1 phút)
+  1. Bấm chuột phải vào file .zip này, chọn "Extract All..." (Giải nén tất cả).
+  2. Mở thư mục vừa giải nén, bấm đúp vào CHOTTO-Setup.exe.
+     Nếu Windows báo "Windows protected your PC": bấm "More info" (Thông tin thêm),
+     rồi "Run anyway" (Vẫn chạy). Cảnh báo này chỉ hiện vì bộ cài chưa có chữ ký số.
+  3. Muốn đổi thư mục cài thì bấm "Browse...", sau đó bấm "Install".
+  4. Bấm "Finish". Biểu tượng CHOTTO đã có trên màn hình Desktop.
+     Không cần quyền quản trị.
+
+Thiết lập lần đầu
+  1. Mở CHOTTO từ biểu tượng trên Desktop.
+  2. Ở màn hình Tổng quan, bấm "Đặt Chotto làm trình mở link".
+  3. Trong cửa sổ Windows hiện ra, chọn CHOTTO làm ứng dụng mặc định mở link.
+  Từ đó, link bạn bấm trong Zalo sẽ đi qua CHOTTO trước.
+
+Sử dụng hằng ngày
+  - Cứ dùng Zalo như bình thường. Link an toàn không cần làm gì thêm.
+  - Khi có cảnh báo, hãy đọc lý do. "Đóng, không mở" là lựa chọn an toàn.
+    "Vẫn mở link" chỉ mở khóa sau khi đếm ngược, dành cho link bạn hoàn toàn tin tưởng.
+  - "Kiểm tra link": dán link vào để thử mà không mở trang.
+  - "Cài đặt": bật/tắt tra tuổi tên miền qua mạng và nhật ký hoạt động.
+
+Quyền riêng tư
+  Link được kiểm tra ngay trên máy bạn. Chỉ khi để bật "Tra tuổi tên miền qua mạng",
+  tên miền (không phải cả link) mới được gửi tới máy chủ tra cứu tên miền công khai.
+
+Gỡ cài đặt
+  Tổng quan > "Gỡ Chotto khỏi vai trò trình mở link", rồi vào Cài đặt Windows >
+  Ứng dụng > Ứng dụng đã cài đặt > CHOTTO > Gỡ cài đặt. Chọn lại trình duyệt mặc định nếu được hỏi.
