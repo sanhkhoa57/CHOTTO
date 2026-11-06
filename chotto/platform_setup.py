@@ -313,7 +313,9 @@ def _user_choice_progid(scheme: str = "https") -> str | None:
     import winreg
 
     base = _URL_ASSOC.format(scheme=scheme)
-    for sub in ("UserChoiceLatest", "UserChoice"):
+    # Windows 11 mới ghi lựa chọn vào khóa con ``UserChoiceLatest\ProgId`` (giá trị ``ProgId``); ``UserChoice`` cũ có
+    # thể vẫn còn trình duyệt trước đó (ví dụ ``MSEdgeHTM``) nên chỉ dùng khi không có hai khóa mới.
+    for sub in ("UserChoiceLatest\\ProgId", "UserChoiceLatest", "UserChoice"):
         progid = _reg_read(winreg.HKEY_CURRENT_USER, base + "\\" + sub, "ProgId")
         if progid:
             return progid

@@ -44,6 +44,7 @@
 .guard.off::before { background: radial-gradient(40% 45% at 72% 38%, rgba(229, 72, 77, .35), transparent 70%), radial-gradient(35% 40% at 20% 10%, rgba(70, 30, 26, .45), transparent 70%); }
 @keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-6%, 4%, 0) scale(1.08); } }
 .guard .row1 { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
+.guard .guard-badge { margin-bottom: 14px; }
 .guard h2 { margin: 0; font: 400 40px/1.05 var(--serif); letter-spacing: -.025em; max-width: 20ch; }
 .guard p { margin: 12px 0 0; color: #d9cdb8; }
 .guard .btn { margin-top: 20px; }
@@ -142,6 +143,7 @@
       <div class="guard" id="guard">
         <div class="row1">
           <div>
+            <span class="chip ok guard-badge" id="guardBadge" data-i18n="guard.badge" hidden>Chotto is your link handler</span>
             <h2 id="guardTitle" data-i18n="guard.on">This computer is protected</h2>
             <p id="guardText"></p>
             <button class="btn btn--primary" id="guardInstall" data-i18n="guard.install" hidden>Set Chotto as link handler</button>
@@ -201,7 +203,7 @@
           </div></div>
       </div>
       <div class="btn-row">
-        <button class="btn btn--secondary" data-action="install" data-i18n="act.install">Set as link handler</button>
+        <button class="btn btn--secondary" data-action="install" id="setInstall" data-i18n="act.install">Set as link handler</button>
         <button class="btn btn--secondary" data-action="update" data-i18n="act.update">Update scam list</button>
         <button class="link-danger" data-action="uninstall" data-i18n="act.uninstall">Stop using Chotto as link handler</button>
       </div>

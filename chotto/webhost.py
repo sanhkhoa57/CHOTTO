@@ -233,6 +233,88 @@ def _fade(window: Any, start: int, end: int, ms: int = 160) -> None:
         _LOG.debug("Không làm mờ được cửa sổ", exc_info=True)
 
 
+def _when_shown(window: Any, handler: Callable[[], None]) -> None:
+    """Gọi ``handler`` khi cửa sổ đã hiện, kể cả khi sự kiện ``shown`` đã phát xong TRƯỚC lúc đăng ký.
+
+    Cửa sổ tạo sau ``webview.start`` có thể hiện ngay trên luồng giao diện; nếu chỉ ``events.shown += handler`` thì
+    có lúc handler không bao giờ chạy (cửa sổ cảnh báo không được căn giữa / không lấy focus). Gọi trùng thì vô hại.
+    """
+    window.events.shown += handler
+    is_set = getattr(window.events.shown, "is_set", None)
+    if callable(is_set) and is_set():
+        threading.Thread(target=handler, name="chotto-shown", daemon=True).start()
+
+
+def _center_on_screen(window: Any, width: int, max_height: int, margin: int = 24) -> None:
+    """Đặt cửa sổ ĐÚNG GIỮA vùng làm việc của màn hình đang chứa con trỏ chuột, mọi cỡ màn hình và tỉ lệ phóng to.
+
+    Vùng làm việc đã trừ thanh taskbar (Windows) hoặc thanh menu và Dock (macOS). ``width``/``max_height`` tính theo
+    điểm logic (96 DPI); cửa sổ được thu nhỏ để luôn lọt trong vùng làm việc, chừa ``margin`` mỗi bên. Mọi phép đo
+    dùng cùng một hệ đơn vị (pixel vật lý trên Windows, point trên macOS), nên không lệch khi màn hình phóng to
+    125%/150%; cách cũ lấy kích thước màn hình chính từ pywebview trộn hai hệ đơn vị và quên taskbar. Lỗi thì bỏ qua.
+    """
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
+
+            class MonitorInfo(ctypes.Structure):
+                _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                            ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+            # Bản DLL riêng: đặt argtypes lên ``ctypes.windll.user32`` dùng chung sẽ đổi luôn chữ ký hàm mà pywebview
+            # đang gọi (``window.move`` sập vì ArgumentError).
+            user32 = ctypes.WinDLL("user32")
+            hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
+            point = wintypes.POINT()
+            user32.GetCursorPos(ctypes.byref(point))
+            user32.MonitorFromPoint.restype = wintypes.HMONITOR
+            user32.MonitorFromPoint.argtypes = (wintypes.POINT, wintypes.DWORD)
+            monitor = user32.MonitorFromPoint(point, 2)                     # MONITOR_DEFAULTTONEAREST
+            info = MonitorInfo()
+            info.cbSize = ctypes.sizeof(MonitorInfo)
+            user32.GetMonitorInfoW.argtypes = (wintypes.HMONITOR, ctypes.POINTER(MonitorInfo))
+            if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                return
+            dpi_x, dpi_y = wintypes.UINT(96), wintypes.UINT(96)
+            try:
+                ctypes.WinDLL("shcore").GetDpiForMonitor(monitor, 0, ctypes.byref(dpi_x), ctypes.byref(dpi_y))  # MDT_EFFECTIVE_DPI
+            except (AttributeError, OSError):
+                user32.GetDpiForWindow.argtypes = (wintypes.HWND,)
+                dpi_x.value = user32.GetDpiForWindow(hwnd) or 96
+            scale = (dpi_x.value or 96) / 96
+            work = info.rcWork
+            work_w, work_h = work.right - work.left, work.bottom - work.top
+            gap = round(margin * scale)
+            w = max(1, min(round(width * scale), work_w - 2 * gap))
+            h = max(1, min(round(max_height * scale), work_h - 2 * gap))
+            user32.SetWindowPos.argtypes = (wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                            ctypes.c_int, ctypes.c_int, wintypes.UINT)
+            user32.SetWindowPos(hwnd, None, work.left + (work_w - w) // 2, work.top + (work_h - h) // 2,
+                                w, h, 0x0014)                                # NOZORDER|NOACTIVATE
+        elif sys.platform == "darwin":
+            import AppKit  # type: ignore[import-untyped,import-not-found,unused-ignore]
+            from PyObjCTools import AppHelper  # type: ignore[import-untyped,unused-ignore]
+
+            def place() -> None:
+                ns_window = window.native
+                if ns_window is None:
+                    return
+                mouse = AppKit.NSEvent.mouseLocation()
+                screen = next((s for s in AppKit.NSScreen.screens() if AppKit.NSMouseInRect(mouse, s.frame(), False)),
+                              None) or ns_window.screen() or AppKit.NSScreen.mainScreen()
+                visible = screen.visibleFrame()                              # đã trừ thanh menu và Dock
+                w = min(width, visible.size.width - 2 * margin)
+                h = min(max_height, visible.size.height - 2 * margin)
+                x = visible.origin.x + (visible.size.width - w) / 2
+                y = visible.origin.y + (visible.size.height - h) / 2           # gốc tọa độ macOS ở góc dưới
+                ns_window.setFrame_display_(AppKit.NSMakeRect(x, y, w, h), True)
+
+            AppHelper.callAfter(place)                                         # AppKit chỉ được gọi từ luồng chính
+    except Exception:  # noqa: BLE001 - chỉ là vị trí hiển thị, không được làm hỏng cửa sổ
+        _LOG.debug("Không căn giữa được cửa sổ", exc_info=True)
+
+
 _SNAP_KEEPALIVE: list[Any] = []
 
 
@@ -524,7 +606,8 @@ class Host:
         with self._lock:
             self._frictions[fid] = (window, api)
         window.events.closed += lambda: self._on_friction_closed(fid)
-        window.events.shown += lambda: _activate(window)
+        _when_shown(window, lambda: _center_on_screen(window, 820, 940))
+        _when_shown(window, lambda: _activate(window))
         if sys.platform == "win32":
             window.events.loaded += lambda: _activate(window)             # trang tải xong: lấy focus lần nữa để Esc dùng được ngay
 
@@ -569,7 +652,8 @@ class Host:
         self._app_window = window
         _reload_on_show(window, str(web_root() / "app.html"))
         window.events.closed += self._on_settings_closed
-        window.events.shown += lambda: _activate(window)
+        _when_shown(window, lambda: _center_on_screen(window, 1100, 760))
+        _when_shown(window, lambda: _activate(window))
         window.events.shown += lambda: _enable_snap(window)
         window.events.shown += lambda: _set_window_icon(window)
         window.events.shown += lambda: _fade(window, 0, 0, 0)            # ẩn tới khi trang tải xong rồi hiện dần

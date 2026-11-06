@@ -73,6 +73,11 @@
     $("#guardTitle").textContent = t(protectedNow ? "guard.on" : "guard.off");
     $("#guardText").textContent = protectedNow ? s.blacklist_text : t("guard.offText");
     $("#guardInstall").hidden = protectedNow;
+    // Đã là trình mở link mặc định: báo thành công (giống bản Android) thay cho nút cài.
+    $("#guardBadge").hidden = s.default_handler !== true;
+    const setInstall = $("#setInstall");
+    setInstall.textContent = t(s.default_handler === true ? "act.installed" : "act.install");
+    setInstall.disabled = s.default_handler === true;
     $("#recentShort").innerHTML = rowsHTML(s.recent.slice(0, 4));
     $("#recentFull").innerHTML = s.settings.log_decisions ? rowsHTML(s.recent) : `<p class="empty">${esc(t("log.off"))}</p>`;
     $$(".switch[data-key]").forEach((sw) => {
