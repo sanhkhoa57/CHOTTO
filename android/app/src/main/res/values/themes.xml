@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nền tối ngay từ khung đầu tiên để link an toàn chuyển đi không chớp trắng. -->
+    <style name="Theme.CHOTTO" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/chotto_bg</item>
+        <item name="android:statusBarColor">@color/chotto_bg</item>
+        <item name="android:navigationBarColor">@color/chotto_bg</item>
+    </style>
+</resources>

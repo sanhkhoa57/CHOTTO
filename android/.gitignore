@@ -1,0 +1,24 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Khóa ký bản phát hành: KHÔNG BAO GIỜ commit (lộ khóa = người khác ký được app giả mạo CHOTTO)
+/keystore/
+/keystore.properties
+*.jks
+*.keystore
+
+# Cấu hình riêng của Android Studio trên từng máy
+/.idea/
