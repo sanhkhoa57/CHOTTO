@@ -21,3 +21,6 @@ design/
 CHOTTO.spec
 
 .DS_Store
+
+# Đề bài/báo cáo gửi Antigravity để rà soát — chỉ dùng cục bộ, không đẩy lên
+/review/
