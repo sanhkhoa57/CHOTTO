@@ -31,6 +31,18 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   Người dùng không cho xóa/tạo lại tag; tải file qua `downloads/` thay vì Release.
 - Chưa làm: ký số (Windows SmartScreen; Mac cần Apple Developer 99 USD/năm để công chứng; gợi ý SignPath cho Windows, cần file LICENSE).
 
+## Android (`android/`, Kotlin + Compose, chưa commit, chưa ký số)
+- Logic port từ Python: `Url.kt` (WHATWG), `LinkInspector.kt` (Tầng 2), `Blacklist*.kt` (Tầng 1 + cập nhật bằng WorkManager),
+  `AgeLookup.kt` (Tầng 3), `Shield.kt`/`Tiers` (điều phối). Dữ liệu là BẢN CHÉP trong `app/src/main/assets/` (rules.json,
+  popular_vn.txt, public_suffix_list.dat, blacklist.seed.txt): sửa `chotto/data` thì chép lại.
+- `ParityTest` chạy trên `tests/data/engine_vectors.json` + `url_vectors.json`: phải 0 lệch. Lệnh (JAVA_HOME = jbr của Android Studio):
+  `.\gradlew testDebugUnitTest lintDebug assembleRelease`.
+- Bẫy đã gặp: `readNBytes`/`toString(Charset)` cần API 33 (minSdk 26 → dùng `readUpTo`); R8 `packageScope` làm app sập lúc mở;
+  WorkManager cần keep rules (`keepRules/rules.keep`); KHÔNG `finish()` màn cảnh báo trong `onStop` (onStop đến trễ sau Home
+  và nuốt mất link mới); `LinkedBlockingQueue` không nhận null.
+- Thử trên máy ảo `Medium_Phone_API_37.0` bằng adb (đặt mặc định: `cmd role add-role-holder android.app.role.BROWSER vn.chotto.app`).
+  Bản release phải thử riêng (ký tạm bằng `~/.android/debug.keystore`), vì R8 làm bản release chạy khác bản debug.
+
 ## Kiến trúc giao diện (điều không hiển nhiên)
 - pywebview bắt buộc chạy trên luồng chính, mà luồng chính của agent thuộc Tk (IPC, Apple Event). Nên agent khởi chạy sẵn tiến trình con `main.py ui-host`
   và nói chuyện bằng từng dòng JSON qua stdin/stdout. Giao thức mô tả ở đầu `chotto/webhost.py`.
@@ -49,12 +61,12 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 
 ## Lệnh hay dùng (Windows, venv `.venv`, Python 3.15 qua uv)
 ```
-.venv\Scripts\python.exe -m unittest discover -s tests      # 175 bài; 1 bài lỗi có sẵn từ trước: test_parity ... sync.json
+.venv\Scripts\python.exe -m unittest discover -s tests      # 175 bài, phải qua hết
 .venv\Scripts\mypy.exe --strict main.py chotto              # phải sạch
 .venv\Scripts\python.exe main.py --force <url>              # xem màn hình cảnh báo thật
 .venv\Scripts\python.exe main.py                            # mở cửa sổ ứng dụng
 ```
-- Bài `sync.json` lỗi: dữ liệu tiện ích trình duyệt lệch bản Desktop; có thể sửa bằng `python tools/sync_extension_data.py` (chưa chạy, chưa rõ bên nào đúng).
+- Sửa `chotto/data/*` thì chạy `python tools/sync_extension_data.py` (đồng bộ `extension/data`) và chép sang `android/app/src/main/assets/`.
 - Chụp màn hình giao diện để tự xem: dùng `shoot.mjs` của skill `design-taste-frontend` (đường dẫn `~/.claude/skills/design-taste-frontend/scripts/`).
 
 ## Quy ước làm việc với người dùng
