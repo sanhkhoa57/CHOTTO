@@ -1,0 +1,8 @@
+{
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "favicon.png", "use": "@vercel/static" },
+    { "src": "icon.png", "use": "@vercel/static" },
+    { "src": "downloads/*", "use": "@vercel/static" }
+  ]
+}
