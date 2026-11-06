@@ -317,7 +317,7 @@
     },
     {
       "name": "Phishing.Database",
-      "url": "https://raw.githubusercontent.com/mitchellkrogza/Phishing.Database/master/phishing-links/output/domains/ACTIVE/list",
+      "url": "https://raw.githubusercontent.com/mitchellkrogza/Phishing.Database/master/phishing-domains-ACTIVE.txt",
       "format": "auto",
       "min_entries": 100
     },
