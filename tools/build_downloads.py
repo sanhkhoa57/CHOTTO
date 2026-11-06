@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Tạo các gói để đặt trên trang tải (thư mục ``downloads/``), mỗi gói kèm file hướng dẫn song ngữ Anh/Việt.
+"""Tạo các gói để đặt trên trang tải (thư mục ``downloads/``), mỗi gói kèm ``README.txt`` (hướng dẫn cài/dùng) và
+``BEFORE-UNINSTALL.txt`` (lưu ý trước khi gỡ), cả hai song ngữ Anh/Việt.
 
-- ``downloads/CHOTTO-Windows.zip``: ``CHOTTO-Setup.exe`` + ``README.txt`` (cần chạy ``packaging\\build_windows.bat`` trước).
-- ``downloads/CHOTTO-macOS.zip``: ``CHOTTO-macOS.dmg`` + ``README.txt`` (cần build ``dist/CHOTTO.app`` trên Mac trước;
+- ``downloads/CHOTTO-Windows.zip``: ``CHOTTO-Setup.exe`` + 2 file hướng dẫn (cần chạy ``packaging\\build_windows.bat`` trước).
+- ``downloads/CHOTTO-macOS.zip``: ``CHOTTO-macOS.dmg`` + 2 file hướng dẫn (cần build ``dist/CHOTTO.app`` trên Mac trước;
   xem ``packaging/macos_setup.py``).
-- ``downloads/chotto-extension-chrome.zip``: các file tiện ích (``manifest.json`` ở gốc) + ``README.txt``.
-- ``downloads/CHOTTO-Android.zip``: ``CHOTTO-Android-beta.apk`` + ``README.txt`` (cần build trước trong ``android/``:
+- ``downloads/chotto-extension-chrome.zip``: các file tiện ích (``manifest.json`` ở gốc) + 2 file hướng dẫn.
+- ``downloads/CHOTTO-Android.zip``: ``CHOTTO-Android-beta.apk`` + 2 file hướng dẫn (cần build trước trong ``android/``:
   ``gradlew assembleRelease``; APK ký bằng khóa debug, cài thẳng được, chưa lên Google Play).
 
 Nội dung hướng dẫn nằm ở ``packaging/guides/*.txt``.
@@ -52,6 +53,7 @@ def build_windows() -> None:
     _write(DOWNLOADS / "CHOTTO-Windows.zip", {
         "CHOTTO-Setup.exe": setup.read_bytes(),
         "README.txt": _guide("windows.txt"),
+        "BEFORE-UNINSTALL.txt": _guide("uninstall-windows.txt"),
     })
 
 
@@ -76,6 +78,7 @@ def build_macos() -> None:
         _write(DOWNLOADS / "CHOTTO-macOS.zip", {
             "CHOTTO-macOS.dmg": dmg.read_bytes(),
             "README.txt": _guide("macos.txt"),
+            "BEFORE-UNINSTALL.txt": _guide("uninstall-macos.txt"),
         })
 
 
@@ -88,6 +91,7 @@ def build_extension() -> None:
     if "manifest.json" not in entries:
         raise SystemExit("Gói tiện ích không có manifest.json ở gốc.")
     entries["README.txt"] = _guide("extension.txt")
+    entries["BEFORE-UNINSTALL.txt"] = _guide("uninstall-extension.txt")
     _write(DOWNLOADS / "chotto-extension-chrome.zip", entries)
 
 
@@ -99,6 +103,7 @@ def build_android() -> None:
     _write(DOWNLOADS / "CHOTTO-Android.zip", {
         "CHOTTO-Android-beta.apk": apk.read_bytes(),
         "README.txt": _guide("android.txt"),
+        "BEFORE-UNINSTALL.txt": _guide("uninstall-android.txt"),
     })
 
 

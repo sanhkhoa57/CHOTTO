@@ -1,0 +1,33 @@
+Before You Uninstall CHOTTO (macOS)  /  Lưu ý trước khi gỡ CHOTTO (macOS)
+==========================================================================
+
+ENGLISH
+-------
+Do this BEFORE moving CHOTTO to the Trash
+  Open CHOTTO, go to Settings, and tap "Remove CHOTTO as default browser". macOS will ask
+  to confirm switching back to your other browser (for example Chrome) - choose "Use...".
+  Only after that, drag CHOTTO.app to the Trash.
+
+Why the order matters
+  If you delete CHOTTO.app first and do this afterwards, macOS may still think CHOTTO is
+  your link handler even though the app is gone. A link you tap in Zalo can then fail to
+  open, or macOS may ask you to pick a browser - in that case just choose your browser
+  normally in System Settings > Desktop & Dock > Default web browser.
+
+Order: Settings button first, then delete the app.
+
+
+TIẾNG VIỆT
+----------
+Làm việc này TRƯỚC KHI chuyển CHOTTO vào Thùng rác
+  Mở CHOTTO, vào Cài đặt, bấm "Gỡ CHOTTO khỏi trình mở link". macOS sẽ hỏi xác nhận đổi về
+  trình duyệt khác (ví dụ Chrome) - chọn "Dùng...".
+  Chỉ sau đó mới kéo CHOTTO.app vào Thùng rác.
+
+Vì sao thứ tự quan trọng
+  Nếu xóa CHOTTO.app trước rồi mới làm bước trên, macOS có thể vẫn nghĩ CHOTTO là trình mở
+  link dù app đã không còn. Link bạn bấm trong Zalo lúc đó có thể không mở được, hoặc macOS
+  tự hỏi chọn trình duyệt khác - cứ chọn trình duyệt bạn muốn trong Cài đặt Hệ thống >
+  Màn hình nền & Dock > Trình duyệt web mặc định.
+
+Thứ tự: bấm nút trong Cài đặt trước, rồi mới xóa app.

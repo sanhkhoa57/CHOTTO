@@ -1,0 +1,23 @@
+Before You Uninstall CHOTTO (Browser Extension)  /  Lưu ý trước khi gỡ CHOTTO (Tiện ích trình duyệt)
+======================================================================================================
+
+ENGLISH
+-------
+Good news: nothing special to do
+  The extension has no "default browser" setting - it's just an add-on inside Chrome or
+  Edge. Removing it is clean and instant: go to chrome://extensions (or edge://extensions),
+  find CHOTTO, and click Remove. Zalo Web then opens links normally, with no extra step.
+
+Note
+  Once removed, the folder you unzipped earlier is no longer needed - you can delete it.
+
+
+TIẾNG VIỆT
+----------
+Tin tốt: không cần làm gì đặc biệt
+  Tiện ích không có khái niệm "trình duyệt mặc định" - nó chỉ là một add-on trong Chrome
+  hoặc Edge. Gỡ rất gọn và tức thì: vào chrome://extensions (hoặc edge://extensions), tìm
+  CHOTTO rồi bấm Remove (Xóa). Zalo Web sau đó mở link bình thường, không cần làm thêm gì.
+
+Lưu ý
+  Sau khi gỡ, thư mục bạn đã giải nén trước đó không còn cần nữa - có thể xóa.

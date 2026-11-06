@@ -1,0 +1,39 @@
+Before You Uninstall CHOTTO (Windows)  /  Lưu ý trước khi gỡ CHOTTO (Windows)
+==============================================================================
+
+ENGLISH
+-------
+Use the official uninstaller - don't just delete the folder
+  Go to Windows Settings > Apps > Installed apps > CHOTTO > Uninstall
+  (or Control Panel > Programs and Features). This runs CHOTTO's own cleanup step, which
+  removes the registry entries it created.
+  If you only delete the CHOTTO folder by hand, none of this cleanup happens, and clicking
+  a link afterwards may show an error - always use the uninstaller above.
+
+After uninstalling, pick a new default browser yourself
+  Windows does not let other apps change your chosen default browser, so even the official
+  uninstaller cannot switch it back automatically. Windows may keep "CHOTTO" selected even
+  though it's gone - clicking a link can then show an error or a "choose an app" prompt.
+  Fix it: Settings > Apps > Default apps > Browser app > choose Chrome, Edge, Firefox or
+  whichever browser you prefer.
+
+That's it - two steps, in that order: uninstall, then choose a browser.
+
+
+TIẾNG VIỆT
+----------
+Dùng bộ gỡ cài đặt chính thức - đừng chỉ xóa thư mục
+  Vào Cài đặt Windows > Ứng dụng > Ứng dụng đã cài đặt > CHOTTO > Gỡ cài đặt
+  (hoặc Control Panel > Programs and Features). Việc này tự chạy bước dọn dẹp riêng của
+  CHOTTO, xóa các khóa registry mà CHOTTO đã tạo.
+  Nếu bạn chỉ xóa thư mục CHOTTO bằng tay, bước dọn dẹp này không chạy, và bấm link sau đó
+  có thể báo lỗi - luôn dùng bộ gỡ cài đặt như trên.
+
+Sau khi gỡ, tự chọn lại trình duyệt mặc định
+  Windows không cho phần mềm khác tự đổi trình duyệt mặc định đang chọn, nên kể cả bộ gỡ
+  cài đặt chính thức cũng không tự đổi lại được. Windows có thể vẫn đang chọn "CHOTTO" dù
+  đã gỡ - bấm link lúc đó có thể báo lỗi hoặc Windows tự hỏi chọn ứng dụng khác.
+  Cách sửa: Cài đặt > Ứng dụng > Ứng dụng mặc định > Ứng dụng trình duyệt > chọn Chrome,
+  Edge, Firefox hoặc trình duyệt bạn thích.
+
+Vậy là xong - hai bước, đúng thứ tự: gỡ cài đặt, rồi chọn lại trình duyệt.

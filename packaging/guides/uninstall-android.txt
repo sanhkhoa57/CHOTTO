@@ -1,0 +1,27 @@
+Before You Uninstall CHOTTO (Android)  /  Lưu ý trước khi gỡ CHOTTO (Android)
+==============================================================================
+
+ENGLISH
+-------
+Good news: nothing special to do
+  Android automatically clears "default browser" when an app is uninstalled, so you can
+  just uninstall CHOTTO directly: hold the CHOTTO icon > Uninstall. Android will fall back
+  to letting you pick a browser the next time you tap a link.
+
+Optional
+  If you'd rather pick your next default browser yourself (instead of Android asking later),
+  open CHOTTO > Settings > "Remove CHOTTO as default browser" first, then uninstall. This
+  step is not required.
+
+
+TIẾNG VIỆT
+----------
+Tin tốt: không cần làm gì đặc biệt
+  Android tự xóa trạng thái "trình duyệt mặc định" khi một ứng dụng bị gỡ, nên bạn có thể
+  gỡ CHOTTO trực tiếp: giữ biểu tượng CHOTTO > Gỡ cài đặt. Lần tới khi bấm link, Android sẽ
+  tự hỏi bạn chọn trình duyệt nào.
+
+Không bắt buộc
+  Nếu muốn tự chọn trước trình duyệt kế tiếp (thay vì để Android hỏi sau), mở CHOTTO >
+  Cài đặt > "Gỡ CHOTTO khỏi trình duyệt mặc định" trước, rồi mới gỡ cài đặt. Bước này
+  không bắt buộc.
