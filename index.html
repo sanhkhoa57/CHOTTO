@@ -84,7 +84,8 @@ details[open] summary::after{transform:rotate(45deg)}
 .rv-on .rv{opacity:0;filter:blur(1.5px);transform:translateY(16px);transition:opacity .7s cubic-bezier(.16,1,.3,1),filter .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}
 .rv-on .rv.shown{opacity:1;filter:blur(0);transform:none}
 @media (prefers-reduced-motion:reduce){.word,.lift,.fade,.beam i,.dot,.langmenu,.cap::before{animation:none!important}.rv-on .rv{opacity:1!important;filter:none!important;transform:none!important}.beam{transition:none!important}}
-#platforms{display:grid;grid-template-columns:repeat(3,1fr);column-gap:16px;row-gap:0}
+#platforms{display:grid;grid-template-columns:repeat(4,1fr);column-gap:16px;row-gap:0}
+@media (max-width:1100px){#platforms{grid-template-columns:repeat(2,1fr);row-gap:16px}}
 #platforms>.card{display:grid;grid-template-rows:subgrid;grid-row:span 5;row-gap:0}
 @media (max-width:960px){#platforms{grid-template-columns:1fr;row-gap:16px}#platforms>.card{display:flex;flex-direction:column;grid-row:auto}}
 @media (max-width:760px){.wrap{padding:0 16px}.hidem{display:none!important}}
@@ -243,6 +244,7 @@ details[open] summary::after{transform:rotate(45deg)}
           <button class="tab" role="tab" data-tab="win" data-t="tabWin"></button>
           <button class="tab" role="tab" data-tab="mac" data-t="tabMac"></button>
           <button class="tab" role="tab" data-tab="ext" data-t="tabExt"></button>
+          <button class="tab" role="tab" data-tab="android" data-t="tabAndroid"></button>
         </div>
       </div>
       <div class="rv" style="flex: 1.3 1 420px; padding: 8px 0 0">
@@ -288,7 +290,7 @@ details[open] summary::after{transform:rotate(45deg)}
         hero: 'Think before you click',
         heroSub: 'Chotto checks every link you tap in Zalo before it opens',
         otherVer: 'Other versions', archs: 'Available for x86 (64-bit) and ARM.', heroMeta: 'Version 1.4.0 · Free · No account needed',
-        dlWin: 'Download for Windows', dlMac: 'Download for macOS',
+        dlWin: 'Download for Windows', dlMac: 'Download for macOS', dlAndroid: 'Download for Android (beta)',
         mockAria: 'Chotto checks one link after another and gives a verdict',
         resultsLbl: 'Check results', openLink: 'Open link', close: 'Close',
         samples: [
@@ -306,20 +308,22 @@ details[open] summary::after{transform:rotate(45deg)}
         escHintA: 'Try clicking the', escHintB: 'key beside it',
         escBlocked: 'Blocked · 92/100', escFake: 'This is a fake page.', escBtnAria: 'Esc key, click to close the warning',
         dlH: 'Download Chotto', dlMeta: 'Version 1.5.0', current: 'Your computer',
-        fmt: 'Format', req: 'Requires', size: 'File size',
-        linuxNote: 'On Linux or mobile? Chotto isn’t available there yet.',
+        fmt: 'Format', req: 'Requires', size: 'App size', beta: 'Beta',
+        linuxNote: 'On Linux or iPhone? Chotto isn’t available there yet. The Android app is a beta: it works, but has been tested on only a few phones.',
         plat: {
-          win: { name: 'Windows', desc: 'Protects links opened from the Zalo app on PC.', format: '.zip (installer + guide)', req: 'Windows 10 or later, 64-bit', size: '18 MB', cta: 'Download for Windows', href: 'downloads/CHOTTO-Windows.zip' },
-          mac: { name: 'macOS', desc: 'For Macs with Apple silicon (M1 and later).', format: '.zip (disk image + guide)', req: 'macOS 12+, Apple silicon', size: '30 MB', cta: 'Download for macOS', href: 'downloads/CHOTTO-macOS.zip' },
-          ext: { name: 'Browser extension', desc: 'For Zalo Web on Chrome and Edge.', format: '.zip, manual install', req: 'Latest Chrome or Edge', size: '0.5 MB', cta: 'Download extension', href: 'downloads/chotto-extension-chrome.zip' }
+          win: { name: 'Windows', desc: 'Protects links opened from the Zalo app on PC.', format: '.zip (installer + guide)', req: 'Windows 10 or later, 64-bit', size: '41 MB', cta: 'Download for Windows', href: 'downloads/CHOTTO-Windows.zip' },
+          mac: { name: 'macOS', desc: 'For Macs with Apple silicon (M1 and later).', format: '.zip (disk image + guide)', req: 'macOS 12+, Apple silicon', size: '60 MB', cta: 'Download for macOS', href: 'downloads/CHOTTO-macOS.zip' },
+          ext: { name: 'Browser extension', desc: 'For Zalo Web on Chrome and Edge.', format: '.zip, manual install', req: 'Latest Chrome or Edge', size: '0.9 MB', cta: 'Download extension', href: 'downloads/chotto-extension-chrome.zip' },
+          android: { name: 'Android', desc: 'Checks links you tap in the Zalo app on your phone.', format: '.zip (APK + guide)', req: 'Android 8.0+, Chrome installed', size: '1.9 MB', cta: 'Download for Android', href: 'downloads/CHOTTO-Android.zip' }
         },
         instH: 'Four steps, then Chotto protects you.',
         instP: 'Download, open, and Chotto starts protecting you right away. No account needed.',
-        tabsAria: 'Choose a platform', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Extension',
+        tabsAria: 'Choose a platform', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Extension', tabAndroid: 'Android',
         steps: {
           win: [['Download and unzip', 'Click “Download for Windows”, then right-click the .zip file and choose “Extract All”.'], ['Run the installer', 'Open the folder and double-click CHOTTO-Setup.exe. If Windows shows a warning, choose “More info”, then “Run anyway”.'], ['Choose a folder', 'Pick where to install Chotto (or keep the default), then click Install.'], ['Done', 'A Chotto icon appears on your desktop. Open it and follow README.txt (English and Vietnamese) in the folder.']],
           mac: [['Download and unzip', 'Click “Download for macOS”, then double-click the .zip. Inside are CHOTTO-macOS.dmg and a README guide.'], ['Move it to Applications', 'Open the .dmg and drag Chotto onto the Applications folder.'], ['Open it the first time', 'If macOS says it can’t verify Chotto, click Done, then go to System Settings › Privacy & Security and click “Open Anyway”. Needed only once.'], ['Done', 'Click “Set Chotto as link handler” and confirm “Use CHOTTO”. Then try tapping a link in Zalo.']],
-          ext: [['Download and unzip', 'Unzip the .zip file into a folder you will keep.'], ['Open the extensions page', 'Go to chrome://extensions or edge://extensions and turn on Developer mode.'], ['Load the unpacked extension', 'Choose “Load unpacked” and point it to the folder you just unzipped.'], ['Done', 'Pin Chotto to the toolbar, then open Zalo Web. The folder also has README.txt (English and Vietnamese).']]
+          ext: [['Download and unzip', 'Unzip the .zip file into a folder you will keep.'], ['Open the extensions page', 'Go to chrome://extensions or edge://extensions and turn on Developer mode.'], ['Load the unpacked extension', 'Choose “Load unpacked” and point it to the folder you just unzipped.'], ['Done', 'Pin Chotto to the toolbar, then open Zalo Web. The folder also has README.txt (English and Vietnamese).']],
+          android: [['Download and unzip', 'Click “Download for Android”, unzip it and copy CHOTTO-Android-beta.apk to your phone (USB, Zalo My Cloud or Google Drive).'], ['Install the APK', 'Open the .apk on your phone. Allow “Install unknown apps” if asked; if Play Protect warns, choose “Install anyway”.'], ['Set as default browser', 'Open Chotto and tap “Set as default browser”, then choose Chotto.'], ['Turn on in Zalo', 'In Zalo › Me › Settings › Messages, turn on “Open links in web browser”. Done: links you tap now go through Chotto.']]
         },
         faqH: 'Frequently asked questions',
         q1: 'Does Chotto cost anything?', a1: 'No. Chotto is free and needs no account.',
@@ -335,7 +339,7 @@ details[open] summary::after{transform:rotate(45deg)}
       hero: 'Chậm một nhịp, rồi hãy bấm',
       heroSub: 'Chotto kiểm tra mọi link bạn bấm trong Zalo trước khi mở',
       otherVer: 'Các phiên bản khác', archs: 'Có bản x86 (64-bit) và ARM.', heroMeta: 'Phiên bản 1.4.0 · Miễn phí · Không cần tài khoản',
-      dlWin: 'Tải cho Windows', dlMac: 'Tải cho macOS',
+      dlWin: 'Tải cho Windows', dlMac: 'Tải cho macOS', dlAndroid: 'Tải cho Android (beta)',
       mockAria: 'Chotto kiểm tra lần lượt từng link và đưa ra kết luận',
       resultsLbl: 'Kết quả kiểm tra', openLink: 'Mở link', close: 'Đóng',
       samples: [
@@ -353,20 +357,22 @@ details[open] summary::after{transform:rotate(45deg)}
       escHintA: 'Thử bấm vào phím', escHintB: 'bên cạnh',
       escBlocked: 'Đã chặn · 92/100', escFake: 'Đây là trang giả.', escBtnAria: 'Phím Esc, bấm để đóng cảnh báo',
       dlH: 'Tải Chotto', dlMeta: 'Phiên bản 1.5.0', current: 'Máy của bạn',
-      fmt: 'Định dạng', req: 'Yêu cầu', size: 'Dung lượng',
-      linuxNote: 'Dùng Linux hoặc điện thoại? Chotto chưa có bản cho các nền tảng này.',
+      fmt: 'Định dạng', req: 'Yêu cầu', size: 'Dung lượng app', beta: 'Beta',
+      linuxNote: 'Dùng Linux hoặc iPhone? Chotto chưa có bản cho các nền tảng này. Bản Android là bản beta: đã chạy được nhưng mới thử trên ít máy.',
       plat: {
-        win: { name: 'Windows', desc: 'Bảo vệ link mở từ ứng dụng Zalo trên PC.', format: '.zip (bộ cài + hướng dẫn)', req: 'Windows 10 trở lên, 64-bit', size: '18 MB', cta: 'Tải cho Windows', href: 'downloads/CHOTTO-Windows.zip' },
-        mac: { name: 'macOS', desc: 'Cho máy Mac chip Apple (M1 trở lên).', format: '.zip (ảnh đĩa + hướng dẫn)', req: 'macOS 12+, chip Apple', size: '30 MB', cta: 'Tải cho macOS', href: 'downloads/CHOTTO-macOS.zip' },
-        ext: { name: 'Tiện ích trình duyệt', desc: 'Cho Zalo Web trên Chrome và Edge.', format: '.zip, cài thủ công', req: 'Chrome hoặc Edge mới nhất', size: '0.5 MB', cta: 'Tải tiện ích', href: 'downloads/chotto-extension-chrome.zip' }
+        win: { name: 'Windows', desc: 'Bảo vệ link mở từ ứng dụng Zalo trên PC.', format: '.zip (bộ cài + hướng dẫn)', req: 'Windows 10 trở lên, 64-bit', size: '41 MB', cta: 'Tải cho Windows', href: 'downloads/CHOTTO-Windows.zip' },
+        mac: { name: 'macOS', desc: 'Cho máy Mac chip Apple (M1 trở lên).', format: '.zip (ảnh đĩa + hướng dẫn)', req: 'macOS 12+, chip Apple', size: '60 MB', cta: 'Tải cho macOS', href: 'downloads/CHOTTO-macOS.zip' },
+        ext: { name: 'Tiện ích trình duyệt', desc: 'Cho Zalo Web trên Chrome và Edge.', format: '.zip, cài thủ công', req: 'Chrome hoặc Edge mới nhất', size: '0.9 MB', cta: 'Tải tiện ích', href: 'downloads/chotto-extension-chrome.zip' },
+        android: { name: 'Android', desc: 'Kiểm tra link bạn bấm trong ứng dụng Zalo trên điện thoại.', format: '.zip (APK + hướng dẫn)', req: 'Android 8.0+, có Chrome', size: '1.9 MB', cta: 'Tải cho Android', href: 'downloads/CHOTTO-Android.zip' }
       },
       instH: 'Bốn bước, rồi cứ yên tâm bấm.',
       instP: 'Tải về, mở, và Chotto bắt đầu bảo vệ ngay. Không cần tạo tài khoản.',
-      tabsAria: 'Chọn nền tảng', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Tiện ích',
+      tabsAria: 'Chọn nền tảng', tabWin: 'Windows', tabMac: 'macOS', tabExt: 'Tiện ích', tabAndroid: 'Android',
       steps: {
         win: [['Tải và giải nén', 'Bấm “Tải cho Windows”, rồi nhấn chuột phải vào file .zip và chọn “Giải nén tất cả”.'], ['Chạy bộ cài', 'Mở thư mục, bấm đúp CHOTTO-Setup.exe. Nếu Windows cảnh báo, chọn “Thêm thông tin” rồi “Vẫn chạy”.'], ['Chọn thư mục', 'Chọn nơi cài Chotto (hoặc giữ mặc định) rồi bấm Install.'], ['Xong', 'Biểu tượng Chotto xuất hiện trên màn hình Desktop. Mở lên và làm theo file README.txt (tiếng Anh và tiếng Việt) trong thư mục.']],
         mac: [['Tải và giải nén', 'Bấm “Tải cho macOS” rồi bấm đúp file .zip. Bên trong có CHOTTO-macOS.dmg và file hướng dẫn README.'], ['Chuyển vào Applications', 'Mở file .dmg rồi kéo Chotto thả vào thư mục Applications.'], ['Mở lần đầu', 'Nếu macOS báo không thể xác minh Chotto, bấm Xong, rồi vào Cài đặt hệ thống › Quyền riêng tư & Bảo mật, bấm “Vẫn mở”. Chỉ cần làm một lần.'], ['Xong', 'Bấm “Đặt Chotto làm trình mở link” rồi chọn “Dùng CHOTTO”. Sau đó bấm thử một link trong Zalo.']],
-        ext: [['Tải và giải nén', 'Giải nén file .zip vào một thư mục bạn sẽ giữ lại.'], ['Mở trang tiện ích', 'Vào chrome://extensions hoặc edge://extensions, bật Chế độ nhà phát triển.'], ['Tải tiện ích đã giải nén', 'Chọn “Tải tiện ích đã giải nén” và trỏ tới thư mục vừa giải nén.'], ['Xong', 'Ghim Chotto lên thanh công cụ rồi mở Zalo Web. Trong thư mục còn có file README.txt (tiếng Anh và tiếng Việt).']]
+        ext: [['Tải và giải nén', 'Giải nén file .zip vào một thư mục bạn sẽ giữ lại.'], ['Mở trang tiện ích', 'Vào chrome://extensions hoặc edge://extensions, bật Chế độ nhà phát triển.'], ['Tải tiện ích đã giải nén', 'Chọn “Tải tiện ích đã giải nén” và trỏ tới thư mục vừa giải nén.'], ['Xong', 'Ghim Chotto lên thanh công cụ rồi mở Zalo Web. Trong thư mục còn có file README.txt (tiếng Anh và tiếng Việt).']],
+        android: [['Tải và giải nén', 'Bấm “Tải cho Android”, giải nén rồi chép CHOTTO-Android-beta.apk sang điện thoại (cáp USB, Cloud của tôi trên Zalo hoặc Google Drive).'], ['Cài file APK', 'Mở file .apk trên điện thoại. Cho phép “Cài ứng dụng không rõ nguồn gốc” nếu được hỏi; nếu Play Protect cảnh báo, chọn “Vẫn cài đặt”.'], ['Đặt làm trình duyệt mặc định', 'Mở Chotto, bấm “Đặt làm trình duyệt mặc định” rồi chọn Chotto.'], ['Bật trong Zalo', 'Vào Zalo › Cá nhân › Cài đặt › Tin nhắn, bật “Mở link bằng trình duyệt web”. Xong: link bạn bấm sẽ đi qua Chotto.']]
       },
       faqH: 'Câu hỏi thường gặp',
       q1: 'Chotto có mất phí không?', a1: 'Không. Chotto miễn phí và không cần tài khoản.',
@@ -382,7 +388,7 @@ details[open] summary::after{transform:rotate(45deg)}
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
 
   var os = 'win';
-  try { if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) os = 'mac'; } catch (e) {}
+  try { if (/Android/i.test(navigator.userAgent)) os = 'android'; else if (/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)) os = 'mac'; } catch (e) {}
   var URLS = [
     'https://vietcombank.com.vn.xacthuc-tk.top/dang-nhap',
     'https://vnexpress.net/the-thao',
@@ -403,9 +409,10 @@ details[open] summary::after{transform:rotate(45deg)}
   var PLAT_ICON = {
     win: '<svg width="24" height="24" viewBox="0 0 16 16" aria-hidden="true"><rect width="7.4" height="7.4" fill="#e9eef8"></rect><rect x="8.6" width="7.4" height="7.4" fill="#e9eef8"></rect><rect y="8.6" width="7.4" height="7.4" fill="#e9eef8"></rect><rect x="8.6" y="8.6" width="7.4" height="7.4" fill="#e9eef8"></rect></svg>',
     mac: '<span aria-hidden="true" style="font-size: 26px; color: #e9eef8">⌘</span>',
-    ext: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e9eef8" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h4v2a2 2 0 1 0 4 0V4h3v6h-2a2 2 0 1 0 0 4h2v6h-6v-2a2 2 0 1 0-4 0v2H4v-6h2a2 2 0 1 0 0-4H4V4z"></path></svg>'
+    ext: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e9eef8" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h4v2a2 2 0 1 0 4 0V4h3v6h-2a2 2 0 1 0 0 4h2v6h-6v-2a2 2 0 1 0-4 0v2H4v-6h2a2 2 0 1 0 0-4H4V4z"></path></svg>',
+    android: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e9eef8" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"></rect><path d="M10.5 18.5h3"></path></svg>'
   };
-  ['win', 'mac', 'ext'].forEach(function (id) {
+  ['win', 'mac', 'ext', 'android'].forEach(function (id) {
     var cur = id === os;
     var d = document.createElement('div');
     d.className = 'card rv';
@@ -414,7 +421,10 @@ details[open] summary::after{transform:rotate(45deg)}
     d.innerHTML =
       '<div style="display: flex; justify-content: space-between; align-items: flex-start">' +
         '<div style="width: 56px; height: 56px; border-radius: 12px; background: #121722; box-shadow: inset 0 0 0 1px #232b3a; display: grid; place-items: center">' + PLAT_ICON[id] + '</div>' +
-        (cur ? '<span data-t="current" style="font-size: 12px; font-weight: 500; letter-spacing: .3px; padding: 4px 10px; border-radius: 999px; background: rgba(77,141,255,.14); color: #9cc0ff"></span>' : '') +
+        '<div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end">' +
+          (id === 'android' ? '<span data-t="beta" style="font-size: 12px; font-weight: 600; letter-spacing: .3px; padding: 4px 10px; border-radius: 999px; background: rgba(240,180,70,.14); color: #f3c66f"></span>' : '') +
+          (cur ? '<span data-t="current" style="font-size: 12px; font-weight: 500; letter-spacing: .3px; padding: 4px 10px; border-radius: 999px; background: rgba(77,141,255,.14); color: #9cc0ff"></span>' : '') +
+        '</div>' +
       '</div>' +
       '<h3 data-p="name" style="margin: 24px 0 0; font-size: 24px; font-weight: 600; letter-spacing: -0.015em"></h3>' +
       '<p data-p="desc" style="margin: 6px 0 0; font-size: 15px; color: #aab3c5"></p>' +
@@ -492,7 +502,7 @@ details[open] summary::after{transform:rotate(45deg)}
       var p = el.getAttribute('data-ta').split(':');
       el.setAttribute(p[0], T[p[1]]);
     });
-    $$('[data-hero-label]').forEach(function (el) { el.textContent = os === 'mac' ? T.dlMac : T.dlWin; });
+    $$('[data-hero-label]').forEach(function (el) { el.textContent = os === 'mac' ? T.dlMac : os === 'android' ? T.dlAndroid : T.dlWin; });
     $$('[data-plat]').forEach(function (card) {
       var p = T.plat[card.getAttribute('data-plat')];
       $$('[data-p]', card).forEach(function (el) { el.textContent = p[el.getAttribute('data-p')]; });
@@ -518,7 +528,7 @@ details[open] summary::after{transform:rotate(45deg)}
     renderDemo();
   }
 
-  $$('.if-win').forEach(function (el) { if (os === 'mac') el.style.display = 'none'; });
+  $$('.if-win').forEach(function (el) { if (os !== 'win') el.style.display = 'none'; });
   $$('.if-mac').forEach(function (el) { if (os !== 'mac') el.style.display = 'none'; });
 
   // ---------- chuyển ngôn ngữ ----------

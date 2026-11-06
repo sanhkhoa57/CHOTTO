@@ -5,9 +5,11 @@
 - ``downloads/CHOTTO-macOS.zip``: ``CHOTTO-macOS.dmg`` + ``README.txt`` (cần build ``dist/CHOTTO.app`` trên Mac trước;
   xem ``packaging/macos_setup.py``).
 - ``downloads/chotto-extension-chrome.zip``: các file tiện ích (``manifest.json`` ở gốc) + ``README.txt``.
+- ``downloads/CHOTTO-Android.zip``: ``CHOTTO-Android-beta.apk`` + ``README.txt`` (cần build trước trong ``android/``:
+  ``gradlew assembleRelease``; APK ký bằng khóa debug, cài thẳng được, chưa lên Google Play).
 
 Nội dung hướng dẫn nằm ở ``packaging/guides/*.txt``.
-Dùng: python tools/build_downloads.py [windows] [macos] [extension]   (không ghi gì = windows + extension)
+Dùng: python tools/build_downloads.py [windows] [macos] [extension] [android]   (không ghi gì = windows + extension)
 """
 from __future__ import annotations
 
@@ -89,9 +91,20 @@ def build_extension() -> None:
     _write(DOWNLOADS / "chotto-extension-chrome.zip", entries)
 
 
+def build_android() -> None:
+    """Gói Android (beta): APK release + hướng dẫn."""
+    apk = ROOT / "android" / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk"
+    if not apk.exists():
+        raise SystemExit("Chưa có app-release.apk. Trong thư mục android/ chạy: gradlew assembleRelease")
+    _write(DOWNLOADS / "CHOTTO-Android.zip", {
+        "CHOTTO-Android-beta.apk": apk.read_bytes(),
+        "README.txt": _guide("android.txt"),
+    })
+
+
 def main() -> None:
     """Tạo các gói được chỉ định (mặc định: Windows + tiện ích, như trước)."""
-    builders = {"windows": build_windows, "macos": build_macos, "extension": build_extension}
+    builders = {"windows": build_windows, "macos": build_macos, "extension": build_extension, "android": build_android}
     targets = sys.argv[1:] or ["windows", "extension"]
     unknown = [t for t in targets if t not in builders]
     if unknown:

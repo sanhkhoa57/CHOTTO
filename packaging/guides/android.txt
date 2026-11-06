@@ -1,0 +1,102 @@
+CHOTTO for Android (BETA) - Installation and Usage Guide  /  Hướng dẫn cài đặt và sử dụng CHOTTO cho Android (BẢN BETA)
+=============================================================================================================================
+
+ENGLISH
+-------
+This is a beta version
+  It works and checks links the same way as the Windows and macOS apps, but it has only been
+  tested on a few devices. If something goes wrong, please tell us which phone and Android
+  version you use.
+
+What it does
+  CHOTTO checks every link you tap in the Zalo app before it opens. Safe links open in your
+  normal browser (Chrome, if installed) right away. Suspicious links show a "Hold on" warning
+  that reveals where the link really goes; the "Open anyway" button stays locked for a few
+  seconds so you have time to think.
+
+Requirements
+  - Android 8.0 or later.
+  - Another browser already installed (for example Chrome). CHOTTO opens safe links in it.
+
+Install (about 2 minutes)
+  1. Unzip this .zip file and copy CHOTTO-Android-beta.apk to your phone
+     (USB cable, Zalo "My Cloud", Google Drive...).
+  2. If you had an older CHOTTO test version, uninstall it first.
+  3. On the phone, open CHOTTO-Android-beta.apk.
+     If Android asks, allow "Install unknown apps" for the app you opened it with
+     (Files, Zalo, Chrome...).
+  4. If Play Protect warns about an unknown app, choose "Install anyway".
+     (This only appears because CHOTTO is not on Google Play yet.)
+
+First-time setup
+  1. Open CHOTTO. On the Overview tab, tap "Set as default browser" and choose CHOTTO.
+     If no dialog appears: Settings > Apps > Default apps > Browser app > CHOTTO.
+  2. In Zalo, turn on "Open links in web browser" (Zalo > Me > Settings > Messages).
+     Otherwise Zalo opens links in its own built-in browser and CHOTTO cannot check them.
+  When it works, the Overview tab shows "PROTECTING YOU".
+
+Daily use
+  - Use Zalo as usual. Safe links open in your browser with no extra step.
+  - When a warning appears, read the reasons. "Go back to safety" is the safe choice.
+    "Open anyway" unlocks after the countdown and is meant for links you fully trust.
+  - "Check" tab: paste a link to test it without opening it.
+  - "Settings" tab: language, waiting time, domain-age lookup, activity log, scam-list updates.
+
+Privacy
+  Links are checked on your phone. Only if "Check domain age" is on, the registered domain
+  name (never the full link) is sent to public domain-registry servers. The scam list is
+  downloaded once a day from public sources.
+
+Uninstall
+  In CHOTTO: Settings > "Remove CHOTTO as default browser" and pick your old browser.
+  Then hold the CHOTTO icon > Uninstall.
+
+
+TIẾNG VIỆT
+----------
+Đây là bản beta
+  Bản này đã chạy được và kiểm tra link giống hệt bản Windows và macOS, nhưng mới thử trên
+  ít máy. Nếu gặp lỗi, hãy báo cho chúng tôi tên điện thoại và phiên bản Android bạn dùng.
+
+Chotto làm gì
+  CHOTTO kiểm tra mọi link bạn bấm trong ứng dụng Zalo trước khi mở. Link an toàn mở ngay
+  bằng trình duyệt quen thuộc của bạn (Chrome nếu có). Link đáng ngờ hiện màn hình cảnh báo
+  "Khoan đã" cho thấy link thật sự dẫn tới đâu; nút "Vẫn mở" bị khóa vài giây để bạn kịp
+  suy nghĩ.
+
+Yêu cầu
+  - Android 8.0 trở lên.
+  - Đã có sẵn một trình duyệt khác (ví dụ Chrome). CHOTTO mở link an toàn bằng trình duyệt đó.
+
+Cài đặt (khoảng 2 phút)
+  1. Giải nén file .zip này, chép CHOTTO-Android-beta.apk sang điện thoại
+     (cáp USB, "Cloud của tôi" trên Zalo, Google Drive...).
+  2. Nếu máy đang có bản CHOTTO thử nghiệm cũ, hãy gỡ bản đó trước.
+  3. Trên điện thoại, mở file CHOTTO-Android-beta.apk.
+     Nếu Android hỏi, cho phép "Cài ứng dụng không rõ nguồn gốc" với ứng dụng bạn dùng để mở
+     (Files, Zalo, Chrome...).
+  4. Nếu Play Protect cảnh báo ứng dụng không xác định, chọn "Vẫn cài đặt".
+     (Cảnh báo này chỉ hiện vì CHOTTO chưa có trên Google Play.)
+
+Thiết lập lần đầu
+  1. Mở CHOTTO. Ở tab Tổng quan, bấm "Đặt làm trình duyệt mặc định" rồi chọn CHOTTO.
+     Nếu không thấy hộp thoại: Cài đặt > Ứng dụng > Ứng dụng mặc định > Ứng dụng trình duyệt > CHOTTO.
+  2. Trong Zalo, bật "Mở link bằng trình duyệt web" (Zalo > Cá nhân > Cài đặt > Tin nhắn).
+     Nếu không, Zalo tự mở link trong trình duyệt riêng và CHOTTO không kiểm tra được.
+  Khi đã xong, tab Tổng quan hiện "ĐANG BẢO VỆ".
+
+Sử dụng hằng ngày
+  - Cứ dùng Zalo như bình thường. Link an toàn mở bằng trình duyệt, không cần làm gì thêm.
+  - Khi có cảnh báo, hãy đọc lý do. "Quay lại an toàn" là lựa chọn an toàn.
+    "Vẫn mở" chỉ mở khóa sau khi đếm ngược, dành cho link bạn hoàn toàn tin tưởng.
+  - Tab "Kiểm tra": dán link vào để thử mà không mở trang.
+  - Tab "Cài đặt": ngôn ngữ, thời gian chờ, tra tuổi tên miền, nhật ký, cập nhật danh sách lừa đảo.
+
+Quyền riêng tư
+  Link được kiểm tra ngay trên điện thoại. Chỉ khi bật "Tra tuổi tên miền", tên miền đăng ký
+  (không phải cả link) mới được gửi tới máy chủ tra cứu tên miền công khai. Danh sách lừa đảo
+  được tải về mỗi ngày một lần từ các nguồn công khai.
+
+Gỡ cài đặt
+  Trong CHOTTO: Cài đặt > "Gỡ CHOTTO khỏi trình duyệt mặc định" rồi chọn lại trình duyệt cũ.
+  Sau đó giữ biểu tượng CHOTTO > Gỡ cài đặt.
