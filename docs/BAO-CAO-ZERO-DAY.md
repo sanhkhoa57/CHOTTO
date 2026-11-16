@@ -71,7 +71,7 @@ Lần thu thập đầu tiên (16/11/2026 13:41 UTC), thực tế:
 | URLhaus (`text_recent`) | **lỗi HTTP 410 Gone** (bản tải công khai không còn phục vụ) | – |
 | ChongLuaDao (`api.chongluadao.vn/v1/blacklist`) | **lỗi DNS**, tên miền API không phân giải | – |
 
-Hai nguồn lỗi vẫn nằm trong cấu hình để mỗi lần chạy thử lại; nếu chúng sống lại, lần thành công đầu tiên sẽ là
+Đã thử bản sao cộng đồng của ChongLuaDao (`vn-badsite-filter`): tải được nhưng ngừng cập nhật từ 11/04/2025 nên không dùng. Hai nguồn lỗi vẫn nằm trong cấu hình để mỗi lần chạy thử lại; nếu chúng sống lại, lần thành công đầu tiên sẽ là
 baseline. **[CẦN CẬP NHẬT]** bảng tỷ lệ tải thành công theo nguồn từ `python tools/zero_day_gap.py status`.
 
 ### 4.2. Tỷ lệ cảnh báo ngay lúc thấy lần đầu

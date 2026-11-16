@@ -13,7 +13,8 @@ kết quả không còn khách quan. Mọi ý tưởng cải tiến luật ghi v
 4. **Dấu hiệu hay gặp ở tên miền bị bỏ sót.** Mục "Dấu hiệu hay gặp" cho biết dấu hiệu nào có xuất hiện nhưng điểm
    quá thấp để vượt ngưỡng 30; dùng `tools/calibrate_weights.py` để thử trọng số mới trên tập giữ riêng.
 5. **Nguồn dữ liệu Việt Nam.** Tìm đường dẫn thay thế cho ChongLuaDao (API hiện không phân giải) và URLhaus (bản tải
-   công khai bị gỡ, cần khóa API của abuse.ch) để có nguồn so sánh đúng bối cảnh.
+   công khai bị gỡ, cần khóa API của abuse.ch) để có nguồn so sánh đúng bối cảnh. Đã thử (16/11/2026): bản sao `vn-badsite-filter` (curbengh, lấy từ ChongLuaDao) vẫn tải được nhưng
+   dòng `Updated` là 2025-04-11, tức đã ngừng cập nhật, nên KHÔNG dùng được để đo thời điểm liệt kê.
 6. **Thu thập độc lập với Task Scheduler.** Nếu máy hay ngủ làm hỏng chu kỳ 30 phút, chạy `collect` trên một máy chủ
    luôn bật (ví dụ GitHub Actions theo lịch) để có độ phân giải ổn định hơn.
 
