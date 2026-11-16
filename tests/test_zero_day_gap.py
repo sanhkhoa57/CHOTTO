@@ -154,6 +154,26 @@ class ZeroDayGapTest(unittest.TestCase):
         self.assertIn("CẦN CẬP NHẬT SỐ LIỆU", md)
         json.dumps(report)
 
+    def test_plot_writes_pngs_with_and_without_data(self) -> None:
+        try:
+            import matplotlib  # noqa: F401
+        except ImportError:
+            self.skipTest("chưa cài matplotlib")
+        empty = zd.plot(zd.build_report(self.con, self.rules), self.dir / "empty")
+        pa = self.dir / "a.txt"
+        pb = self.dir / "b.txt"
+        pa.write_text(CLEAN + "\n", "utf-8")
+        pb.write_text(CLEAN + "\n", "utf-8")
+        sources = {"A": pa.as_uri(), "B": pb.as_uri()}
+        self.run_collect(sources, T0)
+        pa.write_text(f"{CLEAN}\n{PHISH}\n{PHISH_B}\n", "utf-8")
+        self.run_collect(sources, T0 + H)
+        pb.write_text(f"{CLEAN}\n{PHISH}\n", "utf-8")
+        self.run_collect(sources, T0 + 3 * H)
+        full = zd.plot(zd.build_report(self.con, self.rules), self.dir / "full")
+        for path in empty + full:
+            self.assertGreater(path.stat().st_size, 1000, path)
+
     def test_quartiles(self) -> None:
         self.assertIsNone(zd.quartiles([]))
         self.assertEqual(zd.quartiles([2.0]), (2.0, 2.0, 2.0))
