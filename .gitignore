@@ -24,3 +24,6 @@ CHOTTO.spec
 
 # Đề bài/báo cáo gửi Antigravity để rà soát — chỉ dùng cục bộ, không đẩy lên
 /review/
+
+# Dữ liệu thu thập khoảng trống zero-day (CSDL lớn, sinh lại được; chỉ đẩy báo cáo tổng hợp trong docs/)
+.zero-day/
