@@ -588,6 +588,35 @@ def _parse_sources(items: list[str] | None) -> dict[str, str]:
     return result
 
 
+def _run_collect(con: sqlite3.Connection, sources: Mapping[str, str], rules: dict[str, Any], log: Path | None) -> int:
+    """Chạy ``collect``, in kết quả và (nếu có ``log``) nối đuôi vào file log. Trả về mã thoát."""
+    lines: list[str] = []
+    code = 1
+    started = time.perf_counter()
+    now = int(time.time())
+    try:
+        outcomes = collect(con, sources, rules, now)
+        lines.append(f"[{iso(now)}] collect xong sau {time.perf_counter() - started:.1f}s")
+        for o in outcomes:
+            if o["ok"]:
+                tag = "baseline" if o["baseline"] else f"{o.get('scored', 0)} tên miền mới đã chấm"
+                lines.append(f"  OK   {o['source']}: {o['entries']} mục, {o['new']} chưa từng thấy ({tag})")
+            else:
+                lines.append(f"  LỖI  {o['source']}: {o['error']}")
+        code = 0 if any(o["ok"] for o in outcomes) else 1
+    except Exception as exc:  # noqa: BLE001 - chạy nền: lỗi nào cũng phải để lại dấu vết trong log
+        lines.append(f"[{iso(now)}] collect THẤT BẠI: {type(exc).__name__}: {exc}")
+    finally:
+        text = "\n".join(lines)
+        print(text)
+        if log is not None:
+            with contextlib.suppress(OSError):
+                log.parent.mkdir(parents=True, exist_ok=True)
+                with log.open("a", encoding="utf-8", newline="\n") as handle:
+                    handle.write(text + f"\n  (mã thoát {code})\n")
+    return code
+
+
 def main(argv: list[str]) -> int:
     """Điểm vào."""
     for stream in (sys.stdout, sys.stderr):      # Windows: cp1252 khi chuyển hướng ra file/pipe
@@ -598,6 +627,7 @@ def main(argv: list[str]) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p_collect = sub.add_parser("collect", help="tải feed và chấm điểm tên miền mới")
     p_collect.add_argument("--source", action="append", metavar="TÊN=URL", help="thay danh sách nguồn mặc định")
+    p_collect.add_argument("--log", type=Path, help="ghi thêm kết quả (UTF-8, nối đuôi) vào file này; dùng khi chạy định kỳ")
     sub.add_parser("status", help="tình trạng thu thập")
     p_report = sub.add_parser("report", help="báo cáo số liệu")
     p_report.add_argument("--md", type=Path)
@@ -617,17 +647,7 @@ def main(argv: list[str]) -> int:
         return 2
     with contextlib.closing(open_db(args.db)) as con:
         if args.command == "collect":
-            now = int(time.time())
-            started = time.perf_counter()
-            outcomes = collect(con, sources, rules, now)
-            print(f"[{iso(now)}] collect xong sau {time.perf_counter() - started:.1f}s")
-            for o in outcomes:
-                if o["ok"]:
-                    tag = "baseline" if o["baseline"] else f"{o.get('scored', 0)} tên miền mới đã chấm"
-                    print(f"  OK   {o['source']}: {o['entries']} mục, {o['new']} chưa từng thấy ({tag})")
-                else:
-                    print(f"  LỖI  {o['source']}: {o['error']}")
-            return 0 if any(o["ok"] for o in outcomes) else 1
+            return _run_collect(con, sources, rules, args.log)
         if args.command == "status":
             info = status(con)
             print(f"Số lần chạy: {info['runs']} ({info['first_run'] or '–'} → {info['last_run'] or '–'}, {info['days']} ngày)")
