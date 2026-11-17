@@ -60,6 +60,27 @@ class ZeroDayGapTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             zd.parse_feed("<!DOCTYPE html><html>410 Gone</html>")
 
+    def test_parse_feed_phishtank_csv(self) -> None:
+        text = ("phish_id,url,phish_detail_url,submission_time,verified,verification_time,online,target\n"
+                "1,https://a.phish-one.top/x?y=1,http://www.phishtank.com/p.php?phish_id=1,t,yes,t,yes,Other\n"
+                "2,\"http://phish-two.xyz/a,b\",http://www.phishtank.com/p.php?phish_id=2,t,yes,t,yes,Other\n")
+        got = zd.parse_feed(text)
+        self.assertEqual(set(got), {"phish-one.top", "phish-two.xyz"})
+        self.assertEqual(got["phish-two.xyz"], "http://phish-two.xyz/a,b")
+
+    def test_stale_source_is_excluded_from_report(self) -> None:
+        live, dead = self.dir / "live.txt", self.dir / "dead.txt"
+        live.write_text(CLEAN + "\n", "utf-8")
+        dead.write_text(CLEAN + "\n", "utf-8")
+        sources = {"Live": live.as_uri(), "Dead": dead.as_uri()}
+        self.run_collect(sources, T0)
+        live.write_text(f"{CLEAN}\n{PHISH}\n", "utf-8")
+        self.run_collect(sources, T0 + 30 * H)             # 30 giờ sau: Dead không có mục mới nào
+        report = zd.build_report(self.con, self.rules)
+        self.assertEqual(report["stale_sources"], ["Dead"])
+        self.assertEqual(list(report["sources"]), ["Live"])
+        self.assertIn("nghi ngừng cập nhật", zd.render_md(report))
+
     # --- baseline và chấm điểm --------------------------------------------------------------
 
     def test_first_run_is_baseline_and_not_scored(self) -> None:

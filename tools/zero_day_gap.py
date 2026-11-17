@@ -34,6 +34,8 @@ from __future__ import annotations
 import argparse
 import collections
 import contextlib
+import csv
+import io
 import json
 import os
 import sqlite3
@@ -57,11 +59,12 @@ from chotto.engine import Engine  # noqa: E402
 from chotto.tier1 import Blacklist  # noqa: E402
 from chotto.util import is_private_suffix_host, registered_domain, tld_of  # noqa: E402
 
-_PHISHING_DB: Final[str] = "https://raw.githubusercontent.com/mitchellkrogza/Phishing.Database/master/"
+# Phishing.Database (mitchellkrogza) bị bỏ khỏi danh sách mặc định: kho ngừng cập nhật từ 02/10/2026, các
+# feed NEW-last-hour luôn rỗng và ACTIVE không đổi. Phishing Army không dùng vì chỉ gộp lại PhishTank/OpenPhish/CERT.pl.
 SOURCES: Final[dict[str, str]] = {
-    "PhishingDB-NEW": _PHISHING_DB + "phishing-links-NEW-last-hour.txt",
-    "PhishingDB-ACTIVE": _PHISHING_DB + "phishing-domains-ACTIVE.txt",
     "OpenPhish": "https://openphish.com/feed.txt",
+    "PhishTank": "https://data.phishtank.com/data/online-valid.csv",
+    "CERT-PL": "https://hole.cert.pl/domains/v2/domains.txt",
     "URLhaus": "https://urlhaus.abuse.ch/downloads/text_recent/",
     "ChongLuaDao": "https://api.chongluadao.vn/v1/blacklist",
 }
@@ -167,6 +170,12 @@ def _iter_tokens(text: str) -> Iterable[str]:
                 value = item.get("url") or item.get("domain") or item.get("host")
                 if isinstance(value, str):
                     yield value
+        return
+    if body[:8].lower().startswith("phish_id"):          # CSV của PhishTank: cột "url"
+        for row in csv.DictReader(io.StringIO(body)):
+            value = row.get("url")
+            if value:
+                yield value
         return
     for line in body.splitlines():
         line = line.strip()
@@ -379,7 +388,10 @@ def build_report(con: sqlite3.Connection, rules: Mapping[str, Any]) -> dict[str,
 
     per_source: dict[str, Any] = {}
     lead_hours: dict[str, list[float]] = {}
+    stale = _stale_sources(con)
     for name in source_names:
+        if name in stale:
+            continue            # nguồn đã tải được > 24 giờ mà không có mục mới nào: nghi ngừng cập nhật
         stats = {"domains": 0, "not_listed": 0, "later": 0, "same_time": 0, "excluded_baseline": 0,
                  "flagged_later": 0}
         hours: list[float] = []
@@ -422,8 +434,22 @@ def build_report(con: sqlite3.Connection, rules: Mapping[str, Any]) -> dict[str,
         ).most_common(_TOP_N),
         "missed_samples": {g: [m for m in missed if m["group"] == g][:30] for g in ("vn", "global")},
         "sources": per_source,
+        "stale_sources": sorted(stale),
         "lead_hours": lead_hours,
     }
+
+
+def _stale_sources(con: sqlite3.Connection, min_hours: float = 24.0) -> set[str]:
+    """Nguồn tải được từ ``min_hours`` giờ trở lên (tính đến lần chạy cuối) mà không có mục mới nào ngoài baseline."""
+    last = con.execute("SELECT MAX(started_at) FROM runs").fetchone()[0]
+    result: set[str] = set()
+    for (name,) in con.execute("SELECT DISTINCT source FROM source_runs WHERE ok = 1"):
+        first_ok = con.execute("SELECT MIN(r.started_at) FROM source_runs s JOIN runs r ON r.id = s.run_id "
+                               "WHERE s.source = ? AND s.ok = 1", (name,)).fetchone()[0]
+        fresh = con.execute("SELECT 1 FROM sightings WHERE source = ? AND baseline = 0 LIMIT 1", (name,)).fetchone()
+        if fresh is None and last is not None and (last - first_ok) / 3600 >= min_hours:
+            result.add(name)
+    return result
 
 
 _BUCKETS: Final[tuple[str, ...]] = ("0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-79", "80-100")
@@ -490,6 +516,11 @@ def render_md(report: Mapping[str, Any]) -> str:
         "Số giờ sớm hơn chỉ tính trên tên miền CHOTTO cảnh báo được và nguồn liệt kê muộn hơn. "
         "\"Cùng lúc\" gồm cả nguồn đã phát hiện tên miền đầu tiên. \"Chưa liệt kê\" có thể thành "
         "\"muộn hơn\" ở các lần đo sau (dữ liệu bị cắt phải).",
+    ]
+    if report["stale_sources"]:
+        lines += ["", "Nguồn bị loại khỏi bảng vì tải được hơn 24 giờ mà không có mục mới nào (nghi ngừng cập nhật): "
+                  + ", ".join(report["stale_sources"]) + "."]
+    lines += [
         "",
         "## Phân bố điểm",
         "",
