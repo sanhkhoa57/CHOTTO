@@ -68,6 +68,8 @@ SOURCES: Final[dict[str, str]] = {
     "URLhaus": "https://urlhaus.abuse.ch/downloads/text_recent/",
     "ChongLuaDao": "https://api.chongluadao.vn/v1/blacklist",
 }
+# Nguồn giới hạn tần suất tải (PhishTank trả HTTP 429 khi tải mỗi 30 phút): khoảng cách tối thiểu giữa hai lần thử.
+MIN_INTERVAL_SECONDS: Final[dict[str, int]] = {"PhishTank": 3600}
 DEFAULT_DB: Final[Path] = Path(__file__).resolve().parent.parent / ".zero-day" / "zero_day.sqlite3"
 _MAX_DOWNLOAD: Final[int] = 200 * 1024 * 1024
 _USER_AGENT: Final[str] = "CHOTTO-zero-day-study (academic)"
@@ -264,6 +266,12 @@ def collect(con: sqlite3.Connection, sources: Mapping[str, str], rules: dict[str
     for name, url in sources.items():
         outcome: dict[str, Any] = {"source": name, "ok": False, "entries": 0, "new": 0, "baseline": False, "error": ""}
         outcomes.append(outcome)
+        wait = MIN_INTERVAL_SECONDS.get(name, 0)
+        last_try = con.execute("SELECT MAX(r.started_at) FROM source_runs s JOIN runs r ON r.id = s.run_id "
+                               "WHERE s.source = ?", (name,)).fetchone()[0] if wait else None
+        if last_try is not None and now - last_try < wait:
+            outcome.update(skipped=True, error=f"bỏ qua: nguồn giới hạn tần suất, thử lại sau {wait // 60} phút")
+            continue                  # không ghi source_runs: không tính vào tỷ lệ tải thành công
         try:
             entries = parse_feed(fetcher(url))
         except (OSError, ValueError) as exc:
@@ -632,9 +640,11 @@ def _run_collect(con: sqlite3.Connection, sources: Mapping[str, str], rules: dic
             if o["ok"]:
                 tag = "baseline" if o["baseline"] else f"{o.get('scored', 0)} tên miền mới đã chấm"
                 lines.append(f"  OK   {o['source']}: {o['entries']} mục, {o['new']} chưa từng thấy ({tag})")
+            elif o.get("skipped"):
+                lines.append(f"  BỎ   {o['source']}: {o['error']}")
             else:
                 lines.append(f"  LỖI  {o['source']}: {o['error']}")
-        code = 0 if any(o["ok"] for o in outcomes) else 1
+        code = 0 if any(o["ok"] or o.get("skipped") for o in outcomes) else 1
     except Exception as exc:  # noqa: BLE001 - chạy nền: lỗi nào cũng phải để lại dấu vết trong log
         lines.append(f"[{iso(now)}] collect THẤT BẠI: {type(exc).__name__}: {exc}")
     finally:

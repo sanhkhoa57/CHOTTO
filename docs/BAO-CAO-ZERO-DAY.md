@@ -56,7 +56,7 @@ Công cụ: `tools/zero_day_gap.py` (chỉ dùng thư viện chuẩn). Dữ li�
 6. **Giữ khách quan.** `chotto/data/rules.json` và logic engine **không được sửa** trong thời gian đo. Ý tưởng cải
    tiến luật ghi ở `docs/Y-TUONG-CAI-TIEN.md`.
 
-Kiểm thử: `tests/test_zero_day_gap.py` (16 bài, feed giả `file://`, không gọi mạng).
+Kiểm thử: `tests/test_zero_day_gap.py` (17 bài, feed giả `file://`, không gọi mạng).
 
 ## 4. Kết quả
 

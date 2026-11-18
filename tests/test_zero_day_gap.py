@@ -68,6 +68,17 @@ class ZeroDayGapTest(unittest.TestCase):
         self.assertEqual(set(got), {"phish-one.top", "phish-two.xyz"})
         self.assertEqual(got["phish-two.xyz"], "http://phish-two.xyz/a,b")
 
+    def test_rate_limited_source_is_not_polled_too_often(self) -> None:
+        feed = self.feed("pt", [CLEAN])
+        sources = {"PhishTank": feed}
+        self.assertTrue(self.run_collect(sources, T0)["PhishTank"]["ok"])
+        skipped = self.run_collect(sources, T0 + 1800)["PhishTank"]          # 30 phút sau: chưa đến hạn
+        self.assertTrue(skipped.get("skipped"))
+        self.assertFalse(skipped["ok"])
+        self.assertTrue(self.run_collect(sources, T0 + 3600)["PhishTank"]["ok"])
+        info = {s["source"]: s for s in zd.status(self.con)["sources"]}
+        self.assertEqual(info["PhishTank"]["runs"], 2)                        # lần bỏ qua không tính vào tỷ lệ
+
     def test_stale_source_is_excluded_from_report(self) -> None:
         live, dead = self.dir / "live.txt", self.dir / "dead.txt"
         live.write_text(CLEAN + "\n", "utf-8")
