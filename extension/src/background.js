@@ -333,7 +333,8 @@ async function handleInspect(message, sender) {
     };
     await chrome.storage.session.set({ tickets });
   });
-  return { action: "friction", token, lockMs, view: buildView(result) };
+  const data = await getData();
+  return { action: "friction", token, lockMs, view: buildView(result, { plain: data.plain, rules: data.rules }) };
 }
 
 /**
@@ -458,7 +459,8 @@ async function route(message, sender) {
     case "test": {
       const engine = await getEngine();
       const result = await engine.inspect(String(message.url ?? ""));
-      return { view: buildView(result), level: result.level, elapsedMs: result.elapsedMs, signals: result.signals };
+      const data = await getData();
+      return { view: buildView(result, { plain: data.plain, rules: data.rules }), level: result.level, score: result.score, elapsedMs: result.elapsedMs, signals: result.signals };
     }
     case "log":
       return { decisions: await store.listDecisions(Number(message.limit ?? 500)) };

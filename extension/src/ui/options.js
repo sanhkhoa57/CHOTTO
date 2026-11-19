@@ -136,10 +136,9 @@ byId("test").addEventListener("submit", async (event) => {
   const url = /** @type {HTMLInputElement} */ (form.elements.namedItem("url")).value;
   out.textContent = "Đang kiểm tra…";
   try {
-    const { view, level, elapsedMs } = await ask({ type: "test", url });
-    const lines = [`${/** @type {Record<string, string>} */ (LEVELS)[level] ?? level} · ${view.score}/100 · ${elapsedMs} ms`,
-      view.domainLine, view.tierText, ...view.reasons.map((/** @type {string} */ r) => `• ${r}`)];
-    if (view.advice) lines.push("", view.advice);
+    const { view, level, score, elapsedMs } = await ask({ type: "test", url });
+    const lines = [`${/** @type {Record<string, string>} */ (LEVELS)[level] ?? level} · ${score}/100 · ${elapsedMs} ms`,
+      view.headline, view.domain.registered, ...view.details.map((/** @type {{text: string}} */ r) => `• ${r.text}`)];
     out.textContent = lines.join("\n");
   } catch (error) {
     out.textContent = `Không kiểm tra được: ${message(error)}`;
