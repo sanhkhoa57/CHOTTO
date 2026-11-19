@@ -34,7 +34,7 @@ const LEVELS = ["WARN", "HIGH", "BLOCKED"];
 /**
  * @typedef {object} ShieldContext
  * @property {PlainData} plain
- * @property {{brands?: {name?: string, keywords?: string[], domains?: string[]}[]}} rules
+ * @property {import("./engine/tier2.js").Rules} rules
  */
 
 /**
@@ -93,7 +93,7 @@ function levenshtein(a, b) {
 export function brandHit(registered, brand, rules) {
   /** @type {string[]} */
   let keywords = [];
-  for (const entry of rules.brands ?? []) {
+  for (const entry of /** @type {{name?: string, keywords?: string[], domains?: string[]}[]} */ (rules.brands ?? [])) {
     if (String(entry.name ?? "").toLowerCase() === brand.toLowerCase()) {
       keywords = (entry.keywords ?? []).map((k) => String(k).toLowerCase());
       break;
@@ -140,7 +140,7 @@ function brandOf(signals) {
  * @returns {string}
  */
 function officialDomain(brand, rules) {
-  for (const entry of rules.brands ?? []) {
+  for (const entry of /** @type {{name?: string, keywords?: string[], domains?: string[]}[]} */ (rules.brands ?? [])) {
     if (String(entry.name ?? "").toLowerCase() === brand.toLowerCase() && entry.domains?.length) return String(entry.domains[0]);
   }
   return "";

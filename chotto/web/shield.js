@@ -189,7 +189,7 @@
     const copy = /** @type {HTMLButtonElement} */ (el("button", "sh-ghost"));
     copy.type = "button";
     const copyLabel = iconButton(copy, "copy", "");
-    const report = /** @type {HTMLButtonElement} */ (el("button", "sh-ghost"));
+    const report = /** @type {HTMLButtonElement} */ (el("button", "sh-ghost sh-report"));
     report.type = "button";
     const reportLabel = iconButton(report, "chat", "");
     const more = el("div", "sh-more");
@@ -262,7 +262,7 @@
           reg.append(mark);
           into = mark;
         }
-        if (odd && ch.codePointAt(0) > 127) {
+        if (odd && (ch.codePointAt(0) ?? 0) > 127) {
           flush();
           into.append(el("i", "odd", ch));
         } else {
