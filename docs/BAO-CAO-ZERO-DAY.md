@@ -1,7 +1,8 @@
 # Khoảng trống zero-day của link lừa đảo: CHOTTO (Tầng 2) đi trước blacklist bao lâu?
 
-> **Trạng thái (19/11/2026):** công cụ đo đã xong, báo cáo đã có số liệu tạm trên 2,61 ngày dữ liệu. Mọi chỗ đánh dấu **[CẦN CẬP NHẬT]** phải điền lại sau khi thu thập đủ ≥ 3 ngày (khuyến nghị 7 ngày).
-> Cách cập nhật nằm ở cuối file.
+> **Trạng thái: bản chốt (19/11/2026 14:00 UTC).** Thu thập 150 lần trong đúng 3,0 ngày (16/11 13:41 → 19/11 13:48 UTC),
+> 5.360 tên miền mới. Số liệu gốc: `docs/zero-day-report.md` và `docs/zero-day-report.json`. Thu thập vẫn đang chạy;
+> muốn cập nhật số liệu dài hơn thì xem mục cuối.
 
 ## 1. Đặt vấn đề
 
@@ -77,62 +78,88 @@ OpenPhish thêm mục mới (240 tên miền), vì vậy 230 tên miền đã ch
 so sánh được với nguồn thứ hai**. Đã thêm PhishTank và CERT-PL (baseline CERT-PL: 103.064 mục); PhishTank trả
 HTTP 429 (giới hạn tần suất tải) ở lần thử đầu, cần theo dõi. Các tên miền đã chấm trước khi một nguồn mới vào đo có thể nằm
 trong baseline của nguồn đó và bị loại riêng khỏi thống kê của nguồn đó (cắt trái). Hai nguồn lỗi vẫn nằm trong cấu hình để mỗi lần chạy thử lại; nếu chúng sống lại, lần thành công đầu tiên sẽ là
-baseline. **[CẦN CẬP NHẬT]** bảng tỷ lệ tải thành công theo nguồn từ `python tools/zero_day_gap.py status`.
+baseline.
+
+Tỷ lệ tải thành công sau 3 ngày (`python tools/zero_day_gap.py status`):
+
+| Nguồn | Thành công | Ghi chú |
+| --- | ---: | --- |
+| OpenPhish | 150/150 (100%) | |
+| CERT-PL | 114/115 (99%) | một lần hết thời gian chờ SSL |
+| PhishTank | 30/81 (37%) | HTTP 429 (giới hạn tần suất); **lần thành công cuối 19/11 08:18 UTC** |
+| Phishing.Database (NEW, ACTIVE) | 35/35 | đã bỏ khỏi danh sách từ 17/11, nguồn không đổi, bị loại khỏi bảng so sánh |
+| URLhaus | 0/150 | HTTP 410 |
+| ChongLuaDao | 0/150 | lỗi DNS |
 
 ### 4.2. Tỷ lệ cảnh báo ngay lúc thấy lần đầu
 
-**Số liệu tạm: 2,61 ngày, 131 lần thu thập, 3.310 tên miền mới (chốt 19/11/2026 04:18 UTC). [CẦN CẬP NHẬT khi đủ 3 ngày]**
-
 | Nhóm | Số tên miền mới | Cảnh báo | Tỷ lệ | Mức HIGH |
 | --- | ---: | ---: | ---: | ---: |
-| Tất cả | 3.310 | 1.330 | 40,2% | 814 |
-| Nhắm VN | 69 | 69 | 100% | 69 |
-| Toàn cầu | 3.241 | 1.261 | 38,9% | 745 |
+| Tất cả | 5.360 | 1.565 | 29,2% | 969 |
+| Nhắm VN | 80 | 80 | 100% | 80 |
+| Toàn cầu | 5.280 | 1.485 | 28,1% | 889 |
 
 Cách đọc đúng các con số này:
 
-- **Con số 40,2% là kết quả của cơ cấu mẫu, không phải một năng lực duy nhất.** Tỷ lệ bắt phụ thuộc rất mạnh vào nguồn
-  phát hiện tên miền: OpenPhish (cho URL đầy đủ) 86% (1.026/1.195), PhishTank 23% (36/156), CERT-PL (chỉ có tên
-  miền, nhiều tên miền thương mại thông thường) 14% (268/1.959). CERT-PL chiếm 59% mẫu nên kéo con số chung xuống.
+- **Con số chung 29,2% là kết quả của cơ cấu mẫu, không phải một năng lực duy nhất.** Tỷ lệ bắt phụ thuộc rất mạnh vào
+  nguồn phát hiện tên miền:
+
+  | Nguồn phát hiện đầu tiên | Số tên miền | Được cảnh báo | Tỷ lệ |
+  | --- | ---: | ---: | ---: |
+  | OpenPhish (URL đầy đủ) | 1.429 | 1.237 | 86,6% |
+  | PhishTank (URL đầy đủ) | 158 | 38 | 24,1% |
+  | CERT-PL (chỉ có tên miền) | 3.773 | 290 | 7,7% |
+  | *Hai nguồn có URL đầy đủ gộp lại* | *1.587* | *1.275* | *80,3%* |
+
+  CERT-PL chiếm 70% mẫu và kéo con số chung xuống. Tỷ lệ chung vì thế biến động theo thời gian (40,2% ở 2,6 ngày,
+  29,2% ở 3,0 ngày) chỉ do CERT-PL đưa thêm nhiều tên miền một lúc. **Không nên trích con số chung làm "tỷ lệ bắt zero-day"**.
+  Cách báo cáo trung thực: *khoảng 80% với link lừa đảo có URL đầy đủ như OpenPhish/PhishTank và khoảng 8% với tên miền
+  trần trong danh sách CERT-PL*, kèm các hạn chế ở mục 5.
 - **Nhóm "nhắm VN" 100% là vì cách xác định nhóm**: tên miền chứa từ khóa thương hiệu VN thì chính từ khóa đó cũng làm
-  Tầng 2 chấm điểm cao (mạo danh thương hiệu). Với n = 69, đây là cận trên, không phải tỷ lệ bắt thật với link nhắm VN.
-- Kết quả tương đối nhất quán với `BAO-CAO-DO-CHINH-XAC.md` (40,6% link toàn cầu trên danh sách tĩnh), dù hai phép đo khác
-  nhau về nguồn dữ liệu.
+  Tầng 2 chấm điểm cao (mạo danh thương hiệu). Với n = 80, đây là cận trên, không phải tỷ lệ bắt thật với link nhắm VN.
+- Con số 28-29% toàn cầu thấp hơn 40,6% của `BAO-CAO-DO-CHINH-XAC.md` (danh sách tĩnh của Phishing.Database) vì hai
+  phép đo khác nguồn: danh sách tĩnh chứa nhiều URL đầy đủ, còn mẫu này có 70% là tên miền trần từ CERT-PL.
 
 ![Tỷ lệ bắt theo nhóm](zero-day-rate-by-group.png)
 
 ### 4.3. CHOTTO đi trước từng nguồn bao nhiêu giờ
 
-**Số liệu tạm (2,61 ngày). [CẦN CẬP NHẬT khi đủ 3 ngày]** "Xét" là số tên miền không nằm trong baseline của nguồn đó.
+"Xét" là số tên miền không nằm trong baseline của nguồn đó.
 
-| Nguồn | Xét | Chưa liệt kê | Liệt kê muộn hơn | Cùng lúc | Sớm hơn Q1 / trung vị / Q3 (giờ) |
-| --- | ---: | ---: | ---: | ---: | --- |
-| OpenPhish | 3.310 | 2.095 | 20 | 1.195 | 6,2 / 6,5 / 6,5 |
-| PhishTank | 3.296 | 3.079 | 59 | 158 | 2,5 / 3,5 / 5,5 |
-| CERT-PL | 3.309 | 1.349 | 1 | 1.959 | 5,5 (một mẫu) |
+| Nguồn | Xét | Chưa liệt kê | Liệt kê muộn hơn | Cùng lúc | Mẫu tính độ trễ | Sớm hơn Q1 / trung vị / Q3 (giờ) |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| PhishTank | 5.346 | 5.125 | 61 | 160 | 34 | 2,5 / 3,5 / 5,5 |
+| OpenPhish | 5.360 | 3.909 | 22 | 1.429 | 5 | 6,5 / 6,5 / 6,5 |
+| CERT-PL | 5.359 | 1.585 | 1 | 3.773 | 1 | 5,5 (một mẫu) |
 
-Phần lớn tên miền nằm ở "chưa liệt kê" hoặc "cùng lúc" nên **số mẫu để tính độ trễ rất nhỏ** (cột cuối chỉ tính tên
-miền CHOTTO cảnh báo được và nguồn liệt kê muộn hơn: 33 mẫu với PhishTank, 4 với OpenPhish, 1 với CERT-PL). Kết luận
-tạm thời: với PhishTank, trung vị CHOTTO đi trước khoảng 3,5 giờ; với OpenPhish và CERT-PL chưa đủ mẫu để nói gì. Cột
-"cùng lúc" của mỗi nguồn gồm cả các tên miền do chính nguồn đó phát hiện đầu tiên, nên không phản ánh tốc độ của nó.
-PhishTank bị giới hạn tần suất nên chỉ tải mỗi giờ một lần từ 18/11, độ phân giải thời điểm liệt kê của nó thô hơn
-(khoảng 1 giờ) so với hai nguồn còn lại.
+"Mẫu tính độ trễ" là tên miền CHOTTO cảnh báo được **và** nguồn liệt kê muộn hơn; chỉ các mẫu này vào cột cuối.
+
+- **Chỉ PhishTank có đủ mẫu để nói điều gì đó:** với 34 tên miền CHOTTO cảnh báo được, PhishTank liệt kê muộn hơn
+  trung vị **3,5 giờ** (Q1 2,5, Q3 5,5). Với OpenPhish (5 mẫu, cùng cho 6,5 giờ) và CERT-PL (1 mẫu) chưa đủ để kết luận.
+- **Phần lớn tên miền chưa được nguồn nào liệt kê lại** (OpenPhish 73%, PhishTank 96%, CERT-PL 30%). Đó là dữ liệu bị
+  cắt phải: khoảng trống thật của các tên miền này lớn hơn thời gian đo, nên con số 3,5 giờ là **cận dưới** và chỉ mô tả
+  những tên miền cuối cùng cũng được liệt kê.
+- Cột "cùng lúc" gồm cả các tên miền do chính nguồn đó phát hiện đầu tiên, nên không phản ánh tốc độ của nó.
+- **PhishTank chỉ tải thành công 37% số lần và lần cuối là 08:18 UTC ngày 19/11**: các tên miền xuất hiện sau mốc đó
+  không thể được tính là "đã liệt kê" ở PhishTank, nên con số "chưa liệt kê" của nó (96%) bị thổi phồng.
 
 ![CDF số giờ CHOTTO sớm hơn](zero-day-cdf.png)
 
 ### 4.4. Vì sao một số tên miền lọt
 
-**Số liệu tạm. [CẦN CẬP NHẬT khi đủ 3 ngày]** 1.980 tên miền bị bỏ sót (điểm < 30).
+3.795 tên miền bị bỏ sót (điểm < 30), tức 70,8% mẫu.
 
-- **Phân bố điểm lưỡng cực:** 1.899 tên miền (57%) có điểm dưới 20, còn nhóm 60 trở lên có 814 tên miền. Tức là Tầng 2
-  hoặc thấy rất rõ hoặc gần như không thấy gì; rất ít tên miền nằm lưng chừng ngưỡng 30 (chỉ 81 ở khoảng 20-29).
-- **Dấu hiệu giúp bắt được:** `free_hosting` (1.120), `entropy` (892), `hyphens` (828), `http` (531), `digits` (372).
-  Chỉ 67 tên miền bắt được nhờ `combosquat` và 6 nhờ `typosquat`: cơ chế mạo danh thương hiệu hiếm khi kích hoạt trong mẫu này.
-- **Vì sao lọt:** 691 trong 1.980 tên miền bị bỏ sót có đúng một dấu hiệu `tld` (đuôi rẻ tiền) nhưng điểm không đủ ngưỡng;
-  phần lớn số còn lại không có dấu hiệu nào hoặc chỉ có dấu hiệu nhẹ (`entropy` 82, `digits` 63, `http` 62, `hyphens` 55), tức là tên miền trông như một tên miền thương mại bình thường. Đuôi hay lọt:
-  `.com` (586), `.shop` (393), `.digital` (140), `.pro` (135), `.store` (104).
-- **Tập trung theo chiến dịch:** nhiều tên miền lọt là biến thể của cùng một chiến dịch (ví dụ họ `addliq*.com`,
-  `truly*`, `insta*`, `roblo*`), nên số đếm bị một vài chiến dịch lớn chi phối.
+- **Phân bố điểm lưỡng cực:** 3.696 tên miền (69%) có điểm dưới 20 và 969 tên miền (18%) từ 60 trở lên; chỉ 99 tên
+  miền ở khoảng 20-29. Tầng 2 hoặc thấy rất rõ hoặc gần như không thấy gì, rất ít tên miền nằm sát ngưỡng 30. Vì vậy
+  hạ ngưỡng một chút không cứu được phần lớn tên miền lọt.
+- **Dấu hiệu giúp bắt được:** `free_hosting` (1.332), `entropy` (1.042), `hyphens` (981), `http` (638), `digits` (425).
+  Chỉ 77 tên miền bắt được nhờ `combosquat` và 6 nhờ `typosquat`: cơ chế mạo danh thương hiệu hiếm khi kích hoạt trong mẫu này.
+- **Vì sao lọt:** 834 trong 3.795 tên miền bị bỏ sót có dấu hiệu `tld` (đuôi rẻ tiền) nhưng điểm không đủ ngưỡng; phần
+  lớn số còn lại không có dấu hiệu nào hoặc chỉ có dấu hiệu nhẹ (`entropy` 106, `http` 74, `digits` 71, `hyphens` 59),
+  tức là tên miền trông như một tên miền thương mại bình thường. Đuôi hay lọt: `.com` (1.495), `.store` (656),
+  `.shop` (453), `.digital` (167), `.pro` (142), `.space` (136).
+- **Tập trung theo chiến dịch:** nhiều tên miền lọt là biến thể của cùng một chiến dịch (ví dụ các họ `truly*`, `choic*`,
+  `addli*`, `brigh*`, `clear*`, `insta*`), nên số đếm bị một vài chiến dịch lớn chi phối.
 - **Không có tên miền nào lọt nằm trên nền tảng hosting miễn phí**: các tên miền này được tính theo hậu tố PRIVATE của PSL
   và đều được cảnh báo.
 
@@ -154,29 +181,34 @@ Danh sách mẫu bị bỏ sót nằm trong `docs/zero-day-report.md`. Ý tưở
    nhất với Việt Nam. Kết luận chỉ áp dụng cho các nguồn thực sự đo được.
 5. **Không đo Google Safe Browsing.** Tra từng URL qua dịch vụ ngoài vi phạm nguyên tắc không gửi URL ra ngoài các feed
    đã liệt kê, và API cần khóa.
-6. **Ảnh hưởng của feed chỉ có tên miền.** Phishing.Database ACTIVE chỉ có tên miền, nên điểm của nó được tính khi mất
+6. **Ảnh hưởng của feed chỉ có tên miền.** CERT-PL (và feed Phishing.Database ACTIVE trước đó) chỉ có tên miền, nên điểm của chúng được tính khi mất
    đường dẫn và tham số (nhiều tín hiệu của Tầng 2 nằm ở đó), có thể làm tỷ lệ bắt thấp hơn thực tế.
 7. **Nhóm "nhắm VN" xác định bằng quy tắc** (đuôi `.vn` hoặc từ khóa thương hiệu), không phải nhãn thật; tên miền
    chứa từ khóa thương hiệu có thể là trang hợp pháp bị nhầm. Cỡ mẫu nhóm này có thể rất nhỏ.
 8. **Tên miền đăng ký theo PSL** coi từng subdomain trên nền tảng hosting (PRIVATE) là một tên miền riêng, nên một
    chiến dịch lớn trên cùng nền tảng có thể làm lệch số đếm.
+9. **Cơ cấu mẫu phụ thuộc nguồn.** Nguồn chiếm đa số tên miền (CERT-PL, 70%) quyết định con số chung. Mỗi nguồn có định
+   nghĩa "độc hại" và dạng dữ liệu (tên miền trần hay URL đầy đủ) khác nhau, nên các con số theo nguồn đáng tin hơn con số chung.
+10. **PhishTank bị giới hạn tần suất** (tải thành công 37%, lần cuối 19/11 08:18 UTC), nên thống kê của nó thiên về
+    "chưa liệt kê" sau mốc đó.
+11. **Thời gian đo ngắn (3 ngày) và mẫu độ trễ nhỏ** (34/5/1 mẫu). Quartile của OpenPhish và CERT-PL không có ý nghĩa
+    thống kê.
 
 ## 6. Kết luận
 
-**Kết luận tạm thời (2,61 ngày dữ liệu, 3.310 tên miền mới). [CẦN CẬP NHẬT khi đủ 3 ngày]**
+Dựa trên 3,0 ngày dữ liệu (150 lần thu thập, 5.360 tên miền mới, ba nguồn đo được):
 
-1. **Tỷ lệ bắt zero-day.** CHOTTO chỉ với Tầng 2 cảnh báo được khoảng 40% tên miền lừa đảo mới ngay lần đầu thấy
-   (38,9% nhóm toàn cầu). Con số này phụ thuộc mạnh vào nguồn: 86% với tên miền từ OpenPhish (có URL đầy đủ) nhưng chỉ
-   14-23% với tên miền từ CERT-PL/PhishTank (thường chỉ có tên miền, trông bình thường). Con số 100% của nhóm nhắm VN
-   chưa đáng tin vì n = 69 và nhóm được xác định bằng đúng tín hiệu thương hiệu.
-2. **Khoảng trống zero-day.** Với những tên miền Tầng 2 bắt được mà blacklist liệt kê sau, PhishTank liệt kê muộn hơn trung vị khoảng
-   3,5 giờ (Q1 2,5, Q3 5,5; 33 mẫu). Với OpenPhish và CERT-PL số mẫu quá ít. Phần lớn tên miền (2.095 với OpenPhish, 3.079 với PhishTank) chưa
-   được nguồn đó liệt kê trong thời gian đo, nên khoảng trống thật có thể lớn hơn con số này (dữ liệu bị cắt phải).
-3. **Phần lọt.** Tầng 2 bỏ sót hai nhóm chính: tên miền có đuôi rẻ tiền nhưng không có dấu hiệu nào khác, và tên miền
-   thương mại bình thường không mạo danh thương hiệu. Đây là giới hạn của heuristic chỉ dựa vào hình dạng tên miền;
-   Tầng 3 (tuổi tên miền) và blacklist là những lớp bổ sung cho nhóm này.
-4. Các hạn chế ở mục 5 nghĩa là các con số là **cận dưới/giá trị tham khảo** và chỉ áp dụng cho các nguồn đo được. Chưa nên
-   trích con số cụ thể ra ngoài báo cáo này khi chưa cập nhật bản cuối.
+1. **Tỷ lệ bắt zero-day phụ thuộc vào dạng dữ liệu.** CHOTTO chỉ với Tầng 2 cảnh báo ngay lần đầu thấy khoảng **80%** link
+   lừa đảo có URL đầy đủ (OpenPhish + PhishTank: 1.275/1.587), nhưng chỉ khoảng **8%** tên miền trần trong danh sách
+   CERT-PL (290/3.773). Con số gộp 29,2% chỉ phản ánh cơ cấu mẫu và không nên dùng làm tỷ lệ bắt chung. Số 100% của
+   nhóm nhắm VN (80/80) chưa đáng tin vì nhóm được xác định bằng đúng tín hiệu thương hiệu.
+2. **Khoảng trống zero-day.** Với những tên miền Tầng 2 bắt được mà blacklist liệt kê sau, PhishTank liệt kê muộn hơn
+   trung vị **3,5 giờ** (Q1 2,5, Q3 5,5; 34 mẫu). Với OpenPhish và CERT-PL số mẫu quá ít. Phần lớn tên miền (73% với
+   OpenPhish, 96% với PhishTank) chưa được liệt kê trong thời gian đo, nên khoảng trống thật có thể lớn hơn 3,5 giờ; đây là cận dưới.
+3. **Phần lọt.** 70,8% tên miền bị bỏ sót, chủ yếu là tên miền đuôi rẻ tiền không có dấu hiệu nào khác hoặc trông như tên miền
+   thương mại bình thường. Điểm số lưỡng cực (69% dưới 20 điểm, chỉ 99 tên miền ở 20-29), nên chỉnh ngưỡng không giải quyết
+   được. Đó là giới hạn của heuristic chỉ dựa vào hình dạng tên miền; Tầng 3 (tuổi tên miền) và blacklist là lớp bổ sung cho nhóm này.
+4. Các hạn chế ở mục 5 nghĩa là các con số là **cận dưới/giá trị tham khảo** và chỉ áp dụng cho các nguồn đo được.
 
 ---
 
@@ -188,4 +220,4 @@ python tools/zero_day_gap.py report --md docs/zero-day-report.md --json docs/zer
 python tools/zero_day_gap.py plot --out docs
 ```
 
-rồi điền lại các mục **[CẦN CẬP NHẬT]** ở trên từ `docs/zero-day-report.md`.
+rồi cập nhật lại các con số ở mục 4 và 6 từ `docs/zero-day-report.md` (bản chốt này dùng số liệu đến 19/11/2026 13:48 UTC).

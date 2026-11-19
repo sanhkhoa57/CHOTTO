@@ -1,25 +1,25 @@
 {
-  "generated_at": "2026-11-19 04:42 UTC",
+  "generated_at": "2026-11-19 14:02 UTC",
   "threshold_friction": 30.0,
   "threshold_high": 60.0,
   "status": {
-    "runs": 131,
+    "runs": 150,
     "first_run": "2026-11-16 13:41 UTC",
-    "last_run": "2026-11-19 04:18 UTC",
-    "days": 2.61,
-    "new_domains": 3310,
+    "last_run": "2026-11-19 13:48 UTC",
+    "days": 3.0,
+    "new_domains": 5360,
     "sources": [
       {
         "source": "CERT-PL",
-        "runs": 96,
-        "ok": 95,
-        "success_rate": 0.9895833333333334,
-        "last_ok": "2026-11-19 04:18 UTC",
+        "runs": 115,
+        "ok": 114,
+        "success_rate": 0.991304347826087,
+        "last_ok": "2026-11-19 13:48 UTC",
         "last_error": "URLError: <urlopen error _ssl.c:1059: The handshake operation timed out>"
       },
       {
         "source": "ChongLuaDao",
-        "runs": 131,
+        "runs": 150,
         "ok": 0,
         "success_rate": 0.0,
         "last_ok": "",
@@ -27,18 +27,18 @@
       },
       {
         "source": "OpenPhish",
-        "runs": 131,
-        "ok": 131,
+        "runs": 150,
+        "ok": 150,
         "success_rate": 1.0,
-        "last_ok": "2026-11-19 04:18 UTC",
+        "last_ok": "2026-11-19 13:48 UTC",
         "last_error": ""
       },
       {
         "source": "PhishTank",
-        "runs": 72,
-        "ok": 29,
-        "success_rate": 0.4027777777777778,
-        "last_ok": "2026-11-19 02:48 UTC",
+        "runs": 81,
+        "ok": 30,
+        "success_rate": 0.37037037037037035,
+        "last_ok": "2026-11-19 08:18 UTC",
         "last_error": "HTTPError: HTTP Error 429: Too Many Requests"
       },
       {
@@ -59,7 +59,7 @@
       },
       {
         "source": "URLhaus",
-        "runs": 131,
+        "runs": 150,
         "ok": 0,
         "success_rate": 0.0,
         "last_ok": "",
@@ -67,61 +67,61 @@
       }
     ]
   },
-  "new_domains": 3310,
-  "flagged": 1330,
-  "rate": 0.40181268882175225,
+  "new_domains": 5360,
+  "flagged": 1565,
+  "rate": 0.29197761194029853,
   "groups": {
     "vn": {
-      "total": 69,
-      "flagged": 69,
-      "high": 69,
+      "total": 80,
+      "flagged": 80,
+      "high": 80,
       "rate": 1.0
     },
     "global": {
-      "total": 3241,
-      "flagged": 1261,
-      "high": 745,
-      "rate": 0.3890774452329528
+      "total": 5280,
+      "flagged": 1485,
+      "high": 889,
+      "rate": 0.28125
     }
   },
   "score_histogram": {
-    "0-9": 1089,
-    "10-19": 810,
-    "20-29": 81,
-    "30-39": 332,
-    "40-49": 52,
-    "50-59": 132,
-    "60-79": 435,
-    "80-100": 379
+    "0-9": 2721,
+    "10-19": 975,
+    "20-29": 99,
+    "30-39": 370,
+    "40-49": 64,
+    "50-59": 162,
+    "60-79": 528,
+    "80-100": 441
   },
   "top_signals_caught": [
     [
       "free_hosting",
-      1120
+      1332
     ],
     [
       "entropy",
-      892
+      1042
     ],
     [
       "hyphens",
-      828
+      981
     ],
     [
       "http",
-      531
+      638
     ],
     [
       "digits",
-      372
+      425
     ],
     [
       "tld",
-      184
+      205
     ],
     [
       "combosquat",
-      67
+      77
     ],
     [
       "typosquat",
@@ -139,90 +139,90 @@
   "top_signals_missed": [
     [
       "tld",
-      691
+      834
     ],
     [
       "entropy",
-      82
-    ],
-    [
-      "digits",
-      63
+      106
     ],
     [
       "http",
-      62
+      74
+    ],
+    [
+      "digits",
+      71
     ],
     [
       "hyphens",
-      55
+      59
     ],
     [
       "idn",
       1
     ]
   ],
-  "missed_total": 1980,
+  "missed_total": 3795,
   "missed_by_tld": [
     [
       "com",
-      586
-    ],
-    [
-      "shop",
-      393
-    ],
-    [
-      "digital",
-      140
-    ],
-    [
-      "pro",
-      135
+      1495
     ],
     [
       "store",
-      104
+      656
+    ],
+    [
+      "shop",
+      453
+    ],
+    [
+      "digital",
+      167
+    ],
+    [
+      "pro",
+      142
+    ],
+    [
+      "space",
+      136
     ],
     [
       "top",
-      75
+      103
     ],
     [
       "click",
-      71
+      74
     ],
     [
       "cfd",
-      38
+      44
     ],
     [
       "info",
+      41
+    ],
+    [
+      "cyou",
       35
     ],
     [
-      "org",
-      28
+      "net",
+      31
     ],
     [
-      "net",
-      26
+      "org",
+      29
     ],
     [
       "sbs",
-      23
+      27
     ],
     [
-      "xyz",
-      19
-    ],
-    [
-      "life",
-      18
-    ],
-    [
-      "online",
-      16
+      "live",
+      25
     ]
   ],
   "missed_by_platform": [],
@@ -497,10 +497,10 @@
   },
   "sources": {
     "CERT-PL": {
-      "domains": 3309,
-      "not_listed": 1349,
+      "domains": 5359,
+      "not_listed": 1585,
       "later": 1,
-      "same_time": 1959,
+      "same_time": 3773,
       "excluded_baseline": 1,
       "flagged_later": 1,
       "lead_hours_q1": 5.499722222222222,
@@ -508,26 +508,26 @@
       "lead_hours_q3": 5.499722222222222
     },
     "OpenPhish": {
-      "domains": 3310,
-      "not_listed": 2095,
-      "later": 20,
-      "same_time": 1195,
+      "domains": 5360,
+      "not_listed": 3909,
+      "later": 22,
+      "same_time": 1429,
       "excluded_baseline": 0,
-      "flagged_later": 4,
-      "lead_hours_q1": 6.25,
+      "flagged_later": 5,
+      "lead_hours_q1": 6.5,
       "lead_hours_median": 6.5,
       "lead_hours_q3": 6.5
     },
     "PhishTank": {
-      "domains": 3296,
-      "not_listed": 3079,
-      "later": 59,
-      "same_time": 158,
+      "domains": 5346,
+      "not_listed": 5125,
+      "later": 61,
+      "same_time": 160,
       "excluded_baseline": 14,
-      "flagged_later": 33,
+      "flagged_later": 34,
       "lead_hours_q1": 2.5,
       "lead_hours_median": 3.5,
-      "lead_hours_q3": 5.5
+      "lead_hours_q3": 5.500208333333333
     }
   },
   "stale_sources": [
@@ -542,7 +542,8 @@
       5.5,
       6.5,
       6.5,
-      6.5
+      6.5,
+      9.5
     ],
     "PhishTank": [
       1.5,
@@ -571,6 +572,7 @@
       5.5,
       5.5,
       5.500277777777778,
+      5.999722222222222,
       10.499722222222223,
       12.0,
       12.999722222222223,

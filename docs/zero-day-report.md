@@ -1,8 +1,6 @@
 # Khoảng trống zero-day – số liệu thu thập
 
-*Tạo lúc 2026-11-19 04:42 UTC. Thu thập 131 lần, từ 2026-11-16 13:41 UTC đến 2026-11-19 04:18 UTC (2.61 ngày).*
-
-> **CẦN CẬP NHẬT SỐ LIỆU:** mới có dưới 3 ngày dữ liệu, các con số dưới đây chưa đủ tin cậy.
+*Tạo lúc 2026-11-19 14:02 UTC. Thu thập 150 lần, từ 2026-11-16 13:41 UTC đến 2026-11-19 13:48 UTC (3.0 ngày).*
 
 ## Tỷ lệ cảnh báo ngay lúc thấy lần đầu (chỉ Tầng 2)
 
@@ -10,17 +8,17 @@ Cảnh báo = điểm ≥ 30; HIGH = điểm ≥ 60.
 
 | Nhóm | Số tên miền mới | Cảnh báo | Tỷ lệ | HIGH |
 | --- | ---: | ---: | ---: | ---: |
-| Tất cả | 3310 | 1330 | 40.2% | 814 |
-| Nhắm VN (.vn / thương hiệu VN) | 69 | 69 | 100.0% | 69 |
-| Toàn cầu | 3241 | 1261 | 38.9% | 745 |
+| Tất cả | 5360 | 1565 | 29.2% | 969 |
+| Nhắm VN (.vn / thương hiệu VN) | 80 | 80 | 100.0% | 80 |
+| Toàn cầu | 5280 | 1485 | 28.1% | 889 |
 
 ## So với từng nguồn blacklist
 
 | Nguồn | Tên miền xét | Chưa liệt kê | Liệt kê muộn hơn | Cùng lúc | Loại (baseline) | Số giờ sớm hơn Q1 | Trung vị | Q3 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| CERT-PL | 3309 | 1349 | 1 | 1959 | 1 | 5.5 | 5.5 | 5.5 |
-| OpenPhish | 3310 | 2095 | 20 | 1195 | 0 | 6.2 | 6.5 | 6.5 |
-| PhishTank | 3296 | 3079 | 59 | 158 | 14 | 2.5 | 3.5 | 5.5 |
+| CERT-PL | 5359 | 1585 | 1 | 3773 | 1 | 5.5 | 5.5 | 5.5 |
+| OpenPhish | 5360 | 3909 | 22 | 1429 | 0 | 6.5 | 6.5 | 6.5 |
+| PhishTank | 5346 | 5125 | 61 | 160 | 14 | 2.5 | 3.5 | 5.5 |
 
 Số giờ sớm hơn chỉ tính trên tên miền CHOTTO cảnh báo được và nguồn liệt kê muộn hơn. "Cùng lúc" gồm cả nguồn đã phát hiện tên miền đầu tiên. "Chưa liệt kê" có thể thành "muộn hơn" ở các lần đo sau (dữ liệu bị cắt phải).
 
@@ -30,24 +28,24 @@ Nguồn bị loại khỏi bảng vì tải được hơn 24 giờ mà không c�
 
 | Điểm | Số tên miền |
 | --- | ---: |
-| 0-9 | 1089 |
-| 10-19 | 810 |
-| 20-29 | 81 |
-| 30-39 | 332 |
-| 40-49 | 52 |
-| 50-59 | 132 |
-| 60-79 | 435 |
-| 80-100 | 379 |
+| 0-9 | 2721 |
+| 10-19 | 975 |
+| 20-29 | 99 |
+| 30-39 | 370 |
+| 40-49 | 64 |
+| 50-59 | 162 |
+| 60-79 | 528 |
+| 80-100 | 441 |
 
 ## Dấu hiệu (signal) hay gặp
 
-Ở tên miền bị bắt: `free_hosting` (1120), `entropy` (892), `hyphens` (828), `http` (531), `digits` (372), `tld` (184), `combosquat` (67), `typosquat` (6), `shortener` (2), `homoglyph` (1)
+Ở tên miền bị bắt: `free_hosting` (1332), `entropy` (1042), `hyphens` (981), `http` (638), `digits` (425), `tld` (205), `combosquat` (77), `typosquat` (6), `shortener` (2), `homoglyph` (1)
 
-Ở tên miền bị bỏ sót (dấu hiệu có điểm nhưng không đủ ngưỡng): `tld` (691), `entropy` (82), `digits` (63), `http` (62), `hyphens` (55), `idn` (1)
+Ở tên miền bị bỏ sót (dấu hiệu có điểm nhưng không đủ ngưỡng): `tld` (834), `entropy` (106), `http` (74), `digits` (71), `hyphens` (59), `idn` (1)
 
-## Tên miền bị bỏ sót (1980)
+## Tên miền bị bỏ sót (3795)
 
-Theo đuôi: .com (586), .shop (393), .digital (140), .pro (135), .store (104), .top (75), .click (71), .cfd (38), .info (35), .org (28), .net (26), .sbs (23), .xyz (19), .life (18), .online (16)
+Theo đuôi: .com (1495), .store (656), .shop (453), .digital (167), .pro (142), .space (136), .top (103), .click (74), .cfd (44), .info (41), .cyou (35), .net (31), .org (29), .sbs (27), .live (25)
 
 Theo nền tảng hosting: –
 
