@@ -125,11 +125,11 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None) -> 
     rules: dict[str, Any] = {}
 
     def view_of(result: Result, checking: bool) -> dict[str, Any]:
-        from ..viewmodel import friction_view
+        from ..shield import shield_view
 
         if not rules:
             rules.update(load_rules())
-        return friction_view(result, checking, rules, cfg["ui_language"])
+        return shield_view(result, checking, rules, cfg["ui_language"])
 
     def present(result: Result, seconds_for: SecondsFor, pending: Future[Result] | None) -> tuple[bool, int, Result]:
         if web is not None:
