@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
 
-const EXTENSION_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const EXTENSION_DIR = process.env.EXTENSION_DIR || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const CASES = [
   ["warn", "https://khuyen-mai-hoan-tien.shop/uu-dai"],

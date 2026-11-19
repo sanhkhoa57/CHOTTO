@@ -89,6 +89,40 @@ class PlainTablesTest(unittest.TestCase):
                              "Chạy: python tools/sync_extension_data.py")
 
 
+def _tokens(selector: str) -> dict[str, str]:
+    """Các biến màu hex trong khối CSS ``selector`` của ``chotto/web/shield.css``."""
+    css = (ROOT / "chotto" / "web" / "shield.css").read_text("utf-8")
+    start = css.index(selector + " {")
+    block = css[start:css.index("}", start)]
+    return {name[2:]: value for name, value in re.findall(r"(--[\w-]+):\s*(#[0-9a-fA-F]{6})", block)}
+
+
+def _contrast(a: str, b: str) -> float:
+    def luminance(color: str) -> float:
+        channels = [int(color[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        r, g, bl = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+        return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+
+    hi, lo = sorted((luminance(a), luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+class ContrastTest(unittest.TestCase):
+    """Chữ và biểu tượng của màn hình cảnh báo đạt tương phản WCAG AA (>= 4,5:1) ở cả chế độ tối và sáng."""
+
+    def test_wcag_aa_in_both_themes(self) -> None:
+        for name, selector in (("tối", ".sh"), ("sáng", '.sh[data-theme="light"]')):
+            t = {**_tokens(".sh"), **_tokens(selector)}      # chế độ sáng kế thừa các biến không đổi (nút chính...)
+            pairs = [("ink", "bg"), ("muted", "bg"), ("muted", "surface"), ("accent-ink", "accent"),
+                     ("warn-ink", "bg"), ("high-ink", "bg"), ("blocked-ink", "bg"), ("blocked-on", "blocked-solid"),
+                     ("ok", "surface"), ("warn-ink", "warn-chip"), ("high-ink", "high-chip")]
+            for fg, bg in pairs:
+                if fg not in t or bg not in t:
+                    continue
+                self.assertGreaterEqual(_contrast(t[fg], t[bg]), 4.5, f"{name}: {fg} trên {bg}")
+            self.assertGreaterEqual(len([1 for fg, bg in pairs if fg in t and bg in t]), 8, name)
+
+
 class ShieldViewTest(unittest.TestCase):
     def test_structure(self) -> None:
         v = view("https://vcb-digibanks.top/xac-nhan")
