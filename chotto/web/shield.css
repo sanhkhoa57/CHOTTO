@@ -40,17 +40,18 @@
 
 .sh, .sh * { box-sizing: border-box; }
 .sh { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; padding: 28px 32px 22px; }
-.sh button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+.sh :where(button) { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
 .sh :focus-visible { outline: 3px solid var(--accent-hi); outline-offset: 3px; border-radius: 10px; }
-.sh svg { display: block; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sh :where(svg) { display: block; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---- (a) kết luận ---- */
 .sh-head { display: flex; align-items: center; gap: 14px; }
 .sh-tile { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--tile); color: var(--tile-ink); transition: background .5s var(--ease), color .5s var(--ease); }
 .sh-tile svg { width: 30px; height: 30px; stroke-width: 1.9; }
 .sh-chip { font-size: 15px; font-weight: 700; letter-spacing: .01em; color: var(--tone-ink); transition: color .5s var(--ease); }
-.sh-headline { margin: 18px 0 0; min-height: 2.4em; font: 400 31px/1.2 var(--serif); letter-spacing: -.015em; text-wrap: balance; }
+.sh-headline { margin: 18px 0 0; font: 400 31px/1.2 var(--serif); letter-spacing: -.015em; text-wrap: balance; }
 .sh-sub { margin: 8px 0 0; font-size: 16px; color: var(--muted); }
+.sh-headline[data-reserve] { min-height: 2.4em; }
 .sh-flash { animation: sh-flash .55s var(--ease); }
 
 /* ---- (b) tên miền thật ---- */
@@ -62,13 +63,15 @@
 .sh-url .u-user, .sh-url .u-prefix, .sh-url .u-rest { color: var(--muted); font-weight: 400; }
 .sh-url .u-user, .sh-url .u-prefix[data-decoy] { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--high); }
 .sh-url .u-reg { color: var(--ink); font-weight: 800; }
+.sh-url .odd { font-style: normal; color: var(--tone-ink); text-decoration: underline wavy var(--tone); text-decoration-thickness: 2px; text-underline-offset: 6px; }
 .sh-url mark { background: var(--tone-chip); color: var(--tone-ink); border-radius: 6px; padding: 0 3px; margin: 0 -1px; box-shadow: 0 2px 0 var(--tone); }
 .sh-puny { margin-top: 4px; font: 400 13px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; user-select: text; }
-.sh-status { margin-top: 12px; min-height: 22px; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
-.sh-official { color: var(--ink); }
+.sh-status:not(:empty), .sh-status[data-reserve] { margin-top: 12px; min-height: 22px; }
+.sh-status { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--muted); }
+.sh-official { color: var(--ink); display: inline-flex; align-items: center; gap: 10px; }
 .sh-official svg { width: 18px; height: 18px; color: var(--ok); stroke-width: 2.4; }
 .sh-official b { font-weight: 700; font-family: var(--mono); font-size: 13.5px; }
-.sh-skel { width: 14px; height: 14px; border-radius: 50%; background: var(--muted); animation: sh-pulse 1.1s ease-in-out infinite; }
+.sh-skel { margin: 4px 2px 0 1px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); animation: sh-pulse 1.1s ease-in-out infinite; }
 .sh-status[data-busy] span { background: linear-gradient(90deg, var(--muted) 0 35%, var(--ink) 50%, var(--muted) 65% 100%) 0 0 / 250% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: sh-shimmer 1.6s linear infinite; }
 

@@ -139,7 +139,7 @@
    * @param {"dark" | "light" | ""} [options.theme] Ép chế độ sáng/tối (mặc định theo hệ thống).
    * @returns {{root: HTMLElement, back: HTMLButtonElement, proceed: HTMLButtonElement, headlineId: string,
    *   update: (next: ShieldView) => void, setLock: (secondsLeft: number, fraction: number) => void,
-   *   note: (text: string) => void, onFirstKey: () => void}}
+   *   note: (text: string) => void}}
    */
   function mount(container, view, options = {}) {
     const prefix = options.idPrefix ?? "chotto";
@@ -245,12 +245,36 @@
       const reg = el("b", "u-reg");
       const text = clean(d.registered);
       const hit = clean(d.hit);
-      const at = hit ? text.indexOf(hit) : -1;
-      if (at >= 0) {
-        reg.append(document.createTextNode(text.slice(0, at)), el("mark", "", hit), document.createTextNode(text.slice(at + hit.length)));
-      } else {
-        reg.textContent = text;
-      }
+      const from = hit ? text.indexOf(hit) : -1;
+      const to = from >= 0 ? from + hit.length : -1;
+      const odd = Boolean(d.punycode);      // tên miền Unicode: gạch sóng các ký tự ngoài ASCII (có thể là chữ giả dạng chữ Latin)
+      /** @type {HTMLElement} */
+      let into = reg;
+      let chunk = "";
+      const flush = () => {
+        if (chunk) into.append(document.createTextNode(chunk));
+        chunk = "";
+      };
+      Array.from(text).reduce((index, ch) => {
+        if (index === from) {
+          flush();
+          const mark = el("mark");
+          reg.append(mark);
+          into = mark;
+        }
+        if (odd && ch.codePointAt(0) > 127) {
+          flush();
+          into.append(el("i", "odd", ch));
+        } else {
+          chunk += ch;
+        }
+        if (index + ch.length === to) {
+          flush();
+          into = reg;
+        }
+        return index + ch.length;
+      }, 0);
+      flush();
       url.append(reg);
       if (d.rest) url.append(el("span", "u-rest", clean(d.rest)));
     };
@@ -262,6 +286,7 @@
       root.dataset.level = level;
       tile.replaceChildren(icon(level === "BLOCKED" ? "blocked" : level === "HIGH" ? "high" : "warn"));
       chip.textContent = clean(next.levelLabel);
+      if (next.checking) headline.dataset.reserve = "";     // Tầng 3 còn chạy: câu kết luận có thể đổi, giữ chỗ 2 dòng để bố cục không nhảy
       headline.textContent = clean(next.headline);
       sub.textContent = clean(next.reasonShort);
       caption.textContent = clean(next.labels.caption);
@@ -281,7 +306,8 @@
           const at = official ? text.lastIndexOf(official) : -1;
           if (at >= 0) line.append(document.createTextNode(text.slice(0, at)), el("b", "", official), document.createTextNode(text.slice(at + official.length)));
           else line.textContent = text;
-          status.append(icon("check"), line);
+          line.prepend(icon("check"));
+          status.append(line);
         }
       }
       whyLabel.textContent = clean(next.labels.why);
@@ -359,7 +385,6 @@
       note(text) {
         noteLine.textContent = text;
       },
-      onFirstKey() {},
     };
   }
 
