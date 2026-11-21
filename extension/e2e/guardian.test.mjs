@@ -16,9 +16,12 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
 
+import { parseShareFragment } from "../src/guardian/share.js";
+
 const EXTENSION_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO_DIR = path.resolve(EXTENSION_DIR, "..");
-const SHOTS = path.join(REPO_DIR, "docs", "guardian");
+const SHOTS = path.join(REPO_DIR, "docs", "guardian", "ux", "after");
+const SETTINGS_SHOT = path.join(REPO_DIR, "docs", "guardian", "04-settings.png");
 const PAGE = await readFile(path.join(EXTENSION_DIR, "e2e", "guardian_zalo.html"), "utf-8");
 const vectors = JSON.parse(await readFile(path.join(REPO_DIR, "tests", "data", "guardian_vectors.json"), "utf-8"));
 const PYTHON = process.env.PYTHON || "python";
@@ -85,6 +88,8 @@ before(async () => {
     executablePath: process.env.CHROMIUM_PATH || undefined,
     args: [`--disable-extensions-except=${EXTENSION_DIR}`, `--load-extension=${EXTENSION_DIR}`],
   });
+  // Đọc được clipboard để kiểm tra lời nhắn được tự chép.
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://chat.zalo.me" });
   await context.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.protocol === "chrome-extension:") return route.continue();
@@ -186,7 +191,7 @@ async function shieldDom(page) {
      * @param {any} node
      * @returns {string}
      */
-    const text = (node) => (node.nodeType === 3 ? node.nodeValue : [...(node.children ?? []), ...(node.shadowRoots ?? [])].map(text).join(""));
+    const text = (node) => (node.nodeType === 3 ? node.nodeValue : node.nodeName === "STYLE" ? "" : [...(node.children ?? []), ...(node.shadowRoots ?? [])].map(text).join(""));
     /** @param {any} node */
     const center = async (node) => {
       await live.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: node.backendNodeId }).catch(() => undefined);
@@ -194,7 +199,30 @@ async function shieldDom(page) {
       const [x1, y1, , , x3, y3] = model.content;
       return { x: (x1 + x3) / 2, y: (y1 + y3) / 2 };
     };
-    return { all: inside, attr, byClass, text, center, host, hostText: text(host) };
+    /** @param {string} cls */
+    const allByClass = (cls) => inside.filter((n) => (attr(n, "class") ?? "").split(" ").includes(cls));
+    /** Phần tử có đang hiện không (tính cả ``hidden`` và CSS ẩn của bước 2). @param {any} node */
+    const visible = async (node) => {
+      const { object } = await live.send("DOM.resolveNode", { backendNodeId: node.backendNodeId });
+      const { result } = await live.send("Runtime.callFunctionOn", {
+        objectId: object.objectId, functionDeclaration: "function(){ return this.checkVisibility(); }", returnByValue: true,
+      });
+      return result.value === true;
+    };
+    /** Phần tử đầu tiên có lớp ``cls`` ĐANG HIỆN. @param {string} cls */
+    const firstVisible = async (cls) => {
+      for (const node of allByClass(cls)) if (await visible(node)) return node;
+      return undefined;
+    };
+    /** Mọi nút đang hiện: tên lớp đầu tiên + chữ. */
+    const visibleButtons = async () => {
+      const out = [];
+      for (const node of inside.filter((n) => n.nodeName === "BUTTON")) {
+        if (await visible(node)) out.push({ cls: (attr(node, "class") ?? "").split(" ")[0], text: text(node).trim() });
+      }
+      return out;
+    };
+    return { all: inside, attr, byClass, allByClass, firstVisible, text, center, visible, visibleButtons, host, hostText: text(host) };
   } catch (error) {
     if (/box model|No node|detached|closed/i.test(String(error))) return null;
     throw error;
@@ -220,18 +248,23 @@ async function openZalo(page) {
 }
 
 /**
- * Bấm "Xin phép người giám hộ" và đọc thử thách.
+ * Bấm "Nhờ người giám hộ xem giúp": một chạm; lời nhắn được TỰ chép vào clipboard. Đọc lời nhắn từ clipboard.
  * @param {import("playwright").Page} page
  */
 async function askGuardian(page) {
   const s = await shield(page);
-  const ask = s.byClass("sh-proceed");
-  const at = await s.center(ask);
+  const at = await s.center(s.byClass("sh-proceed"));
   await page.mouse.click(at.x, at.y);
-  const opened = await shieldWith(page, /Mã thử thách/);
-  const domain = opened.text(opened.byClass("gd-domain"));
-  const nonceText = opened.text(opened.byClass("gd-nonce"));
-  return { opened, domain, nonce: nonceText.replace("-", ""), nonceText };
+  const opened = await shieldWith(page, /Đã chép lời nhắn\./);
+  const message = (await page.evaluate(() => navigator.clipboard.readText())).replaceAll("\r\n", "\n");   // Windows đổi xuống dòng thành CRLF
+  const lines = message.split("\n");
+  assert.equal(lines.length, 3, `lời nhắn gồm 3 dòng:\n${message}`);
+  const link = lines[2];
+  const parsed = parseShareFragment(new URL(link).hash);
+  assert.ok(parsed.ok, `liên kết phải có #fragment đúng định dạng: ${link}`);
+  if (!parsed.ok) throw new Error("fragment sai");
+  await page.waitForTimeout(250);   // đợi ô nhập nhận focus
+  return { opened, message, link, domain: parsed.domain, nonce: parsed.nonce };
 }
 
 /**
@@ -239,53 +272,144 @@ async function askGuardian(page) {
  * @param {string} code
  */
 async function enterCode(page, code) {
+  await page.keyboard.press("Control+A");   // thay nội dung cũ (nếu có) trong ô nhập
   await page.keyboard.type(code);
   await page.keyboard.press("Enter");
 }
 
-test("Guardian bật: link HIGH đổi nút thành 'Xin phép người giám hộ', hiện thử thách + QR; mã đúng của công cụ Python mở đúng link", async () => {
+/**
+ * Chụp ảnh sau khi hoạt ảnh xuất hiện/chuyển màu đã xong.
+ * @param {import("playwright").Page} page
+ * @param {string} name
+ */
+async function shot(page, name) {
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(SHOTS, name) });
+}
+
+/** @param {string} code 123456 → "123 456" */
+const spaced = (code) => `${code.slice(0, 3)} ${code.slice(3)}`;
+
+test("màn hình 1 (chặn): một câu kết luận, tên trang web, CHỈ HAI nút chính; các lựa chọn khác thu gọn trong 'Thêm lựa chọn'", async () => {
   const page = await context.newPage();
   await openZalo(page);
   await page.click("#phish");
   const s = await shield(page);
-  assert.match(s.hostText, /Xin phép người giám hộ/);
-  assert.doesNotMatch(s.hostText, /Vẫn mở/);
+  assert.match(s.hostText, /Link này có thể là lừa đảo\. Đừng mở\./);
+  assert.match(s.hostText, /vietcombank/);
+  assert.match(s.hostText, /Nhờ người giám hộ xem giúp/);
+  assert.doesNotMatch(s.hostText, /Vẫn mở|Xin phép/);
   assert.equal(s.byClass("sh-ring"), undefined, "không còn vòng đếm ngược");
   assert.equal(s.attr(s.byClass("sh-proceed"), "aria-disabled"), "false");
-  assert.equal(s.attr(s.byClass("sh-proceed"), "aria-expanded"), "false");
-
-  const { opened, domain, nonce, nonceText } = await askGuardian(page);
-  assert.equal(domain, "vietcombank-xacthuc.top");
-  assert.match(nonceText, /^[A-Z2-7]{4}-[A-Z2-7]{4}$/);
-  assert.match(opened.hostText, /Chỉ người giám hộ của bạn mới đưa mã này\. Ai gọi điện xin mã thử thách là kẻ lừa đảo\./);
-  assert.ok(opened.all.some((n) => n.nodeName === "svg" && opened.attr(n, "role") === "img"), "có mã QR");
-  assert.equal(opened.all.filter((n) => n.nodeName === "INPUT").length, 6, "6 ô nhập");
-  assert.match(opened.hostText, /hết hạn sau (10:00|9:5\d)/);
-  await page.screenshot({ path: path.join(SHOTS, "01-challenge.png") });
+  // Chỉ hai nút chính đang hiện (Đóng, Nhờ…) + liên kết nhỏ "Thêm lựa chọn".
+  assert.deepEqual(await s.visibleButtons(), [
+    { cls: "sh-back", text: "Đóng" },
+    { cls: "sh-proceed", text: "Nhờ người giám hộ xem giúp" },
+    { cls: "gd-more-toggle", text: "Thêm lựa chọn" },
+  ]);
+  assert.equal(s.attr(s.byClass("gd-more-toggle"), "aria-expanded"), "false");
+  assert.ok(!(await s.visible(s.byClass("sh-more"))), "Sao chép/Báo cho người gửi đang thu gọn");
+  await shot(page, "man-hinh-1-chan.png");
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.waitForTimeout(500);
-  await page.screenshot({ path: path.join(SHOTS, "05-challenge-dark.png") });
+  await page.waitForTimeout(400);
+  await shot(page, "man-hinh-1-chan-toi.png");
   await page.emulateMedia({ colorScheme: "light" });
 
-  // Nhập sai: báo rõ, đếm lượt còn lại, KHÔNG mở gì.
+  // "Thêm lựa chọn": mở ra thì thấy Sao chép địa chỉ, Báo cho người gửi, Xem vì sao.
+  await page.mouse.click((await s.center(s.byClass("gd-more-toggle"))).x, (await s.center(s.byClass("gd-more-toggle"))).y);
+  const more = await shield(page);
+  assert.equal(more.attr(more.byClass("gd-more-toggle"), "aria-expanded"), "true");
+  assert.ok(await more.visible(more.byClass("sh-more")));
+  assert.match(more.hostText, /Sao chép địa chỉ/);
+  assert.match(more.hostText, /Báo cho người gửi/);
+  assert.match(more.hostText, /Xem vì sao/);
+  await shot(page, "man-hinh-1-them-lua-chon.png");
+
+  // Lỗi trạng thái cũ: bấm "Báo cho người gửi" (hiện "Đã chép lời nhắn, hãy dán vào Zalo") rồi sang bước xin phép:
+  // dòng đó phải biến mất, không lẫn vào màn hình 2.
+  const report = more.allByClass("sh-ghost").find((n) => /Báo cho người gửi/.test(more.text(n)));
+  assert.ok(report);
+  await page.mouse.click((await more.center(report)).x, (await more.center(report)).y);
+  const reported = await shieldWith(page, /hãy dán vào Zalo/);
+  assert.match(reported.text(reported.byClass("sh-note")), /Đã chép lời nhắn, hãy dán vào Zalo/);
+  const after = await askGuardian(page);
+  assert.equal(after.opened.text(after.opened.byClass("sh-note")), "", "dòng trạng thái của bước trước đã bị xóa");
+  assert.ok(!(await after.opened.visible(after.opened.byClass("sh-note"))));
+  await page.keyboard.press("Escape");
+  await page.close();
+});
+
+test("màn hình 2 (đã nhờ): lời nhắn tự chép vào clipboard, một ô nhập số; mã đúng của công cụ Python mở đúng link", async () => {
+  const page = await context.newPage();
+  await openZalo(page);
+  await page.click("#phish");
+  const { opened, message, link, domain, nonce } = await askGuardian(page);
+
+  // Lời nhắn: câu ngắn + tên trang web (không bấm được) + liên kết trang người giám hộ với dữ liệu ở #fragment.
+  assert.equal(domain, "vietcombank-xacthuc.top");
+  assert.match(message, /^Mình nhận được link này, nhờ xem giúp có mở được không\?\nTrang web: vietcombank-xacthuc\[\.\]top\nhttps:\/\//);
+  assert.equal(new URL(link).search, "", "dữ liệu không nằm trong query");
+  assert.match(new URL(link).hash, /^#v=1&d=vietcombank-xacthuc\.top&n=[2-9A-HJKMNP-Z]{12}$/);
+
+  // Màn hình 2 chỉ có: hướng dẫn một dòng, nút Chép lại, MỘT ô nhập, nút Mở link, phương án dự phòng thu gọn, Đóng.
+  assert.match(opened.hostText, /Đã chép lời nhắn\./);
+  assert.match(opened.hostText, /Mở Zalo, dán vào cuộc trò chuyện với người giám hộ rồi gửi\./);
+  assert.match(opened.hostText, /Chép lại/);
+  const inputs = opened.all.filter((n) => n.nodeName === "INPUT");
+  assert.equal(inputs.length, 1, "một ô nhập số duy nhất");
+  assert.equal(opened.attr(inputs[0], "inputmode"), "numeric");
+  assert.equal(opened.attr(inputs[0], "autocomplete"), "one-time-code");
+  assert.deepEqual((await opened.visibleButtons()).map((b) => b.cls), ["gd-ghost", "gd-open", "gd-more-toggle", "gd-close"]);
+  for (const banned of ["tên miền", "thử thách", "nonce", "QR", "HMAC", "chính sách"]) {
+    assert.ok(!opened.hostText.includes(banned), `không dùng từ kỹ thuật "${banned}"`);
+  }
+  for (const banned of [" con ", "bố mẹ", " cháu "]) assert.ok(!opened.hostText.toLowerCase().includes(banned), `không xưng "${banned}"`);
+  assert.match(opened.hostText, /người giám hộ/);
+  assert.doesNotMatch(opened.hostText, /hết hạn sau|\d:\d\d/, "không có đồng hồ đếm ngược ở màn hình chính");
+  await shot(page, "man-hinh-2-da-nho.png");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.waitForTimeout(400);
+  await shot(page, "man-hinh-2-da-nho-toi.png");
+  await page.emulateMedia({ colorScheme: "light" });
+
+  // Phương án dự phòng: mã đọc bằng miệng (nhóm 4 ký tự, không I/L/O/0/1) và hình vuông quét.
+  const s = await shield(page);
+  const fbToggle = await s.firstVisible("gd-more-toggle");
+  assert.ok(fbToggle);
+  await page.mouse.click((await s.center(fbToggle)).x, (await s.center(fbToggle)).y);
+  const fb = await shield(page);
+  const spoken = fb.text(fb.byClass("gd-nonce"));
+  assert.equal(spoken.replaceAll("-", ""), nonce);
+  assert.match(spoken, /^([2-9A-HJKMNP-Z]{4}-){2}[2-9A-HJKMNP-Z]{4}$/);
+  assert.ok(fb.all.some((n) => n.nodeName === "svg" && fb.attr(n, "role") === "img"), "có hình vuông quét");
+  await shot(page, "man-hinh-2-du-phong.png");
+  const fbToggle2 = await fb.firstVisible("gd-more-toggle");
+  assert.ok(fbToggle2);
+  await page.mouse.click((await fb.center(fbToggle2)).x, (await fb.center(fbToggle2)).y);
+  const box = await shield(page);
+  await page.mouse.click((await box.center(box.byClass("gd-code"))).x, (await box.center(box.byClass("gd-code"))).y);   // bấm vào ô nhập rồi gõ
+
+  // Nhập sai: báo bằng câu đời thường + số lần còn lại, KHÔNG mở gì.
   const code = codeFromPython(domain, nonce);
   const bad = code === "000000" ? "111111" : "000000";
   await enterCode(page, bad);
-  const wrong = await shieldWith(page, /Mã chưa đúng\. Còn 4 lần thử\./);
-  assert.ok(wrong);
-  await page.screenshot({ path: path.join(SHOTS, "02-wrong-code.png") });
+  assert.ok(await shieldWith(page, /Mã chưa đúng\. Còn 4 lần thử\./));
+  await shot(page, "man-hinh-2-sai-ma.png");
   assert.equal(await navigationsTo("https://vietcombank-xacthuc.top"), 0);
 
-  // Mã đúng (dán một lần vào ô đầu: tự phân phối 6 chữ số) → mở đúng link, đóng hộp thoại.
+  // Nhập thiếu số: nhắc nhẹ, không tốn lượt.
+  await enterCode(page, "12 34");
+  assert.ok(await shieldWith(page, /Mã gồm đúng 6 số/));
+
+  // Mã đúng viết kiểu "123 456" → mở đúng link, đóng hộp thoại.
   const opening = context.waitForEvent("page");
-  await page.keyboard.type(code);
-  await page.keyboard.press("Enter");
+  await enterCode(page, spaced(code));
   const tab = await opening;
   await waitFor(async () => ((await navigationsTo("https://vietcombank-xacthuc.top/login")) === 1 ? true : null));
   await waitFor(async () => ((await shieldDom(page)) === null ? true : null));
   await tab.close();
 
-  // Dùng lại đúng mã đó cho một thử thách mới của cùng link: bị từ chối (nonce mới, thử thách cũ đã xóa).
+  // Dùng lại đúng mã đó cho lời nhắn mới của cùng link: bị từ chối (mã mới, lời nhắn cũ đã xóa).
   await page.click("#phish");
   const again = await askGuardian(page);
   assert.notEqual(again.nonce, nonce);
@@ -306,7 +430,7 @@ test("mã đúng của tên miền khác bị từ chối; quá 5 lần sai thì
   const page = await context.newPage();
   await openZalo(page);
   await page.click("#blocked");
-  const blocked = await askGuardian(page);
+  const blocked = await askGuardian(page);   // (nonce đọc từ lời nhắn trong clipboard)
   assert.equal(blocked.domain, "vcb-digibank-xacthuc.top");
   const wrongDomainCode = codeFromPython("vietcombank-xacthuc.top", blocked.nonce);
   const real = codeFromPython(blocked.domain, blocked.nonce);
@@ -323,7 +447,7 @@ test("mã đúng của tên miền khác bị từ chối; quá 5 lần sai thì
   assert.equal(locked.all.filter((n) => n.nodeName === "INPUT").length, 0, "hết ô nhập khi bị khóa");
   const renew = locked.byClass("gd-open");
   assert.equal(locked.attr(renew, "disabled") !== undefined, true, "nút tạo thử thách mới bị khóa");
-  await page.screenshot({ path: path.join(SHOTS, "03-locked.png") });
+  await shot(page, "man-hinh-2-khoa.png");
   assert.equal(await navigationsTo("https://vcb-digibank-xacthuc.top"), 0);
   await page.keyboard.press("Escape");
   await waitFor(async () => ((await shieldDom(page)) === null ? true : null));
@@ -358,7 +482,7 @@ test("mức WARN giữ hành vi cũ (đếm ngược rồi cho mở); link an to
   await page.click("#warn");
   const s = await shield(page);
   assert.match(s.hostText, /Vẫn mở/);
-  assert.doesNotMatch(s.hostText, /Xin phép người giám hộ/);
+  assert.doesNotMatch(s.hostText, /Nhờ người giám hộ/);
   assert.equal(s.attr(s.byClass("sh-proceed"), "aria-disabled"), "true");
   await page.keyboard.press("Escape");
   await waitFor(async () => ((await shieldDom(page)) === null ? true : null));
@@ -378,7 +502,7 @@ test("managed storage thiếu (Guardian tắt): link HIGH giữ nguyên hành vi
     await page.click("#phish");
     const s = await shield(page);
     assert.match(s.hostText, /Vẫn mở/);
-    assert.doesNotMatch(s.hostText, /Xin phép người giám hộ/);
+    assert.doesNotMatch(s.hostText, /Nhờ người giám hộ/);
     assert.ok(s.byClass("sh-ring"));
     await page.keyboard.press("Escape");
     await page.close();
@@ -406,7 +530,7 @@ test("trang cài đặt hiện trạng thái Guardian chỉ đọc; nhận chín
     await page.click("#guardian-import button");
     await page.waitForFunction(() => /Chính sách đã ký hợp lệ, phiên bản 7/.test(document.getElementById("guardian-details")?.textContent ?? ""));
     assert.match(await page.textContent("#guardian-details") ?? "", /vietcombank\.com\.vn/);
-    await page.locator("#guardian").screenshot({ path: path.join(SHOTS, "04-settings.png") });
+    await page.locator("#guardian").screenshot({ path: SETTINGS_SHOT });
 
     // Chính sách ký (chỉ HIGH + BLOCKED, cho phép vietcombank.com.vn) đang có hiệu lực; hạ min xuống rồi thay bằng bản thấp hơn thì bị bỏ.
     await worker.evaluate(async () => { await chrome.storage.local.remove("guardianPolicy"); });
