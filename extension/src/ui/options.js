@@ -42,10 +42,65 @@ function message(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+const LEVEL_NAMES = Object.freeze({ WARN: "Đáng ngờ", HIGH: "Rất nguy hiểm", BLOCKED: "Danh sách đen" });
+
+/**
+ * Trạng thái Guardian, chỉ đọc (nguồn: ``chrome.storage.managed`` + chính sách ký đã xác minh).
+ * @param {any} g
+ */
+function renderGuardian(g) {
+  const state = byId("guardian-state");
+  const details = byId("guardian-details");
+  const warnings = byId("guardian-warnings");
+  const form = byId("guardian-import");
+  state.dataset.mode = g.mode;
+  details.replaceChildren();
+  warnings.replaceChildren();
+  form.hidden = g.mode === "off";
+  if (g.mode === "off") {
+    state.textContent = "Đang tắt. Chế độ người giám hộ chỉ bật bằng chính sách quản lý của máy (Administrator).";
+    details.hidden = true;
+    warnings.hidden = true;
+    return;
+  }
+  state.textContent = g.mode === "ok"
+    ? "Đang bật bởi chính sách quản lý (managed storage)."
+    : "Đang bật nhưng cấu hình quản lý thiếu/hỏng bí mật: mọi link nguy hiểm bị chặn và không ai mở khóa được cho tới khi sửa.";
+  const policy = g.policySource === "signed"
+    ? `Chính sách đã ký hợp lệ, phiên bản ${g.policyVersion}`
+    : "Mặc định nghiêm nhất (không có chính sách ký hợp lệ)";
+  /** @type {[string, string][]} */
+  const rows = [
+    ["Chính sách", policy],
+    ["Phiên bản tối thiểu (managed)", String(g.minPolicyVersion)],
+    ["Mức cần xin phép", g.requireLevels.map((/** @type {string} */ l) => /** @type {Record<string, string>} */ (LEVEL_NAMES)[l] ?? l).join(", ")],
+    ["Tên miền luôn cho phép", g.allowDomains.length ? g.allowDomains.join(", ") : "không có"],
+    ["Hạn thử thách", `${Math.round(g.ttlSeconds / 60)} phút`],
+    ["Thử thách đang chờ", String(g.pending)],
+    ["Khóa tạm", g.lockedUntil ? `đến ${formatTime(g.lockedUntil)}` : "không"],
+  ];
+  if (g.policyProblem) rows.splice(1, 0, ["Chính sách ký bị bỏ qua", g.policyProblem]);
+  for (const [name, value] of rows) {
+    const dt = document.createElement("dt");
+    dt.textContent = name;
+    const dd = document.createElement("dd");
+    dd.textContent = value;
+    details.append(dt, dd);
+  }
+  details.hidden = false;
+  for (const w of g.warnings) {
+    const item = document.createElement("li");
+    item.textContent = `${formatTime(w.ts)}: ${w.msg}`;
+    warnings.append(item);
+  }
+  warnings.hidden = g.warnings.length === 0;
+}
+
 /** Nạp trạng thái và đổ vào form. */
 async function refreshStatus() {
   const status = await ask({ type: "status" });
   byId("version").textContent = status.version;
+  renderGuardian(status.guardian);
   const form = /** @type {HTMLFormElement} */ (byId("settings"));
   for (const [key, value] of Object.entries(status.settings)) {
     const input = /** @type {HTMLInputElement | null} */ (form.elements.namedItem(key));
@@ -110,6 +165,20 @@ byId("settings").addEventListener("submit", async (event) => {
     out.textContent = "Đã lưu cài đặt.";
   } catch (error) {
     out.textContent = `Không lưu được: ${message(error)}`;
+  }
+});
+
+byId("guardian-import").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const out = byId("guardian-import-status");
+  const box = /** @type {HTMLTextAreaElement} */ (byId("guardian-policy"));
+  try {
+    const answer = await ask({ type: "guardian-import", text: box.value });
+    out.textContent = answer.ok ? `Đã nhận chính sách phiên bản ${answer.version}.` : `Không nhận: ${answer.error}`;
+    if (answer.ok) box.value = "";
+    await refreshStatus();
+  } catch (error) {
+    out.textContent = `Không nhập được: ${message(error)}`;
   }
 });
 

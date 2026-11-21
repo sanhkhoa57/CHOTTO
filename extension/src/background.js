@@ -16,6 +16,7 @@ import { Engine, Level } from "./engine/engine.js";
 import { Fingerprints } from "./engine/tier1.js";
 import { BOOTSTRAP_URL, lookupAge, parseBootstrap, readLimited } from "./engine/tier3.js";
 import { URLParseError, parseUrl } from "./engine/url.js";
+import { Guardian } from "./guardian/guardian.js";
 import { DEFAULTS, frictionSecondsFor, loadSettings, saveSettings } from "./settings.js";
 import { Store } from "./storage.js";
 import { ensureSeeded, updateDue, updateFromSources } from "./updater.js";
@@ -32,6 +33,16 @@ const DAY_MS = 86400 * 1000;
 const AGE_PREFIX = "age:";
 
 const store = new Store();
+/**
+ * Guardian mode. Cờ bật, khóa công khai, bí mật HMAC và ``min_policy_version`` chỉ đọc từ ``chrome.storage.managed``
+ * (registry HKLM do Admin ghi). ``readManaged`` tra ``chrome.storage.managed`` tại thời điểm gọi để luôn thấy chính sách mới nhất.
+ */
+const guardian = new Guardian({
+  readManaged: () => chrome.storage.managed.get(null),
+  local: chrome.storage.local,
+  session: chrome.storage.session,
+  now: () => Date.now(),
+});
 /** @type {Promise<import("./engine/data.js").EngineData> | null} */
 let dataPromise = null;
 /** @type {Promise<Engine> | null} */
@@ -56,6 +67,8 @@ let updating = null;
  * @property {string} level
  * @property {number} score
  * @property {string} via
+ * @property {boolean} [guardian] Link này chỉ mở được bằng mã mở khóa của người giám hộ (không có "vẫn mở").
+ * @property {string} [challengeId] Thử thách Guardian đang chờ của vé này.
  */
 
 // ---------------------------------------------------------------- dữ liệu & engine
@@ -318,6 +331,8 @@ async function handleInspect(message, sender) {
   const lockMs = frictionSecondsFor(result.level, settings.frictionSeconds) * 1000;
   const now = Date.now();
   const token = crypto.randomUUID();
+  const ticketDomain = result.displayDomain || result.host;
+  const needsGuardian = Guardian.requires(await guardian.config(), result.level, ticketDomain);
   await serialized(async () => {
     const tickets = await sessionTable("tickets", (/** @type {Ticket} */ t) => t.expires);
     tickets[token] = {
@@ -326,15 +341,19 @@ async function handleInspect(message, sender) {
       expires: now + TOKEN_TTL_MS,
       tabId: sender.tab?.id ?? -1,
       disposition,
-      domain: result.displayDomain || result.host,
+      domain: ticketDomain,
       level: result.level,
       score: result.score,
       via,
+      ...(needsGuardian ? { guardian: true } : {}),
     };
     await chrome.storage.session.set({ tickets });
   });
   const data = await getData();
-  return { action: "friction", token, lockMs, view: buildView(result, { plain: data.plain, rules: data.rules }) };
+  return {
+    action: "friction", token, lockMs, view: buildView(result, { plain: data.plain, rules: data.rules }),
+    ...(needsGuardian ? { guardian: true } : {}),
+  };
 }
 
 /**
@@ -350,6 +369,7 @@ async function handleDecide(message, sender) {
     if (!found) return { ok: false, reason: "expired" };
     if (found.tabId !== (sender.tab?.id ?? -1)) return { ok: false, reason: "wrong-tab" };
     if (message.choice === "proceed") {
+      if (found.guardian) return { ok: false, reason: "guardian" };   // Guardian: chỉ mã của người giám hộ mới mở được
       if (message.trusted !== true) return { ok: false, reason: "untrusted" };
       if (Date.now() + UNLOCK_TOLERANCE_MS < found.unlockAt) return { ok: false, reason: "locked" };
     }
@@ -371,13 +391,77 @@ async function handleDecide(message, sender) {
   return { ok: true };
 }
 
+/**
+ * Tìm vé Guardian hợp lệ của đúng tab này.
+ * @param {Record<string, any>} message
+ * @param {chrome.runtime.MessageSender} sender
+ * @returns {Promise<{ticket: Ticket} | {error: string}>}
+ */
+async function guardianTicket(message, sender) {
+  const tickets = await sessionTable("tickets", (/** @type {Ticket} */ t) => t.expires);
+  const ticket = tickets[String(message.token)];
+  if (!ticket) return { error: "expired" };
+  if (ticket.tabId !== (sender.tab?.id ?? -1)) return { error: "wrong-tab" };
+  if (!ticket.guardian) return { error: "not-guardian" };
+  return { ticket };
+}
+
+/**
+ * Người được bảo vệ bấm "Xin phép người giám hộ": phát thử thách mới (thay thử thách cũ của vé này).
+ * @param {Record<string, any>} message
+ * @param {chrome.runtime.MessageSender} sender
+ */
+async function handleGuardianRequest(message, sender) {
+  const found = await guardianTicket(message, sender);
+  if ("error" in found) throw new Error(found.error);
+  const { ticket } = found;
+  const issued = await guardian.issue({ url: ticket.url, domain: ticket.domain });
+  if (issued.status === "locked") return { state: "locked", until: issued.until };
+  if (issued.status !== "challenge") return { state: "misconfigured" };
+  await serialized(async () => {
+    const tickets = await sessionTable("tickets", (/** @type {Ticket} */ t) => t.expires);
+    const mine = tickets[String(message.token)];
+    if (mine) {
+      mine.challengeId = issued.id;
+      await chrome.storage.session.set({ tickets });
+    }
+  });
+  return {
+    state: "challenge", domain: issued.domain, nonceText: issued.nonceText, expiresAt: issued.expiresAt,
+    attemptsLeft: issued.attemptsLeft, qr: `CHOTTO-GUARDIAN-v1|${issued.domain}|${issued.nonce}`,
+  };
+}
+
+/**
+ * Nhập mã mở khóa. Đúng: xóa thử thách (dùng một lần) và vé, rồi mở ĐÚNG URL của vé này.
+ * @param {Record<string, any>} message
+ * @param {chrome.runtime.MessageSender} sender
+ */
+async function handleGuardianSubmit(message, sender) {
+  const found = await guardianTicket(message, sender);
+  if ("error" in found) return { ok: false, reason: found.error === "expired" ? "gone" : found.error };
+  const { ticket } = found;
+  if (!ticket.challengeId) return { ok: false, reason: "gone" };
+  const answer = await guardian.submit({ id: ticket.challengeId, code: String(message.code ?? ""), url: ticket.url });
+  if (!answer.ok) return answer;
+  await serialized(async () => {
+    const tickets = await sessionTable("tickets", (/** @type {Ticket} */ t) => t.expires);
+    delete tickets[String(message.token)];
+    await chrome.storage.session.set({ tickets });
+  });
+  await recordDecision(ticket, "proceed");
+  await openTarget(ticket.url, ticket.disposition, sender.tab);
+  return { ok: true };
+}
+
 /** Trạng thái cho trang tùy chọn. */
 async function handleStatus() {
-  const [data, settings, blacklist, state] = await Promise.all([
+  const [data, settings, blacklist, state, guardianStatus] = await Promise.all([
     getData(), loadSettings(chrome.storage.local), openBlacklist().then(() => store.getBlacklist()),
-    updateState(),
+    updateState(), guardian.status(),
   ]);
   return {
+    guardian: guardianStatus,
     version: chrome.runtime.getManifest().version,
     dataVersion: data.sync.chotto_version,
     settings,
@@ -442,6 +526,10 @@ async function route(message, sender) {
       return handleInspect(message, sender);
     case "decide":
       return handleDecide(message, sender);
+    case "guardian-request":
+      return handleGuardianRequest(message, sender);
+    case "guardian-submit":
+      return handleGuardianSubmit(message, sender);
     default:
       break;
   }
@@ -456,6 +544,8 @@ async function route(message, sender) {
     }
     case "update-now":
       return runUpdate();
+    case "guardian-import":
+      return guardian.importPolicy(String(message.text ?? ""));
     case "test": {
       const engine = await getEngine();
       const result = await engine.inspect(String(message.url ?? ""));

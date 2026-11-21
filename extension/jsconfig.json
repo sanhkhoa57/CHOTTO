@@ -12,5 +12,6 @@
     "skipLibCheck": true,
     "maxNodeModuleJsDepth": 0
   },
-  "include": ["src/**/*.js", "tests/**/*.mjs", "e2e/**/*.mjs"]
+  "include": ["src/**/*.js", "tests/**/*.mjs", "e2e/**/*.mjs"],
+  "exclude": ["src/vendor/**"]
 }
