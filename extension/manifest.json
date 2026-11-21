@@ -3,6 +3,7 @@
   "name": "CHOTTO – Khoan đã!",
   "short_name": "CHOTTO",
   "version": "1.5.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu9zTlvNxLkiVaPA6bSfYlp7pU87R4KErEQa3pw3Kzi6L5z8IHyhgBiJCfWk4mpzODqlbOK/VzHUyhcjYgwzTZ0pvom8lqyfMmNI2DEDASSgSDaBy4ZWdAhEkafqhbNBMAsJyJeXJ4/gYKEDleML2Ao4cDZ7Qo6re8HhDsFpSE/E/us9AGtcGZu9fC/3+E4R3w3VZ07kKlZ7IInfWAeGf5GTlCx+tKIfuHZAv9MMABODvyWeiL0gJgQ2wfIXx0Gr9uWZRSqty/hUPJ+BMQsDkkcIKJX1gtrA0CYTNG6UasSFMx3akDL49aUEv5bdKgb8muRWRoVgJ4iN45cSorGcAJwIDAQAB",
   "description": "Chặn link lừa đảo trên Zalo Web: kiểm tra mọi liên kết ngay trên máy trước khi mở, dừng lại khi đáng ngờ.",
   "minimum_chrome_version": "111",
   "icons": {
@@ -25,6 +26,9 @@
   "options_ui": {
     "page": "src/ui/options.html",
     "open_in_tab": true
+  },
+  "storage": {
+    "managed_schema": "src/guardian/managed_schema.json"
   },
   "permissions": [
     "storage",

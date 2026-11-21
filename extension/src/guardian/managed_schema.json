@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "guardian_enabled": {
+      "title": "Bật Chế độ người giám hộ",
+      "description": "Khi bật, link mức HIGH/BLOCKED trên Zalo Web cần mã mở khóa từ người giám hộ.",
+      "type": "boolean"
+    },
+    "guardian_public_key": {
+      "title": "Khóa công khai Ed25519 của người giám hộ (base64url, 32 byte)",
+      "type": "string"
+    },
+    "guardian_secret": {
+      "title": "Bí mật HMAC dùng tính mã mở khóa (base64url, tối thiểu 16 byte)",
+      "type": "string"
+    },
+    "min_policy_version": {
+      "title": "Số phiên bản chính sách ký tối thiểu được chấp nhận (chống hạ cấp)",
+      "type": "integer"
+    }
+  }
+}
