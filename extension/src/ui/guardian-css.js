@@ -23,7 +23,7 @@ globalThis.CHOTTO_GUARDIAN_CSS = `
 
 /* ---- Màn hình 2: đã nhờ người giám hộ. Chỉ phần này hiện, phần của màn hình 1 ẩn đi. ---- */
 .sh[data-step="2"] > :not(.gd) { display: none !important; }
-.gd { margin: 0; }
+.gd { margin: 0; --gd-edge: color-mix(in srgb, var(--ink) 62%, var(--bg)); }  /* viền ô nhập: đo >= 3:1 (guardian-contrast.test.mjs) */
 .gd[hidden] { display: none; }
 .gd-title { margin: 0; font: 400 28px/1.25 var(--serif); letter-spacing: -.01em; }
 .gd-send { margin-top: 18px; padding: 16px 18px; border-radius: 16px; display: grid; gap: 10px; justify-items: start; background: var(--surface);
@@ -35,7 +35,7 @@ globalThis.CHOTTO_GUARDIAN_CSS = `
 .gd-form { margin-top: 22px; display: grid; gap: 12px; }
 .gd-step { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.5; }
 .gd-code { width: 100%; min-width: 0; height: 72px; padding: 0 12px; text-align: center; border-radius: 16px; border: 0; background: var(--bg); color: var(--ink);
-  font: 700 34px/1 var(--mono); letter-spacing: .12em; box-shadow: inset 0 0 0 2px var(--line-strong); caret-color: var(--ink); }
+  font: 700 34px/1 var(--mono); letter-spacing: .12em; box-shadow: inset 0 0 0 2px var(--gd-edge); caret-color: var(--ink); }
 .gd-code:focus { outline: 3px solid var(--accent-hi); outline-offset: 2px; }
 .gd-open { min-height: 58px; border-radius: 999px; font-size: 19px; font-weight: 700; background: var(--accent); color: var(--accent-ink); transition: background .2s; }
 .gd-open:hover:not(:disabled) { background: var(--accent-hi); }
