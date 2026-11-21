@@ -79,3 +79,8 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Cờ bật/khóa/secret chỉ đọc từ `chrome.storage.managed` (registry HKLM). ID tiện ích ghim bằng `key` trong manifest; khóa bí mật ngoài repo, `*.pem` trong `.gitignore`.
 - E2E Guardian giả lập managed bằng cách ghi đè `chrome.storage.managed.get` trong service worker; cần Chromium của Playwright (`npx playwright install chromium`, đặt `CHROMIUM_PATH` nếu bản không khớp). Không bao giờ ghi registry từ test.
 - Heredoc bash có dấu nháy đơn trong nội dung dễ vỡ ở công cụ Bash: ghi script bằng công cụ Write rồi chạy.
+- **Guardian UX (làm lại cho người lớn tuổi, 2026-11-21):** màn hình chặn chỉ 2 nút + "Thêm lựa chọn"; bước xin phép tự chép lời nhắn có liên kết tới trang người giám hộ `guardian/index.html` (tĩnh, một file, dữ liệu ở `#fragment`, CSP chặn mạng). Tài liệu: `docs/GUARDIAN-MODE.md` mục 10–12, kịch bản thử nghiệm `docs/THU-NGHIEM-KHA-DUNG.md`.
+  - Sửa `guardian/src/*` hoặc mã dùng chung (engine, `view.js`, `guardian/codec.js`, `share.js`, `extension/data`) thì chạy `python tools/build_guardian_page.py` (test Python kiểm tra file dựng khớp nguồn; `.gitattributes` ghim LF vì CSP ghim băm).
+  - Nonce giờ là 12 ký tự bộ chữ 31 ký tự (không I L O 0 1); đổi thì chạy lại `python tools/gen_guardian_vectors.py` (vector chung Python ↔ JS). Managed thêm `guardian_name`, `guardian_page_url` (đổi thì phải chạy lại `make-reg` + Merge `.reg`).
+  - E2E trên máy này: `CHROMIUM_PATH=<chrome.exe của ms-playwright/chromium-1248>` và `PYTHONUTF8=1`; ảnh "sau" sinh vào `docs/guardian/ux/after/`.
+  - Bẫy công cụ: heredoc Python/bash có tiếng Việt + dấu `\` hoặc nháy đơn dễ hỏng escape; ghi file bằng công cụ Write/Edit.

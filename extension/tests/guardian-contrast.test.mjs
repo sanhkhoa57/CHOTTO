@@ -37,7 +37,7 @@ function parseColor(value) {
  */
 function over(top, bottom) {
   const a = top[3];
-  return [0, 1, 2].map((i) => top[i] * a + bottom[i] * (1 - a)).concat([1]);
+  return [top[0] * a + bottom[0] * (1 - a), top[1] * a + bottom[1] * (1 - a), top[2] * a + bottom[2] * (1 - a), 1];
 }
 
 /** @param {Rgba} c */
@@ -97,9 +97,9 @@ const themes = {
   "trang người giám hộ · tối": { ...vars(blockAfter(pageCss, ":root {")), ...vars(blockAfter(blockAfter(pageCss, "@media (prefers-color-scheme: dark) {"), ":root {")) },
 };
 
-/** @type {[string, string, string, number, string[]][]} nhãn, màu chữ, màu nền, mức tối thiểu, các chủ đề áp dụng */
 const SHIELD = ["tiện ích · tối", "tiện ích · sáng"];
 const PAGE = ["trang người giám hộ · sáng", "trang người giám hộ · tối"];
+/** @type {[string, string, string, number, string[]][]} nhãn, màu chữ, màu nền, mức tối thiểu, các chủ đề áp dụng */
 const PAIRS = [
   ["chữ chính trên nền", "ink", "bg", 4.5, [...SHIELD, ...PAGE]],
   ["chữ chính trên thẻ", "ink", "surface", 4.5, [...SHIELD, ...PAGE]],
