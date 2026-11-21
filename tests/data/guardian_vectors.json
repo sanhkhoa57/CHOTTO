@@ -1,0 +1,65 @@
+{
+  "about": "Sinh bởi tools/gen_guardian_vectors.py. Khóa thử nghiệm công khai, KHÔNG dùng cho thật.",
+  "hmac_secret": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+  "codes": [
+    {
+      "domain": "vietcombank-xacthuc.top",
+      "nonce": "K7QF3MZD",
+      "message": "CHOTTO-GUARDIAN-v1|vietcombank-xacthuc.top|K7QF3MZD",
+      "code": "452759"
+    },
+    {
+      "domain": "example.com",
+      "nonce": "AAAAAAAA",
+      "message": "CHOTTO-GUARDIAN-v1|example.com|AAAAAAAA",
+      "code": "572471"
+    },
+    {
+      "domain": "xn--vietcmbank-ilb.com",
+      "nonce": "ZZZZ7777",
+      "message": "CHOTTO-GUARDIAN-v1|xn--vietcmbank-ilb.com|ZZZZ7777",
+      "code": "274650"
+    },
+    {
+      "domain": "momo-hoantien.vip",
+      "nonce": "K7QF3MZD",
+      "message": "CHOTTO-GUARDIAN-v1|momo-hoantien.vip|K7QF3MZD",
+      "code": "593681"
+    },
+    {
+      "domain": "192.168.1.10",
+      "nonce": "QWERTYUI",
+      "message": "CHOTTO-GUARDIAN-v1|192.168.1.10|QWERTYUI",
+      "code": "802074"
+    },
+    {
+      "domain": "a.b.c.example.co.uk",
+      "nonce": "234567AB",
+      "message": "CHOTTO-GUARDIAN-v1|a.b.c.example.co.uk|234567AB",
+      "code": "394685"
+    }
+  ],
+  "nonce_bytes": [
+    {
+      "hex": "0000000000",
+      "base32": "AAAAAAAA"
+    },
+    {
+      "hex": "ffffffffff",
+      "base32": "77777777"
+    },
+    {
+      "hex": "0102030405",
+      "base32": "AEBAGBAF"
+    },
+    {
+      "hex": "deadbeef01",
+      "base32": "32W353YB"
+    }
+  ],
+  "policy": {
+    "public_key": "C7w0aldmfDgBIL2cf9flHSxf3-o3zS9b9AWyxr9vLXg",
+    "payload": "{\"allow_domains\":[\"vietcombank.com.vn\"],\"challenge_ttl_sec\":300,\"issued_at\":1700000000,\"require_levels\":[\"HIGH\",\"BLOCKED\"],\"version\":7}",
+    "signature": "rQQWro6y-QIiu5KXQOeNZeRnn842kQyoArDnMnPDelT8t-6T1I1y8UXEDgyJ0xgVTFvQFAiw0j7gpS5U3wdfBA"
+  }
+}
