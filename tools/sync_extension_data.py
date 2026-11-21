@@ -7,6 +7,8 @@ Sinh ra:
     nhãn Unicode đã chuyển sang punycode bằng chính bộ phân tích của bản Desktop;
   - ``popular.json``: tên miền .vn phổ biến (CrUX) đã chuẩn hóa như ``config.load_popular_domains``;
   - ``advice.json``: lời khuyên cục bộ (``chotto.advisor``: TIPS, COMBOS, GENERAL);
+  - ``plain.json``: bảng chữ đời thường cho màn hình cảnh báo (``chotto.plain``, bản tiếng Việt);
+  - ``src/ui/shield.js`` và ``src/ui/shield-css.js``: giao diện cảnh báo dùng chung với Desktop (``chotto/web/shield.js|css``);
   - ``confusables.json`` và ``blacklist.seed.txt``: bản sao nguyên văn;
   - ``sync.json``: SHA-256 của từng file nguồn, để ``--check`` (và CI) phát hiện dữ liệu tiện ích bị lệch.
 
@@ -26,7 +28,7 @@ from typing import Any, Final
 ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from chotto import __version__, advisor  # noqa: E402
+from chotto import __version__, advisor, plain  # noqa: E402
 from chotto.config import load_popular_domains, resource_path  # noqa: E402
 from chotto.core.psl import PublicSuffixList  # noqa: E402
 
@@ -64,6 +66,29 @@ def advice_data() -> dict[str, Any]:
     }
 
 
+def ui_outputs() -> dict[str, str]:
+    """File giao diện dùng chung với Desktop, ghi vào ``extension/src/ui`` (nội dung đã chuẩn hóa về xuống dòng LF).
+
+    Returns:
+        ``{tên file: nội dung UTF-8}``: ``shield.js`` (bản chép) và ``shield-css.js`` (CSS nhúng thành chuỗi JavaScript,
+        vì content script không đọc được file CSS của tiện ích mà không lộ URL tài nguyên cho trang).
+
+    Raises:
+        OSError: Thiếu file nguồn.
+    """
+    web = ROOT / "chotto" / "web"
+    script = _read_lf(web / "shield.js")
+    css = _read_lf(web / "shield.css")
+    header = "// Sinh bởi tools/sync_extension_data.py từ chotto/web/shield.css. Đừng sửa tay.\n"
+    css_js = f"globalThis.CHOTTO_SHIELD_CSS = {json.dumps(css, ensure_ascii=False)};\n"
+    return {"shield.js": script, "shield-css.js": header + css_js}
+
+
+def _read_lf(path: Path) -> str:
+    """Đọc file UTF-8 và đổi xuống dòng CRLF thành LF (Windows và Linux cho cùng kết quả)."""
+    return path.read_bytes().replace(bytes([13, 10]), bytes([10])).decode("utf-8")
+
+
 def build_outputs() -> dict[str, str]:
     """Nội dung từng file dữ liệu của tiện ích, sinh từ ``chotto/data``.
 
@@ -98,6 +123,7 @@ def build_outputs() -> dict[str, str]:
         "popular.json": _dump(sorted(load_popular_domains())),
         "confusables.json": _dump(confusables),
         "advice.json": _dump(advice_data()),
+        "plain.json": _dump(plain.plain_data("vi")),
         "blacklist.seed.txt": (data_dir / "blacklist.seed.txt").read_text("utf-8"),
         "sync.json": _dump(sync_info),
     }
@@ -115,14 +141,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         outputs = build_outputs()
+        ui = ui_outputs()
     except (OSError, ValueError) as exc:
         print(f"Lỗi đọc dữ liệu nguồn: {exc}", file=sys.stderr)
         return 2
     out_dir: Path = args.out
+    ui_dir = out_dir.parent / "src" / "ui"
+    targets = [(out_dir / name, content) for name, content in outputs.items()]
+    targets += [(ui_dir / name, content) for name, content in ui.items()]
     if args.check:
         stale = []
-        for name, content in outputs.items():
-            path = out_dir / name
+        for path, content in targets:
+            name = path.name
             try:
                 current = path.read_text("utf-8")
             except OSError:
@@ -136,13 +166,13 @@ def main(argv: list[str] | None = None) -> int:
         print("Dữ liệu tiện ích khớp với chotto/data.")
         return 0
     try:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for name, content in outputs.items():
-            (out_dir / name).write_text(content, "utf-8", newline="\n")
+        for path, content in targets:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, "utf-8", newline="\n")
     except OSError as exc:
         print(f"Không ghi được {out_dir}: {exc}", file=sys.stderr)
         return 2
-    print(f"Đã đồng bộ {len(outputs)} file vào {out_dir}")
+    print(f"Đã đồng bộ {len(targets)} file vào {out_dir} và {ui_dir}")
     return 0
 
 

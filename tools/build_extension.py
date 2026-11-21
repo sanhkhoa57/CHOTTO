@@ -57,6 +57,7 @@ def load_manifest() -> dict[str, Any]:
 def firefox_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     """Biến thể manifest cho Firefox."""
     variant = json.loads(json.dumps(manifest))
+    variant.pop("key", None)  # khóa ghim ID chỉ dành cho Chrome/Edge (load unpacked)
     worker = variant["background"].pop("service_worker")
     variant["background"]["scripts"] = [worker]
     variant.pop("minimum_chrome_version", None)

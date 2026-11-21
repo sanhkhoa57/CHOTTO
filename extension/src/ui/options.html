@@ -21,6 +21,21 @@
       dịch vụ RDAP công khai để hỏi ngày đăng ký.</p>
   </div>
 
+  <h2 id="guardian-heading">Chế độ người giám hộ</h2>
+  <section class="panel" aria-labelledby="guardian-heading" id="guardian">
+    <p id="guardian-state" class="guardian-state" role="status">Đang đọc…</p>
+    <dl id="guardian-details" class="kv" hidden></dl>
+    <ul id="guardian-warnings" class="warnings" hidden></ul>
+    <p class="muted" id="guardian-note">Chỉ đọc: bật/tắt, khóa công khai, bí mật và phiên bản tối thiểu do chính sách quản lý của
+      máy (registry, chỉ Administrator ghi) đặt; trang này không thể đổi chúng.</p>
+    <form id="guardian-import" hidden>
+      <label for="guardian-policy">Nhập chính sách đã ký của người giám hộ (JSON từ <code>guardian.py sign-policy</code>)</label>
+      <textarea id="guardian-policy" rows="4" spellcheck="false" autocomplete="off"></textarea>
+      <div class="actions"><button type="submit">Nhập chính sách</button></div>
+      <div id="guardian-import-status" class="status" role="status"></div>
+    </form>
+  </section>
+
   <h2>Cài đặt</h2>
   <form id="settings" class="panel">
     <label class="row"><input type="checkbox" name="tier3Enabled">

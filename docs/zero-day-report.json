@@ -1,0 +1,585 @@
+{
+  "generated_at": "2026-11-19 14:02 UTC",
+  "threshold_friction": 30.0,
+  "threshold_high": 60.0,
+  "status": {
+    "runs": 150,
+    "first_run": "2026-11-16 13:41 UTC",
+    "last_run": "2026-11-19 13:48 UTC",
+    "days": 3.0,
+    "new_domains": 5360,
+    "sources": [
+      {
+        "source": "CERT-PL",
+        "runs": 115,
+        "ok": 114,
+        "success_rate": 0.991304347826087,
+        "last_ok": "2026-11-19 13:48 UTC",
+        "last_error": "URLError: <urlopen error _ssl.c:1059: The handshake operation timed out>"
+      },
+      {
+        "source": "ChongLuaDao",
+        "runs": 150,
+        "ok": 0,
+        "success_rate": 0.0,
+        "last_ok": "",
+        "last_error": "URLError: <urlopen error [Errno 11001] getaddrinfo failed>"
+      },
+      {
+        "source": "OpenPhish",
+        "runs": 150,
+        "ok": 150,
+        "success_rate": 1.0,
+        "last_ok": "2026-11-19 13:48 UTC",
+        "last_error": ""
+      },
+      {
+        "source": "PhishTank",
+        "runs": 81,
+        "ok": 30,
+        "success_rate": 0.37037037037037035,
+        "last_ok": "2026-11-19 08:18 UTC",
+        "last_error": "HTTPError: HTTP Error 429: Too Many Requests"
+      },
+      {
+        "source": "PhishingDB-ACTIVE",
+        "runs": 35,
+        "ok": 35,
+        "success_rate": 1.0,
+        "last_ok": "2026-11-17 04:48 UTC",
+        "last_error": ""
+      },
+      {
+        "source": "PhishingDB-NEW",
+        "runs": 35,
+        "ok": 35,
+        "success_rate": 1.0,
+        "last_ok": "2026-11-17 04:48 UTC",
+        "last_error": ""
+      },
+      {
+        "source": "URLhaus",
+        "runs": 150,
+        "ok": 0,
+        "success_rate": 0.0,
+        "last_ok": "",
+        "last_error": "HTTPError: HTTP Error 410: Gone"
+      }
+    ]
+  },
+  "new_domains": 5360,
+  "flagged": 1565,
+  "rate": 0.29197761194029853,
+  "groups": {
+    "vn": {
+      "total": 80,
+      "flagged": 80,
+      "high": 80,
+      "rate": 1.0
+    },
+    "global": {
+      "total": 5280,
+      "flagged": 1485,
+      "high": 889,
+      "rate": 0.28125
+    }
+  },
+  "score_histogram": {
+    "0-9": 2721,
+    "10-19": 975,
+    "20-29": 99,
+    "30-39": 370,
+    "40-49": 64,
+    "50-59": 162,
+    "60-79": 528,
+    "80-100": 441
+  },
+  "top_signals_caught": [
+    [
+      "free_hosting",
+      1332
+    ],
+    [
+      "entropy",
+      1042
+    ],
+    [
+      "hyphens",
+      981
+    ],
+    [
+      "http",
+      638
+    ],
+    [
+      "digits",
+      425
+    ],
+    [
+      "tld",
+      205
+    ],
+    [
+      "combosquat",
+      77
+    ],
+    [
+      "typosquat",
+      6
+    ],
+    [
+      "shortener",
+      2
+    ],
+    [
+      "homoglyph",
+      1
+    ]
+  ],
+  "top_signals_missed": [
+    [
+      "tld",
+      834
+    ],
+    [
+      "entropy",
+      106
+    ],
+    [
+      "http",
+      74
+    ],
+    [
+      "digits",
+      71
+    ],
+    [
+      "hyphens",
+      59
+    ],
+    [
+      "idn",
+      1
+    ]
+  ],
+  "missed_total": 3795,
+  "missed_by_tld": [
+    [
+      "com",
+      1495
+    ],
+    [
+      "store",
+      656
+    ],
+    [
+      "shop",
+      453
+    ],
+    [
+      "digital",
+      167
+    ],
+    [
+      "pro",
+      142
+    ],
+    [
+      "space",
+      136
+    ],
+    [
+      "top",
+      103
+    ],
+    [
+      "click",
+      74
+    ],
+    [
+      "cfd",
+      44
+    ],
+    [
+      "info",
+      41
+    ],
+    [
+      "cyou",
+      35
+    ],
+    [
+      "net",
+      31
+    ],
+    [
+      "org",
+      29
+    ],
+    [
+      "sbs",
+      27
+    ],
+    [
+      "live",
+      25
+    ]
+  ],
+  "missed_by_platform": [],
+  "missed_samples": {
+    "vn": [],
+    "global": [
+      {
+        "domain": "addliav.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliav.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqa.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://couriersplease.addliqa.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqd.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqd.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqf.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqf.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqg.cc",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqg.cc/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqg.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqg.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqi.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqi.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqk.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqk.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliql.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliql.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqo.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqo.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqs.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://couriersplease.addliqs.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqw.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqw.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "addliqz.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://couriersplease.addliqz.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "agentforce.cc",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://login.agentforce.cc/v3/signin/identifier?continue=https://accounts.google.com/&followup=https://accounts.google.com/&passive=1209600&flowName=GlifWebSignIn&flowEntry=ServiceLogin&dsh=S337416861:1794848044596426",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "alosys.it",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://poste-digitalsolution.alosys.it/support/home",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "ambitopv.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://kucoin.ambitopv.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "ananeosi-support.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://ananeosi-support.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "atron-solutions.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://atron-solutions.com/RKS/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "cabletu-mrsm.com.mx",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://cabletu-mrsm.com.mx/POPis/?gate=6566",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "chasincocktails.com",
+        "group": "global",
+        "score": 13,
+        "signals": [
+          "entropy"
+        ],
+        "url": "https://clhak4cpr6wkmnc6.chasincocktails.com/OUTre/index.php#mCljCtG70JTZgsHY=cGFiYWkxOTY5QGhvdG1haWwuY29t",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "compass-nav.info",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://compass-nav.info/script/login_2026/index.php",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "conatem.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://conatem.com/adobeStudio.html",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "cursos-zensara.com",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://cursos-zensara.com/Adobe_Installer.html",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "dapp-coin.top",
+        "group": "global",
+        "score": 18,
+        "signals": [
+          "tld"
+        ],
+        "url": "https://dapp-coin.top/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "eventzones.de",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://mide4b.eventzones.de/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "flowcode.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://flowcode.com/p/wO0hwHbsG",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "folve.xyz",
+        "group": "global",
+        "score": 18,
+        "signals": [
+          "tld"
+        ],
+        "url": "https://mydpd.folve.xyz/track-ch",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "g5.lu",
+        "group": "global",
+        "score": 0,
+        "signals": [],
+        "url": "https://g5.lu/mb2w8",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "gamez-mlbb.com",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://montonz.gamez-mlbb.com/",
+        "first_seen": "2026-11-17 00:18 UTC"
+      },
+      {
+        "domain": "hh-homebase.de",
+        "group": "global",
+        "score": 27,
+        "signals": [
+          "http"
+        ],
+        "url": "http://hh-homebase.de/Yeomans",
+        "first_seen": "2026-11-17 00:18 UTC"
+      }
+    ]
+  },
+  "sources": {
+    "CERT-PL": {
+      "domains": 5359,
+      "not_listed": 1585,
+      "later": 1,
+      "same_time": 3773,
+      "excluded_baseline": 1,
+      "flagged_later": 1,
+      "lead_hours_q1": 5.499722222222222,
+      "lead_hours_median": 5.499722222222222,
+      "lead_hours_q3": 5.499722222222222
+    },
+    "OpenPhish": {
+      "domains": 5360,
+      "not_listed": 3909,
+      "later": 22,
+      "same_time": 1429,
+      "excluded_baseline": 0,
+      "flagged_later": 5,
+      "lead_hours_q1": 6.5,
+      "lead_hours_median": 6.5,
+      "lead_hours_q3": 6.5
+    },
+    "PhishTank": {
+      "domains": 5346,
+      "not_listed": 5125,
+      "later": 61,
+      "same_time": 160,
+      "excluded_baseline": 14,
+      "flagged_later": 34,
+      "lead_hours_q1": 2.5,
+      "lead_hours_median": 3.5,
+      "lead_hours_q3": 5.500208333333333
+    }
+  },
+  "stale_sources": [
+    "PhishingDB-ACTIVE",
+    "PhishingDB-NEW"
+  ],
+  "lead_hours": {
+    "CERT-PL": [
+      5.499722222222222
+    ],
+    "OpenPhish": [
+      5.5,
+      6.5,
+      6.5,
+      6.5,
+      9.5
+    ],
+    "PhishTank": [
+      1.5,
+      2.0,
+      2.0,
+      2.5,
+      2.5,
+      2.5,
+      2.5,
+      2.5,
+      2.5,
+      2.5,
+      2.5,
+      2.999722222222222,
+      3.499722222222222,
+      3.5,
+      3.5,
+      3.5,
+      3.5,
+      3.5,
+      4.0,
+      4.499722222222222,
+      4.5,
+      4.999722222222222,
+      5.0,
+      5.5,
+      5.5,
+      5.500277777777778,
+      5.999722222222222,
+      10.499722222222223,
+      12.0,
+      12.999722222222223,
+      14.499722222222223,
+      17.5,
+      17.5,
+      17.5
+    ]
+  }
+}
