@@ -8,6 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import http from "node:http";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -39,8 +40,16 @@ let extensionId;
 /** @type {Record<string, unknown>} */
 let managed = {};
 
+/** Máy chủ tĩnh cục bộ phục vụ trang người giám hộ (guardian/index.html), như khi host ở GitHub Pages. */
+/** @type {http.Server} */
+let pageServer;
+/** @type {string} */
+let pageBase = "";
+
 const GUARDIAN_ON = {
   guardian_enabled: true, guardian_public_key: vectors.policy.public_key, guardian_secret: vectors.hmac_secret, min_policy_version: 0,
+  /** @type {string | undefined} */
+  guardian_page_url: undefined,
 };
 
 /**
@@ -75,6 +84,19 @@ function codeFromPython(domain, nonce) {
 }
 
 before(async () => {
+  pageServer = http.createServer(async (req, res) => {
+    const name = new URL(req.url ?? "/", "http://x").pathname.replace(/^\/guardian\//, "");
+    const file = name === "" || name === "index.html" ? "index.html" : name === "sw.js" ? "sw.js" : null;
+    if (file === null) {
+      res.writeHead(404).end();
+      return;
+    }
+    res.writeHead(200, { "content-type": file.endsWith(".js") ? "text/javascript" : "text/html; charset=utf-8" });
+    res.end(await readFile(path.join(REPO_DIR, "guardian", file)));
+  });
+  await new Promise((resolve) => pageServer.listen(0, "127.0.0.1", () => resolve(undefined)));
+  pageBase = `http://localhost:${/** @type {import("node:net").AddressInfo} */ (pageServer.address()).port}/guardian/`;
+  GUARDIAN_ON.guardian_page_url = pageBase;
   profileDir = await mkdtemp(path.join(os.tmpdir(), "chotto-guardian-e2e-"));
   guardianDir = await mkdtemp(path.join(os.tmpdir(), "chotto-guardian-keys-"));
   await writeFile(path.join(guardianDir, "keys.json"), JSON.stringify({
@@ -90,9 +112,10 @@ before(async () => {
   });
   // Đọc được clipboard để kiểm tra lời nhắn được tự chép.
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://chat.zalo.me" });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: new URL(pageBase).origin });
   await context.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.protocol === "chrome-extension:") return route.continue();
+    if (url.protocol === "chrome-extension:" || url.hostname === "localhost") return route.continue();
     if (url.host === "chat.zalo.me") return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: PAGE });
     return route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: `<!doctype html><title>DEST</title><p>${url.host}</p>` });
   });
@@ -117,6 +140,7 @@ before(async () => {
 });
 
 after(async () => {
+  await new Promise((resolve) => pageServer?.close(() => resolve(undefined)));
   await context?.close();
   if (profileDir) await rm(profileDir, { recursive: true, force: true });
   if (guardianDir) await rm(guardianDir, { recursive: true, force: true });
@@ -347,7 +371,7 @@ test("màn hình 2 (đã nhờ): lời nhắn tự chép vào clipboard, một �
 
   // Lời nhắn: câu ngắn + tên trang web (không bấm được) + liên kết trang người giám hộ với dữ liệu ở #fragment.
   assert.equal(domain, "vietcombank-xacthuc.top");
-  assert.match(message, /^Mình nhận được link này, nhờ xem giúp có mở được không\?\nTrang web: vietcombank-xacthuc\[\.\]top\nhttps:\/\//);
+  assert.match(message, /^Mình nhận được link này, nhờ xem giúp có mở được không\?\nTrang web: vietcombank-xacthuc\[\.\]top\nhttps?:\/\//);
   assert.equal(new URL(link).search, "", "dữ liệu không nằm trong query");
   assert.match(new URL(link).hash, /^#v=1&d=vietcombank-xacthuc\.top&n=[2-9A-HJKMNP-Z]{12}$/);
 
@@ -474,6 +498,131 @@ test("mã đúng của tên miền khác bị từ chối; quá 5 lần sai thì
   await waitFor(async () => ((await navigationsTo("https://vcb-digibank-xacthuc.top/")) === 1 ? true : null));
   await tab.close();
   await page.close();
+});
+
+test("LUỒNG ĐẦY ĐỦ: bấm link nguy hiểm → Nhờ người giám hộ → clipboard → mở liên kết ở trang người giám hộ → Cho mở → mã → nhập → link mở", async () => {
+  const zalo = await context.newPage();
+  await openZalo(zalo);
+  await zalo.click("#phish");
+  const openedBefore = await navigationsTo("https://vietcombank-xacthuc.top/login");
+  const { message, link } = await askGuardian(zalo);
+  assert.ok(link.startsWith(pageBase), "liên kết trỏ tới trang người giám hộ đã cấu hình trong managed");
+
+  // Điện thoại của người giám hộ: cài đặt một lần bằng liên kết cài đặt (bí mật thử), rồi mở liên kết nhận được qua Zalo.
+  const phone = await context.newPage();
+  await phone.setViewportSize({ width: 420, height: 900 });
+  await phone.goto(`${pageBase}#setup=${vectors.hmac_secret}`);
+  await phone.getByRole("button", { name: "Lưu vào thiết bị này", exact: true }).click();
+  await phone.waitForSelector("text=Đã lưu vào thiết bị này.");
+  await phone.goto("about:blank");
+  await phone.goto(message.split("\n")[2]);
+  await phone.waitForSelector(".verdict");
+  assert.equal((await phone.textContent(".site"))?.trim(), "vietcombank-xacthuc.top");
+  assert.match(await phone.textContent(".banner") ?? "", /Đây có thể là lừa đảo/);
+  await phone.getByRole("button", { name: "Cho mở", exact: true }).click();
+  await phone.getByRole("button", { name: "Rồi, vẫn cho mở", exact: true }).click();
+  await phone.waitForSelector(".code");
+  const reply = await phone.textContent(".reply");
+  assert.match(reply ?? "", /^Mã của bạn là \d{3} \d{3}$/);
+  assert.equal(await phone.evaluate(() => navigator.clipboard.readText()), reply);
+  const code = (await phone.textContent(".code"))?.replace(/\s/g, "") ?? "";
+  await phone.close();
+
+  // Người được bảo vệ nhận câu trả lời, dán/gõ vào ô duy nhất (cả dạng "123 456") → link mở.
+  assert.equal(await navigationsTo("https://vietcombank-xacthuc.top/login"), openedBefore, "chưa nhập mã thì chưa mở");
+  await zalo.bringToFront();
+  const opening = context.waitForEvent("page");
+  const s = await shield(zalo);
+  await zalo.mouse.click((await s.center(s.byClass("gd-code"))).x, (await s.center(s.byClass("gd-code"))).y);
+  await enterCode(zalo, spaced(code));
+  const tab = await opening;
+  await waitFor(async () => ((await navigationsTo("https://vietcombank-xacthuc.top/login")) === openedBefore + 1 ? true : null));
+  await waitFor(async () => ((await shieldDom(zalo)) === null ? true : null));
+  await tab.close();
+  await zalo.close();
+});
+
+test("luồng 'Không cho mở': người giám hộ từ chối, câu trả lời soạn sẵn; link không mở; mã của người giám hộ cho trang khác không dùng được", async () => {
+  const zalo = await context.newPage();
+  await openZalo(zalo);
+  await zalo.click("#phish");
+  const openedBefore = await navigationsTo("https://vietcombank-xacthuc.top/login");
+  const { message } = await askGuardian(zalo);
+  const phone = await context.newPage();
+  await phone.goto(`${pageBase}#setup=${vectors.hmac_secret}`);
+  await phone.getByRole("button", { name: "Lưu vào thiết bị này", exact: true }).click();
+  await phone.waitForSelector("text=Đã lưu vào thiết bị này.");
+  await phone.goto("about:blank");
+  await phone.goto(message.split("\n")[2]);
+  await phone.waitForSelector(".verdict");
+  await phone.getByRole("button", { name: "Không cho mở", exact: true }).click();
+  await phone.waitForSelector(".reply");
+  assert.equal(await phone.textContent(".reply"), "Đừng mở link này nhé.");
+  assert.equal(await phone.locator(".code").count(), 0, "không có mã khi từ chối");
+  assert.equal(await phone.evaluate(() => navigator.clipboard.readText()), "Đừng mở link này nhé.");
+
+  // Kẻ gian gửi người giám hộ liên kết khác (trang khác): mã tính cho trang đó KHÔNG mở được link đang bị chặn ở đây.
+  await phone.goto("about:blank");
+  await phone.goto(`${pageBase}#v=1&d=vcb-digibank-xacthuc.top&n=${message.split("\n")[2].split("&n=")[1]}`);
+  await phone.waitForSelector(".verdict");
+  await phone.getByRole("button", { name: "Cho mở", exact: true }).click();
+  await phone.getByRole("button", { name: "Rồi, vẫn cho mở", exact: true }).click();
+  await phone.waitForSelector(".code");
+  const otherCode = (await phone.textContent(".code"))?.replace(/\s/g, "") ?? "";
+  await phone.close();
+
+  await zalo.bringToFront();
+  const s = await shield(zalo);
+  await zalo.mouse.click((await s.center(s.byClass("gd-code"))).x, (await s.center(s.byClass("gd-code"))).y);
+  await enterCode(zalo, otherCode);
+  assert.ok(await shieldWith(zalo, /Mã chưa đúng\. Còn \d lần thử\./));
+  assert.equal(await navigationsTo("https://vietcombank-xacthuc.top/login"), openedBefore, "người giám hộ không cho mở thì link không mở");
+  await zalo.keyboard.press("Escape");
+  await waitFor(async () => ((await shieldDom(zalo)) === null ? true : null));
+  await zalo.close();
+});
+
+test("guardian_name: 'Nhờ Mai xem giúp' (tên in đậm); không có tên thì 'người giám hộ'; tên độc hại được lọc và gán bằng textContent", async () => {
+  await setManaged({ ...GUARDIAN_ON, guardian_name: "  Mai‮  " });
+  try {
+    const page = await context.newPage();
+    await openZalo(page);
+    await page.click("#phish");
+    const s = await shield(page);
+    assert.deepEqual((await s.visibleButtons()).map((b) => b.text), ["Đóng", "Nhờ Mai xem giúp", "Thêm lựa chọn"]);
+    const bold = await s.firstVisible("gd-name");
+    assert.ok(bold, "tên người giám hộ in đậm trên nút");
+    assert.equal(s.text(bold), "Mai", "tên đã lọc ký tự đảo chiều/khoảng trắng thừa");
+    await shot(page, "man-hinh-1-co-ten.png");
+    const { opened } = await askGuardian(page);
+    assert.match(opened.hostText, /Gửi lời nhắn cho Mai/);
+    await page.keyboard.press("Escape");
+    await page.close();
+
+    // Tên có thẻ HTML/script: hiện nguyên chữ, không tạo phần tử nào.
+    await setManaged({ ...GUARDIAN_ON, guardian_name: "<img src=x onerror=alert(1)><b>Lan</b>" });
+    const evil = await context.newPage();
+    await openZalo(evil);
+    await evil.click("#phish");
+    const e = await shield(evil);
+    assert.equal(e.all.filter((n) => n.nodeName === "IMG").length, 0, "không có thẻ IMG");
+    assert.ok(e.hostText.includes("Nhờ <img src=x onerror=alert(1)>"), "tên hiện nguyên văn như chữ (cắt ở 30 ký tự)");
+    await evil.keyboard.press("Escape");
+    await evil.close();
+
+    // Không có tên (hoặc chỉ toàn ký tự điều khiển): dùng "người giám hộ".
+    await setManaged({ ...GUARDIAN_ON, guardian_name: "\u0000​" });
+    const plain = await context.newPage();
+    await openZalo(plain);
+    await plain.click("#phish");
+    const p = await shield(plain);
+    assert.deepEqual((await p.visibleButtons()).map((b) => b.text), ["Đóng", "Nhờ người giám hộ xem giúp", "Thêm lựa chọn"]);
+    assert.equal(await p.firstVisible("gd-name"), undefined, "không có tên thì không có phần in đậm");
+    await plain.keyboard.press("Escape");
+    await plain.close();
+  } finally {
+    await setManaged(GUARDIAN_ON);
+  }
 });
 
 test("mức WARN giữ hành vi cũ (đếm ngược rồi cho mở); link an toàn mở thẳng", async () => {
