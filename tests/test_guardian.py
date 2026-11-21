@@ -51,6 +51,7 @@ class CodeTests(unittest.TestCase):
     def test_normalize(self) -> None:
         self.assertEqual(guardian.normalize_domain(" Example.COM. "), "example.com")
         self.assertTrue(guardian.normalize_domain("vietcombánk.com").startswith("xn--"))
+        self.assertEqual(guardian.normalize_domain("my_host.example.com"), "my_host.example.com")
         self.assertEqual(guardian.normalize_nonce("k7qf-3mzd"), "K7QF3MZD")
         for bad in ("", "a|b.com", "exa mple.com"):
             with self.assertRaises(guardian.GuardianError):

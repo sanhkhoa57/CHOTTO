@@ -104,6 +104,7 @@ test("nonce: 40 bit ngẫu nhiên dạng base32 8 ký tự; chuẩn hóa chấp 
   assert.equal(normalizeNonce("K7QF-3M10"), null);
   assert.equal(normalizeDomain("Example.COM."), "example.com");
   assert.equal(normalizeDomain("a|b.com"), null);
+  assert.equal(normalizeDomain("my_host.example.com"), "my_host.example.com");
 });
 
 test("mã đúng mở đúng link; thử thách bị xóa ngay nên dùng lại bị từ chối", async () => {

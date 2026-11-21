@@ -94,7 +94,7 @@ export function normalizeNonce(text) {
  */
 export function normalizeDomain(text) {
   const clean = String(text).trim().toLowerCase().replace(/\.$/, "");
-  return /^[a-z0-9.\-:[\]]{1,253}$/.test(clean) && !clean.includes("|") ? clean : null;
+  return /^[a-z0-9._\-:[\]]{1,253}$/.test(clean) && !clean.includes("|") ? clean : null;
 }
 
 /**

@@ -73,3 +73,9 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Người dùng hay sắp hết token: trả lời ngắn gọn, làm trước, hỏi sau với việc nhỏ.
 - Chỉ commit/push khi được yêu cầu. Commit kết thúc bằng dòng `Co-Authored-By` theo hướng dẫn của phiên.
 - Các file `.html` trong `chotto/web` có hook `impeccable` quét thiết kế; cảnh báo `nested-cards` đã được đánh dấu bỏ qua cho `app.html` (báo nhầm).
+
+## Guardian mode (nhánh `guardian-mode`, tách từ `ui-redesign`, chưa merge)
+- Tài liệu đầy đủ: `docs/GUARDIAN-MODE.md` (mô hình đe dọa, cài demo). Lõi: `extension/src/guardian/*`, công cụ: `tools/guardian.py` (+ `guardian.html`), vector chung `tests/data/guardian_vectors.json` (sinh bằng `tools/gen_guardian_vectors.py`).
+- Cờ bật/khóa/secret chỉ đọc từ `chrome.storage.managed` (registry HKLM). ID tiện ích ghim bằng `key` trong manifest; khóa bí mật ngoài repo, `*.pem` trong `.gitignore`.
+- E2E Guardian giả lập managed bằng cách ghi đè `chrome.storage.managed.get` trong service worker; cần Chromium của Playwright (`npx playwright install chromium`, đặt `CHROMIUM_PATH` nếu bản không khớp). Không bao giờ ghi registry từ test.
+- Heredoc bash có dấu nháy đơn trong nội dung dễ vỡ ở công cụ Bash: ghi script bằng công cụ Write rồi chạy.

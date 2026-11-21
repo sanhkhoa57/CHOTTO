@@ -134,7 +134,7 @@
         panel?.open();
       });
     } else if (guardian || noProceed) {
-      proceed.hidden = true;   // không có đường nào để mở (Guardian bật nhưng không dựng được giao diện xin phép)
+      proceed.style.display = "none";   // (thuộc tính hidden bị .sh-proceed{display} ghi đè) không có đường nào để mở (Guardian bật nhưng không dựng được giao diện xin phép)
     } else {
       render();
       timer = setInterval(render, TICK_MS);

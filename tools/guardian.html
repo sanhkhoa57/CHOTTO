@@ -89,7 +89,7 @@
   };
   const normDomain = (t) => {
     const d = t.trim().toLowerCase().replace(/\.$/, "");
-    return /^[a-z0-9.\-:[\]]{1,253}$/.test(d) ? d : null;
+    return /^[a-z0-9._\-:[\]]{1,253}$/.test(d) ? d : null;
   };
   const normNonce = (t) => {
     const n = t.replace(/[\s-]/g, "").toUpperCase();

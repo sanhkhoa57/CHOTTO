@@ -86,7 +86,7 @@ def normalize_domain(text: str) -> str:
             clean = clean.encode("idna").decode("ascii")
         except UnicodeError as exc:
             raise GuardianError(f"Tên miền không hợp lệ: {text!r}") from exc
-    if not re.fullmatch(r"[a-z0-9.\-:\[\]]{1,253}", clean) or "|" in clean:
+    if not re.fullmatch(r"[a-z0-9._\-:\[\]]{1,253}", clean) or "|" in clean:
         raise GuardianError(f"Tên miền không hợp lệ: {text!r}")
     return clean
 
@@ -441,6 +441,7 @@ def render_banner(domain: str, assessment: dict[str, Any]) -> str:
     else:
         lines += [f"  CHOTTO chấm trang này mức {level} (điểm {assessment['score']}/100)."]
     lines += [f"   - {reason}" for reason in assessment["reasons"][:4]]
+    lines += ["  (Công cụ chỉ thấy TÊN MIỀN, không thấy đường dẫn: điểm có thể thấp hơn điểm tiện ích đã chấm cho cả link.)"]
     lines += [
         "",
         "  Trước khi đưa mã, hãy tự hỏi:",
