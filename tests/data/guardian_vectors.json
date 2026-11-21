@@ -4,57 +4,176 @@
   "codes": [
     {
       "domain": "vietcombank-xacthuc.top",
-      "nonce": "K7QF3MZD",
-      "message": "CHOTTO-GUARDIAN-v1|vietcombank-xacthuc.top|K7QF3MZD",
-      "code": "452759"
+      "nonce": "K7QF3MZDX9HP",
+      "message": "CHOTTO-GUARDIAN-v1|vietcombank-xacthuc.top|K7QF3MZDX9HP",
+      "code": "635114"
     },
     {
       "domain": "example.com",
-      "nonce": "AAAAAAAA",
-      "message": "CHOTTO-GUARDIAN-v1|example.com|AAAAAAAA",
-      "code": "572471"
+      "nonce": "AAAAAAAAAAAA",
+      "message": "CHOTTO-GUARDIAN-v1|example.com|AAAAAAAAAAAA",
+      "code": "735552"
     },
     {
       "domain": "xn--vietcmbank-ilb.com",
-      "nonce": "ZZZZ7777",
-      "message": "CHOTTO-GUARDIAN-v1|xn--vietcmbank-ilb.com|ZZZZ7777",
-      "code": "274650"
+      "nonce": "ZZZZ7777ZZZZ",
+      "message": "CHOTTO-GUARDIAN-v1|xn--vietcmbank-ilb.com|ZZZZ7777ZZZZ",
+      "code": "140958"
     },
     {
       "domain": "momo-hoantien.vip",
-      "nonce": "K7QF3MZD",
-      "message": "CHOTTO-GUARDIAN-v1|momo-hoantien.vip|K7QF3MZD",
-      "code": "593681"
+      "nonce": "K7QF3MZDX9HP",
+      "message": "CHOTTO-GUARDIAN-v1|momo-hoantien.vip|K7QF3MZDX9HP",
+      "code": "939166"
     },
     {
       "domain": "192.168.1.10",
-      "nonce": "QWERTYUI",
-      "message": "CHOTTO-GUARDIAN-v1|192.168.1.10|QWERTYUI",
-      "code": "802074"
+      "nonce": "QWERTYUPASDF",
+      "message": "CHOTTO-GUARDIAN-v1|192.168.1.10|QWERTYUPASDF",
+      "code": "324177"
     },
     {
       "domain": "a.b.c.example.co.uk",
-      "nonce": "234567AB",
-      "message": "CHOTTO-GUARDIAN-v1|a.b.c.example.co.uk|234567AB",
-      "code": "394685"
+      "nonce": "23456789ABCD",
+      "message": "CHOTTO-GUARDIAN-v1|a.b.c.example.co.uk|23456789ABCD",
+      "code": "529323"
     }
   ],
-  "nonce_bytes": [
+  "nonce_alphabet": "23456789ABCDEFGHJKMNPQRSTUVWXYZ",
+  "nonce_streams": [
     {
-      "hex": "0000000000",
-      "base32": "AAAAAAAA"
+      "hex": "000102030405060708090a0b",
+      "nonce": "23456789ABCD"
     },
     {
-      "hex": "ffffffffff",
-      "base32": "77777777"
+      "hex": "f7f6f5f4f3f2f1f0efeeedec",
+      "nonce": "ZYXWVUTSRQPN"
     },
     {
-      "hex": "0102030405",
-      "base32": "AEBAGBAF"
+      "hex": "f8f9fafbfcfdfeff000102030405060708090a0b0c0d",
+      "nonce": "23456789ABCD"
     },
     {
-      "hex": "deadbeef01",
-      "base32": "32W353YB"
+      "hex": "deadbeef0123456789abcdef0011223344556677",
+      "nonce": "7M6R369CFJNR"
+    },
+    {
+      "hex": "f8f8f8f8",
+      "nonce": null
+    }
+  ],
+  "names": [
+    {
+      "input": "Mai",
+      "expected": "Mai"
+    },
+    {
+      "input": "  Bà   Lan  ",
+      "expected": "Bà Lan"
+    },
+    {
+      "input": "Con‮evil​",
+      "expected": "Con evil"
+    },
+    {
+      "input": "Hà\u0000\u0007 Nội",
+      "expected": "Hà Nội"
+    },
+    {
+      "input": "<b>Mai</b>",
+      "expected": "<b>Mai</b>"
+    },
+    {
+      "input": "\n\t ",
+      "expected": null
+    },
+    {
+      "input": "",
+      "expected": null
+    },
+    {
+      "input": "Nguyễn Thị Thanh Tâm Nguyễn Thị Thanh Tâm",
+      "expected": "Nguyễn Thị Thanh Tâm Nguyễn Th"
+    },
+    {
+      "input": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "expected": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀"
+    },
+    {
+      "input": "Ông Ba",
+      "expected": "Ông Ba"
+    }
+  ],
+  "page_urls": [
+    {
+      "input": "https://example.github.io/CHOTTO/guardian/",
+      "expected": "https://example.github.io/CHOTTO/guardian/"
+    },
+    {
+      "input": "https://example.com/g/?x=1#frag",
+      "expected": "https://example.com/g/"
+    },
+    {
+      "input": "http://localhost:8080/guardian/",
+      "expected": "http://localhost:8080/guardian/"
+    },
+    {
+      "input": "http://example.com/guardian/",
+      "expected": null
+    },
+    {
+      "input": "https://user:pw@example.com/",
+      "expected": null
+    },
+    {
+      "input": "javascript:alert(1)",
+      "expected": null
+    },
+    {
+      "input": "https://example.com",
+      "expected": "https://example.com/"
+    },
+    {
+      "input": "",
+      "expected": null
+    }
+  ],
+  "share_links": [
+    {
+      "page": "https://example.github.io/CHOTTO/guardian/",
+      "domain": "vietcombank-xacthuc.top",
+      "nonce": "K7QF3MZDX9HP",
+      "link": "https://example.github.io/CHOTTO/guardian/#v=1&d=vietcombank-xacthuc.top&n=K7QF3MZDX9HP"
+    },
+    {
+      "page": "https://example.github.io/CHOTTO/guardian/",
+      "domain": "example.com",
+      "nonce": "AAAAAAAAAAAA",
+      "link": "https://example.github.io/CHOTTO/guardian/#v=1&d=example.com&n=AAAAAAAAAAAA"
+    },
+    {
+      "page": "https://example.github.io/CHOTTO/guardian/",
+      "domain": "xn--vietcmbank-ilb.com",
+      "nonce": "ZZZZ7777ZZZZ",
+      "link": "https://example.github.io/CHOTTO/guardian/#v=1&d=xn--vietcmbank-ilb.com&n=ZZZZ7777ZZZZ"
+    },
+    {
+      "page": "https://example.github.io/CHOTTO/guardian/",
+      "domain": "momo-hoantien.vip",
+      "nonce": "K7QF3MZDX9HP",
+      "link": "https://example.github.io/CHOTTO/guardian/#v=1&d=momo-hoantien.vip&n=K7QF3MZDX9HP"
+    },
+    {
+      "page": "https://example.github.io/CHOTTO/guardian/",
+      "domain": "192.168.1.10",
+      "nonce": "QWERTYUPASDF",
+      "link": "https://example.github.io/CHOTTO/guardian/#v=1&d=192.168.1.10&n=QWERTYUPASDF"
+    },
+    {
+      "page": "https://example.github.io/CHOTTO/guardian/",
+      "domain": "a.b.c.example.co.uk",
+      "nonce": "23456789ABCD",
+      "link": "https://example.github.io/CHOTTO/guardian/#v=1&d=a.b.c.example.co.uk&n=23456789ABCD"
     }
   ],
   "policy": {

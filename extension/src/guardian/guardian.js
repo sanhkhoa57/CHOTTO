@@ -14,9 +14,10 @@
  */
 
 import {
-  CODE_DIGITS, computeCode, constantTimeEqual, formatNonce, fromBase64Url, newNonce, normalizeDomain, sha256Hex,
+  computeCode, constantTimeEqual, formatNonce, fromBase64Url, newNonce, normalizeCodeInput, normalizeDomain, sha256Hex,
   verifyPolicySignature,
 } from "./codec.js";
+import { DEFAULT_PAGE_URL, sanitizeName, sanitizePageUrl } from "./share.js";
 
 export const STATE_KEY = "guardianState";
 export const POLICY_KEY = "guardianPolicy";
@@ -49,6 +50,8 @@ const STRICT_LEVELS = Object.freeze(["HIGH", "BLOCKED"]);
  * @property {number} minPolicyVersion
  * @property {Policy} policy
  * @property {string | null} policyProblem Lý do chính sách ký bị bỏ (``null`` nếu hợp lệ hoặc chưa có).
+ * @property {string | null} name Tên người giám hộ (managed ``guardian_name``, đã lọc), tùy chọn.
+ * @property {string} pageUrl Trang người giám hộ (managed ``guardian_page_url`` hợp lệ, hoặc mặc định).
  */
 
 /**
@@ -130,7 +133,10 @@ function toHex(bytes) {
  */
 export async function resolveConfig(managed, envelope) {
   if (!managed || !truthy(managed.guardian_enabled)) {
-    return { mode: "off", secret: null, publicKey: null, minPolicyVersion: 0, policy: strictPolicy(), policyProblem: null };
+    return {
+      mode: "off", secret: null, publicKey: null, minPolicyVersion: 0, policy: strictPolicy(), policyProblem: null,
+      name: null, pageUrl: DEFAULT_PAGE_URL,
+    };
   }
   /** @type {Uint8Array | null} */
   let secret = null;
@@ -163,7 +169,10 @@ export async function resolveConfig(managed, envelope) {
       policyProblem = error instanceof Error ? error.message : String(error);
     }
   }
-  return { mode, secret, publicKey, minPolicyVersion, policy, policyProblem };
+  return {
+    mode, secret, publicKey, minPolicyVersion, policy, policyProblem,
+    name: sanitizeName(managed.guardian_name), pageUrl: sanitizePageUrl(managed.guardian_page_url) ?? DEFAULT_PAGE_URL,
+  };
 }
 
 /**
@@ -397,8 +406,8 @@ export class Guardian {
       const challenge = Object.prototype.hasOwnProperty.call(state.challenges, id) ? state.challenges[id] : undefined;
       if (!challenge) return done({ ok: false, reason: "gone" }); // chưa có, đã dùng, hết hạn, bị hủy (khởi động lại/lùi giờ/khóa)
       if (now < state.lockedUntil) return done({ ok: false, reason: "locked", lockedUntil: state.lockedUntil });
-      const clean = String(code).replace(/\s/g, "");
-      if (!new RegExp(`^\\d{${CODE_DIGITS}}$`).test(clean)) {
+      const clean = normalizeCodeInput(code);
+      if (clean === null) {
         return done({ ok: false, reason: "format", attemptsLeft: MAX_ATTEMPTS - challenge.attempts });
       }
       if (challenge.urlHash !== (await sha256Hex(url))) return done({ ok: false, reason: "mismatch" });

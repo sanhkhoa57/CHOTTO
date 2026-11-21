@@ -8,8 +8,10 @@ Mọi thứ chạy offline. Khóa và bí mật nằm trong thư mục người 
 Lệnh:
   init                      sinh khóa Ed25519 + bí mật HMAC
   sign-policy policy.json   ký chính sách, tự tăng version
-  make-reg --browser chrome|edge   xuất file .reg (managed storage), file gỡ bỏ và file làm cứng (CHỈ TẠO, không áp dụng)
-  code <tên miền> <nonce>   chấm lại tên miền bằng engine, cảnh báo, rồi in mã 6 số
+  make-reg --browser chrome|edge   xuất file .reg (managed storage), file gỡ bỏ và file làm cứng (CHỈ TẠO, không áp dụng);
+                            --name "Tên" (tùy chọn) và --page-url <địa chỉ trang người giám hộ>
+  code <tên miền> <mã>      chấm lại tên miền bằng engine, cảnh báo, rồi in mã 6 số (hoặc dán nguyên liên kết người nhờ gửi)
+  export-guardian           in chuỗi cài đặt cho trang người giám hộ (guardian/index.html); --html tạo trang có mã QR
   make-html                 tạo trang guardian.html (nhúng bí mật) để dùng offline trên điện thoại
 
 Chỉ ``init``/``sign-policy`` cần gói ``cryptography`` (Ed25519); mã mở khóa và .reg chỉ dùng thư viện chuẩn.
@@ -29,14 +31,26 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 from pathlib import Path
 from typing import Any, Final
+from urllib.parse import parse_qs, quote, urlsplit
 
 ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 EXTENSION_MANIFEST: Final[Path] = ROOT / "extension" / "manifest.json"
 HTML_TEMPLATE: Final[Path] = Path(__file__).resolve().parent / "guardian.html"
 
 CODE_CONTEXT: Final[str] = "CHOTTO-GUARDIAN-v1"
+# Bộ chữ nonce: 31 ký tự, BỎ I, L, O, 0, 1 (dễ nhầm khi đọc/gõ). Khớp ``extension/src/guardian/codec.js``.
+NONCE_ALPHABET: Final[str] = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+NONCE_LENGTH: Final[int] = 12   # 12 × log2(31) ≈ 59,4 bit (yêu cầu ≥ 40 bit)
+NONCE_GROUP: Final[int] = 4
+_NONCE_BYTE_LIMIT: Final[int] = 248   # = 31 × 8: byte ≥ 248 bị bỏ để mỗi ký tự đều đặn như nhau
+FRAGMENT_VERSION: Final[int] = 1
+DEFAULT_PAGE_URL: Final[str] = "https://sanhkhoa57.github.io/CHOTTO/guardian/"   # khớp share.js
+MAX_NAME_LENGTH: Final[int] = 30
+SETUP_PREFIX: Final[str] = "CHOTTO-GUARDIAN-SETUP-v1:"
+_UNSAFE_CATEGORIES: Final[frozenset[str]] = frozenset({"Cc", "Cf", "Co", "Cs", "Zl", "Zp"})
 POLICY_CONTEXT: Final[bytes] = b"CHOTTO-GUARDIAN-POLICY-v1\n"
 CODE_DIGITS: Final[int] = 6
 LEVELS: Final[tuple[str, ...]] = ("WARN", "HIGH", "BLOCKED")
@@ -92,15 +106,83 @@ def normalize_domain(text: str) -> str:
 
 
 def normalize_nonce(text: str) -> str:
-    """Nonce chuẩn: bỏ gạch/khoảng trắng, chữ hoa, đúng 8 ký tự base32.
+    """Nonce chuẩn: bỏ gạch/khoảng trắng, chữ hoa, đúng 12 ký tự trong bộ chữ không gây nhầm.
 
     Raises:
         GuardianError: Sai dạng.
     """
     clean = re.sub(r"[\s-]", "", text).upper()
-    if not re.fullmatch(r"[A-Z2-7]{8}", clean):
-        raise GuardianError(f"Mã thử thách không hợp lệ: {text!r} (cần 8 ký tự, ví dụ K7QF-3MZD).")
+    if not re.fullmatch(f"[{NONCE_ALPHABET}]{{{NONCE_LENGTH}}}", clean):
+        raise GuardianError(f"Mã không hợp lệ: {text!r} (cần {NONCE_LENGTH} ký tự, ví dụ K7QF-3MZD-X9HP; "
+                            "không có chữ I, L, O và số 0, 1).")
     return clean
+
+
+def format_nonce(nonce: str) -> str:
+    """``K7QF3MZDX9HP`` → ``K7QF-3MZD-X9HP`` (nhóm 4 ký tự)."""
+    return "-".join(nonce[i:i + NONCE_GROUP] for i in range(0, len(nonce), NONCE_GROUP))
+
+
+def nonce_from_bytes(data: bytes) -> str | None:
+    """Nonce từ dòng byte ngẫu nhiên (byte ≥ 248 bị bỏ); ``None`` nếu chưa đủ. Cùng thuật toán với ``codec.js``."""
+    out = ""
+    for byte in data:
+        if len(out) == NONCE_LENGTH:
+            break
+        if byte < _NONCE_BYTE_LIMIT:
+            out += NONCE_ALPHABET[byte % len(NONCE_ALPHABET)]
+    return out if len(out) == NONCE_LENGTH else None
+
+
+def sanitize_name(value: object) -> str | None:
+    """Tên người giám hộ (``guardian_name``): bỏ ký tự điều khiển/vô hình, gộp khoảng trắng, tối đa 30 ký tự.
+
+    Cùng quy tắc với ``sanitizeName`` của ``share.js``; ``None`` nếu rỗng sau khi lọc.
+    """
+    if not isinstance(value, str):
+        return None
+    spaced = "".join(" " if unicodedata.category(ch) in _UNSAFE_CATEGORIES else ch for ch in value)
+    clean = " ".join(spaced.split())
+    limited = clean[:MAX_NAME_LENGTH].strip()
+    return limited or None
+
+
+def sanitize_page_url(value: object) -> str | None:
+    """Địa chỉ trang người giám hộ: chỉ https (hoặc http tới localhost), không tài khoản/mật khẩu; bỏ query/fragment."""
+    if not isinstance(value, str) or len(value) > 512:
+        return None
+    try:
+        parts = urlsplit(value.strip())
+        host = parts.hostname or ""
+        local = host in ("localhost", "127.0.0.1")
+        if parts.scheme != "https" and not (parts.scheme == "http" and local):
+            return None
+        if not host or parts.username is not None or parts.password is not None:
+            return None
+        port = f":{parts.port}" if parts.port and not (parts.scheme, parts.port) in (("https", 443), ("http", 80)) else ""
+        return f"{parts.scheme}://{host}{port}{parts.path or '/'}"
+    except ValueError:
+        return None
+
+
+def build_share_link(page_url: str, domain: str, nonce: str) -> str:
+    """Liên kết tới trang người giám hộ; dữ liệu nằm ở ``#fragment`` (không bao giờ tới máy chủ host trang)."""
+    return f"{page_url}#v={FRAGMENT_VERSION}&d={quote(domain, safe='')}&n={nonce}"
+
+
+def parse_share_link(text: str) -> tuple[str, str] | None:
+    """``(tên miền, nonce)`` từ liên kết trang người giám hộ; ``None`` nếu không có fragment đúng dạng.
+
+    Raises:
+        GuardianError: Có fragment nhưng sai phiên bản hoặc dữ liệu hỏng.
+    """
+    parts = urlsplit(text.strip())
+    if not parts.fragment or "d=" not in parts.fragment:
+        return None
+    query = parse_qs(parts.fragment, keep_blank_values=True)
+    if query.get("v", [""])[0] != str(FRAGMENT_VERSION):
+        raise GuardianError("Liên kết này thuộc phiên bản khác, hãy cập nhật công cụ.")
+    return normalize_domain(query.get("d", [""])[0]), normalize_nonce(query.get("n", [""])[0])
 
 
 def challenge_message(domain: str, nonce: str) -> str:
@@ -117,15 +199,19 @@ def compute_code(secret: bytes, domain: str, nonce: str) -> str:
 
 
 def parse_challenge(first: str, second: str | None) -> tuple[str, str]:
-    """Nhận ``<tên miền> <nonce>`` hoặc chuỗi dán nguyên từ QR ``CHOTTO-GUARDIAN-v1|<tên miền>|<nonce>``.
+    """Nhận ``<tên miền> <nonce>``, liên kết của trang người giám hộ (có ``#v=1&d=…&n=…``), hoặc chuỗi cũ
+    ``CHOTTO-GUARDIAN-v1|<tên miền>|<nonce>``.
 
     Raises:
         GuardianError: Sai dạng.
     """
     if second is None:
+        linked = parse_share_link(first)
+        if linked is not None:
+            return linked
         parts = first.strip().split("|")
         if len(parts) != 3 or parts[0] != CODE_CONTEXT:
-            raise GuardianError("Hãy nhập: code <tên miền> <mã thử thách>, hoặc dán nguyên nội dung mã QR.")
+            raise GuardianError("Hãy nhập: code <tên miền> <mã>, hoặc dán nguyên liên kết người nhờ gửi.")
         return normalize_domain(parts[1]), normalize_nonce(parts[2])
     return normalize_domain(first), normalize_nonce(second)
 
@@ -337,11 +423,14 @@ def _reg_string(value: str) -> str:
 
 
 def make_reg_files(browser: str, extension_id: str, public_b64: str, secret_b64: str,
-                   min_policy_version: int) -> dict[str, str]:
+                   min_policy_version: int, *, name: str | None = None,
+                   page_url: str | None = None) -> dict[str, str]:
     """Nội dung ba file .reg: ``policy`` (bật Guardian), ``remove`` (gỡ), ``hardening`` (làm cứng, tách riêng).
 
+    ``name`` (``guardian_name``, tùy chọn) được lọc bằng ``sanitize_name``; ``page_url`` (``guardian_page_url``) phải là https.
+
     Raises:
-        GuardianError: Trình duyệt hoặc ID không hợp lệ.
+        GuardianError: Trình duyệt, ID hoặc địa chỉ trang không hợp lệ.
     """
     if browser not in BROWSERS:
         raise GuardianError(f"Trình duyệt phải là một trong {sorted(BROWSERS)}.")
@@ -352,6 +441,15 @@ def make_reg_files(browser: str, extension_id: str, public_b64: str, secret_b64:
     policy_key = extension_key + r"\policy"
     browser_key = rf"HKEY_LOCAL_MACHINE\{base}"
     head = "Windows Registry Editor Version 5.00\r\n"
+    optional = ""
+    clean_name = sanitize_name(name) if name is not None else None
+    if clean_name is not None:
+        optional += f'"guardian_name"={_reg_string(clean_name)}\r\n'
+    if page_url is not None:
+        clean_url = sanitize_page_url(page_url)
+        if clean_url is None:
+            raise GuardianError(f"Địa chỉ trang người giám hộ phải là https://… (nhận: {page_url!r}).")
+        optional += f'"guardian_page_url"={_reg_string(clean_url)}\r\n'
     policy = (
         f"{head}\r\n"
         "; CHOTTO Guardian mode: chính sách quản lý cho tiện ích. CHỨA BÍ MẬT HMAC: không chia sẻ, không đưa vào repo.\r\n"
@@ -362,6 +460,7 @@ def make_reg_files(browser: str, extension_id: str, public_b64: str, secret_b64:
         f'"guardian_public_key"={_reg_string(public_b64)}\r\n'
         f'"guardian_secret"={_reg_string(secret_b64)}\r\n'
         f'"min_policy_version"=dword:{min_policy_version:08x}\r\n'
+        f"{optional}"
     )
     hardening_names = ["IncognitoModeAvailability", "DeveloperToolsAvailability"]
     if browser == "edge":
@@ -466,7 +565,7 @@ def code_command(directory: Path, first: str, second: str | None, *, assume_yes:
             print("Đã hủy, không cấp mã.")
             return 1
     secret = b64u_decode(keys["hmac_secret"])
-    print(f"\n  MÃ MỞ KHÓA cho {domain} / {nonce[:4]}-{nonce[4:]}:   {format_code(compute_code(secret, domain, nonce))}\n"
+    print(f"\n  MÃ MỞ KHÓA cho {domain} / {format_nonce(nonce)}:   {format_code(compute_code(secret, domain, nonce))}\n"
           "  (Chỉ dùng được một lần, chỉ cho đúng liên kết này, hết hạn sau vài phút.)")
     return 0
 
@@ -491,6 +590,61 @@ def make_html(directory: Path, out: Path | None = None) -> Path:
     return target
 
 
+# ---------------------------------------------------------------- cài đặt cho trang người giám hộ
+
+
+QR_LIBRARY: Final[Path] = ROOT / "extension" / "src" / "vendor" / "qrcode-generator.js"
+_SETUP_HTML: Final[str] = """<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cài đặt trang người giám hộ</title>
+<style>body{font:18px/1.6 system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px}
+code{display:block;word-break:break-all;padding:12px;background:#f2ece1;border-radius:8px;user-select:all}
+#qr{width:280px;height:280px}.warn{padding:12px;background:#fde8e6;border-radius:8px}</style></head><body>
+<h1>Cài đặt trang người giám hộ</h1>
+<p class="warn"><b>Tệp này chứa bí mật.</b> Chỉ dùng trên máy của bạn, xong thì xóa. Không gửi qua Zalo, không đưa vào repo.</p>
+<p>Cách 1: mở camera điện thoại của người giám hộ, quét hình vuông này, mở liên kết hiện ra rồi bấm &laquo;Lưu vào thiết bị này&raquo;.</p>
+<div id="qr" role="img" aria-label="Mã quét cài đặt"></div>
+<p>Cách 2: mở trang người giám hộ, dán chuỗi dưới đây vào ô &laquo;Chuỗi cài đặt&raquo;.</p>
+<code id="setup"></code>
+<script>__QR_LIBRARY__</script>
+<script>
+const link = __LINK__;
+document.getElementById("setup").textContent = __SETUP__;
+const qr = qrcode(0, "M"); qr.addData(link); qr.make();
+document.getElementById("qr").innerHTML = qr.createSvgTag({cellSize: 6, margin: 4, scalable: true});
+</script></body></html>
+"""
+
+
+def setup_string(keys: dict[str, Any]) -> str:
+    """Chuỗi cài đặt cho trang người giám hộ: ``CHOTTO-GUARDIAN-SETUP-v1:<bí mật base64url>``."""
+    return SETUP_PREFIX + str(keys["hmac_secret"])
+
+
+def setup_link(keys: dict[str, Any], page_url: str) -> str:
+    """Liên kết cài đặt (nội dung mã quét): bí mật nằm ở fragment, trang xóa nó khỏi thanh địa chỉ ngay khi đọc xong."""
+    return f"{page_url}#setup={keys['hmac_secret']}"
+
+
+def make_setup_html(directory: Path, page_url: str, out: Path | None = None) -> Path:
+    """Tạo trang HTML (ngoài repo, quyền chỉ chủ sở hữu) hiện mã quét + chuỗi cài đặt.
+
+    Raises:
+        GuardianError: Chưa init, địa chỉ trang sai hoặc đích nằm trong repo.
+    """
+    keys = load_keys(directory)
+    clean_url = sanitize_page_url(page_url)
+    if clean_url is None:
+        raise GuardianError(f"Địa chỉ trang người giám hộ phải là https://… (nhận: {page_url!r}).")
+    target = ensure_outside_repo(out or directory / "guardian-setup.html")
+    html = (_SETUP_HTML.replace("__QR_LIBRARY__", QR_LIBRARY.read_text("utf-8").replace("</script", "<\\/script"))
+            .replace("__LINK__", json.dumps(setup_link(keys, clean_url)))
+            .replace("__SETUP__", json.dumps(setup_string(keys))))
+    target.write_text(html, "utf-8")
+    restrict_permissions(target)
+    return target
+
+
 # ---------------------------------------------------------------- CLI
 
 
@@ -509,12 +663,18 @@ def build_parser() -> argparse.ArgumentParser:
     reg.add_argument("--extension-id", default=None, help="mặc định: ID ghim trong extension/manifest.json")
     reg.add_argument("--min-policy-version", type=int, default=None, help="mặc định: version chính sách đã ký gần nhất")
     reg.add_argument("--out", type=Path, default=None)
+    reg.add_argument("--name", default=None, help="tên người giám hộ hiện trên màn hình ('Nhờ <tên> xem giúp'), tối đa 30 ký tự")
+    reg.add_argument("--page-url", default=None, help=f"địa chỉ trang người giám hộ (https); mặc định của tiện ích: {DEFAULT_PAGE_URL}")
     code = sub.add_parser("code", help="in mã mở khóa cho một thử thách")
-    code.add_argument("domain", help="tên miền, hoặc nguyên nội dung mã QR")
+    code.add_argument("domain", help="tên miền, hoặc nguyên liên kết người nhờ gửi")
     code.add_argument("nonce", nargs="?", default=None)
     code.add_argument("--yes", action="store_true", help="bỏ qua bước gõ lại tên miền để xác nhận")
     html = sub.add_parser("make-html", help="tạo guardian-app.html nhúng bí mật")
     html.add_argument("--out", type=Path, default=None)
+    export = sub.add_parser("export-guardian", help="in chuỗi cài đặt cho trang người giám hộ (guardian/index.html)")
+    export.add_argument("--html", action="store_true", help="tạo thêm guardian-setup.html có mã quét (ngoài repo)")
+    export.add_argument("--page-url", default=DEFAULT_PAGE_URL, help="địa chỉ trang người giám hộ (cho mã quét)")
+    export.add_argument("--out", type=Path, default=None)
     return parser
 
 
@@ -541,7 +701,8 @@ def main(argv: list[str] | None = None) -> int:
             out_dir.mkdir(parents=True, exist_ok=True)
             minimum = int(keys["policy_version"]) if args.min_policy_version is None else args.min_policy_version
             files = make_reg_files(args.browser, args.extension_id or manifest_extension_id(),
-                                   keys["ed25519_public"], keys["hmac_secret"], minimum)
+                                   keys["ed25519_public"], keys["hmac_secret"], minimum,
+                                   name=args.name, page_url=args.page_url)
             names = {"policy": f"chotto-guardian-{args.browser}.reg", "remove": f"chotto-guardian-{args.browser}-remove.reg",
                      "hardening": f"chotto-guardian-{args.browser}-hardening.reg"}
             for kind, text in files.items():
@@ -550,6 +711,11 @@ def main(argv: list[str] | None = None) -> int:
             print("CHƯA áp dụng gì. Tự chạy file .reg bằng quyền Administrator (xem docs/GUARDIAN-MODE.md).")
         elif args.command == "code":
             return code_command(directory, args.domain, args.nonce, assume_yes=args.yes)
+        elif args.command == "export-guardian":
+            keys = load_keys(directory)
+            print("Chuỗi cài đặt (BÍ MẬT, chỉ dán vào trang người giám hộ của bạn):\n\n  " + setup_string(keys) + "\n")
+            if args.html:
+                print(f"Đã tạo {make_setup_html(directory, args.page_url, args.out)} (có chứa bí mật: xóa sau khi cài).")
         elif args.command == "make-html":
             print(f"Đã tạo {make_html(directory, args.out)} (có chứa bí mật HMAC: chỉ chép sang thiết bị của bạn).")
     except GuardianError as exc:

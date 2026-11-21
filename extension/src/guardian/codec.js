@@ -11,8 +11,17 @@ export const CODE_CONTEXT = "CHOTTO-GUARDIAN-v1";
 /** Tiền tố ngữ cảnh khi ký chính sách Ed25519. */
 export const POLICY_CONTEXT = "CHOTTO-GUARDIAN-POLICY-v1\n";
 export const CODE_DIGITS = 6;
-export const NONCE_BYTES = 5; // 40 bit
-const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+/**
+ * Bộ chữ của nonce: 31 ký tự, BỎ các ký tự dễ nhầm khi đọc/gõ: ``I`` ``L`` ``O`` (giống ``1`` ``1`` ``0``) và ``0`` ``1``.
+ * Không phải base32 chuẩn nên sinh bằng lấy mẫu loại bỏ (rejection sampling) để mỗi ký tự đều đặn như nhau.
+ */
+export const NONCE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+/** 12 ký tự × log2(31) ≈ 59,4 bit (yêu cầu ≥ 40 bit); 3 nhóm 4 ký tự dễ đọc bằng miệng. */
+export const NONCE_LENGTH = 12;
+export const NONCE_GROUP = 4;
+/** Byte < 248 (= 31 × 8) thì ``byte % 31`` đều đặn; byte còn lại bị bỏ. */
+const NONCE_BYTE_LIMIT = 248;
+const NONCE_PATTERN = new RegExp(`^[${NONCE_ALPHABET}]{${NONCE_LENGTH}}$`);
 
 const encoder = new TextEncoder();
 
@@ -41,40 +50,40 @@ export function toBase64Url(bytes) {
 }
 
 /**
- * @param {Uint8Array} bytes Độ dài là bội của 5 (không đệm).
- * @returns {string} Base32 (RFC 4648, chữ hoa, không đệm).
+ * Nonce từ một dòng byte ngẫu nhiên: byte ≥ 248 bị bỏ (loại bỏ lệch), lấy đủ ``NONCE_LENGTH`` ký tự.
+ * Tất định theo dòng byte nên có vector kiểm thử chung với Python.
+ * @param {ArrayLike<number>} bytes
+ * @returns {string | null} ``null`` nếu dòng byte chưa đủ để lấy đủ ký tự.
  */
-export function toBase32(bytes) {
-  let bits = 0;
-  let value = 0;
+export function nonceFromBytes(bytes) {
   let out = "";
-  for (const b of bytes) {
-    value = (value << 8) | b;
-    bits += 8;
-    while (bits >= 5) {
-      out += BASE32[(value >>> (bits - 5)) & 31];
-      bits -= 5;
-    }
+  for (let i = 0; i < bytes.length && out.length < NONCE_LENGTH; i++) {
+    if (bytes[i] < NONCE_BYTE_LIMIT) out += NONCE_ALPHABET[bytes[i] % NONCE_ALPHABET.length];
   }
-  if (bits > 0) out += BASE32[(value << (5 - bits)) & 31];
-  return out;
+  return out.length === NONCE_LENGTH ? out : null;
 }
 
 /**
- * Nonce ngẫu nhiên 40 bit, dạng base32 8 ký tự (ví dụ ``K7QF3MZD``).
+ * Nonce ngẫu nhiên 12 ký tự (~59 bit) từ bộ chữ không gây nhầm, ví dụ ``K7QF3MZDX9HP``.
  * @param {(n: number) => Uint8Array} [random]
  * @returns {string}
  */
 export function newNonce(random = (n) => crypto.getRandomValues(new Uint8Array(n))) {
-  return toBase32(random(NONCE_BYTES));
+  for (let round = 0; round < 64; round++) {
+    const nonce = nonceFromBytes(random(NONCE_LENGTH * 2));
+    if (nonce !== null) return nonce;
+  }
+  throw new Error("không sinh được nonce (nguồn ngẫu nhiên có vấn đề)");
 }
 
 /**
- * @param {string} nonce 8 ký tự base32.
- * @returns {string} ``K7QF-3MZD``.
+ * @param {string} nonce 12 ký tự.
+ * @returns {string} ``K7QF-3MZD-X9HP``.
  */
 export function formatNonce(nonce) {
-  return `${nonce.slice(0, 4)}-${nonce.slice(4)}`;
+  const groups = [];
+  for (let i = 0; i < nonce.length; i += NONCE_GROUP) groups.push(nonce.slice(i, i + NONCE_GROUP));
+  return groups.join("-");
 }
 
 /**
@@ -84,7 +93,18 @@ export function formatNonce(nonce) {
  */
 export function normalizeNonce(text) {
   const clean = String(text).replace(/[\s-]/g, "").toUpperCase();
-  return /^[A-Z2-7]{8}$/.test(clean) ? clean : null;
+  return NONCE_PATTERN.test(clean) ? clean : null;
+}
+
+/**
+ * Mã mở khóa người dùng gõ/dán: lấy các chữ số (bỏ khoảng trắng, gạch, chữ), đúng 6 số thì trả về.
+ * Nhờ vậy "123 456", "123-456" và cả "Mã của bạn là 123 456" đều dùng được.
+ * @param {string} text
+ * @returns {string | null}
+ */
+export function normalizeCodeInput(text) {
+  const digits = String(text).replace(/\D/g, "");
+  return digits.length === CODE_DIGITS ? digits : null;
 }
 
 /**

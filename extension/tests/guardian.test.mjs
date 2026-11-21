@@ -6,8 +6,10 @@ import path from "node:path";
 import { test } from "node:test";
 
 import {
-  POLICY_CONTEXT, computeCode, fromBase64Url, newNonce, normalizeDomain, normalizeNonce, toBase32, toBase64Url,
+  NONCE_ALPHABET, NONCE_LENGTH, POLICY_CONTEXT, computeCode, formatNonce, fromBase64Url, newNonce, nonceFromBytes,
+  normalizeDomain, normalizeNonce, toBase64Url,
 } from "../src/guardian/codec.js";
+import { sanitizeName, sanitizePageUrl, buildShareLink } from "../src/guardian/share.js";
 import {
   CLOCK_TOLERANCE_MS, DEFAULT_TTL_MS, Guardian, LOCK_STEPS_MS, MAX_ATTEMPTS, POLICY_KEY, resolveConfig, STATE_KEY,
 } from "../src/guardian/guardian.js";
@@ -81,9 +83,13 @@ async function challenge(guardian, url, domain) {
 /** Mã chắc chắn sai (khác mã đúng). */
 const wrong = (/** @type {string} */ code) => String((Number(code) + 1) % 1_000_000).padStart(6, "0");
 
-test("vector chung với Python: mã mở khóa, base32, chữ ký chính sách Ed25519", async () => {
+test("vector chung với Python: mã mở khóa, nonce, tên, địa chỉ trang, liên kết, chữ ký chính sách Ed25519", async () => {
   for (const v of vectors.codes) assert.equal(await computeCode(SECRET, v.domain, v.nonce), v.code, v.message);
-  for (const v of vectors.nonce_bytes) assert.equal(toBase32(Uint8Array.from(Buffer.from(v.hex, "hex"))), v.base32);
+  assert.equal(NONCE_ALPHABET, vectors.nonce_alphabet);
+  for (const v of vectors.nonce_streams) assert.equal(nonceFromBytes(Uint8Array.from(Buffer.from(v.hex, "hex"))), v.nonce, v.hex);
+  for (const v of vectors.names) assert.equal(sanitizeName(v.input), v.expected, JSON.stringify(v.input));
+  for (const v of vectors.page_urls) assert.equal(sanitizePageUrl(v.input), v.expected, JSON.stringify(v.input));
+  for (const v of vectors.share_links) assert.equal(buildShareLink(v.page, v.domain, v.nonce), v.link);
   const config = await resolveConfig(
     { guardian_enabled: true, guardian_public_key: vectors.policy.public_key, guardian_secret: vectors.hmac_secret, min_policy_version: 7 },
     { payload: vectors.policy.payload, signature: vectors.policy.signature });
@@ -94,14 +100,30 @@ test("vector chung với Python: mã mở khóa, base32, chữ ký chính sách 
   assert.deepEqual([...config.policy.requireLevels].sort(), ["BLOCKED", "HIGH"]);
 });
 
-test("nonce: 40 bit ngẫu nhiên dạng base32 8 ký tự; chuẩn hóa chấp nhận gạch và chữ thường", () => {
+test("nonce: bộ chữ không gây nhầm (không I, L, O, 0, 1), entropy ≥ 40 bit, nhóm 4 ký tự", () => {
+  for (const bad of "ILO01") assert.ok(!NONCE_ALPHABET.includes(bad), `bộ chữ không được có ${bad}`);
+  assert.equal(new Set(NONCE_ALPHABET).size, NONCE_ALPHABET.length, "không trùng ký tự");
+  assert.ok(NONCE_LENGTH * Math.log2(NONCE_ALPHABET.length) >= 40, "entropy ≥ 40 bit");
   const n = newNonce();
-  assert.match(n, /^[A-Z2-7]{8}$/);
+  assert.match(n, new RegExp(`^[${NONCE_ALPHABET}]{${NONCE_LENGTH}}$`));
   assert.notEqual(newNonce(), newNonce());
-  assert.equal(normalizeNonce("k7qf-3mzd"), "K7QF3MZD");
-  assert.equal(normalizeNonce("K7QF 3MZD"), "K7QF3MZD");
-  assert.equal(normalizeNonce("K7QF-3MZ"), null);
-  assert.equal(normalizeNonce("K7QF-3M10"), null);
+  assert.equal(formatNonce("K7QF3MZDX9HP"), "K7QF-3MZD-X9HP");
+  // Lấy mẫu loại bỏ: byte >= 248 bị bỏ; thiếu byte hợp lệ thì thử lại với dữ liệu mới.
+  assert.equal(nonceFromBytes(Uint8Array.from([255, 248, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])), "23456789ABCD");
+  assert.equal(nonceFromBytes(Uint8Array.from([255, 255, 255])), null);
+  let calls = 0;
+  const flaky = newNonce((count) => (calls++ === 0 ? new Uint8Array(count).fill(255) : new Uint8Array(count)));
+  assert.equal(flaky, "2".repeat(NONCE_LENGTH));
+  // Phân bố đều (kiểm tra thô): 31 ký tự đều xuất hiện, không lệch nặng.
+  const counts = new Map();
+  for (let i = 0; i < 5200; i++) for (const ch of newNonce()) counts.set(ch, (counts.get(ch) ?? 0) + 1);
+  assert.equal(counts.size, NONCE_ALPHABET.length);
+  for (const count of counts.values()) assert.ok(Math.abs(count - 2000) < 300, `ký tự lệch phân bố: ${count}`);
+  assert.equal(normalizeNonce("k7qf-3mzd-x9hp"), "K7QF3MZDX9HP");
+  assert.equal(normalizeNonce("K7QF 3MZD X9HP"), "K7QF3MZDX9HP");
+  assert.equal(normalizeNonce("K7QF-3MZD"), null);
+  assert.equal(normalizeNonce("K7QF-3MZD-X9H1"), null, "số 1 không thuộc bộ chữ");
+  assert.equal(normalizeNonce("K7QF-3MZD-X9HO"), null, "chữ O không thuộc bộ chữ");
   assert.equal(normalizeDomain("Example.COM."), "example.com");
   assert.equal(normalizeDomain("a|b.com"), null);
   assert.equal(normalizeDomain("my_host.example.com"), "my_host.example.com");
@@ -111,7 +133,7 @@ test("mã đúng mở đúng link; thử thách bị xóa ngay nên dùng lại 
   const { env } = await setup();
   const c = await challenge(env.guardian, URL_A, "vietcombank-xacthuc.top");
   assert.equal(c.attemptsLeft, MAX_ATTEMPTS);
-  assert.match(c.nonceText, /^[A-Z2-7]{4}-[A-Z2-7]{4}$/);
+  assert.match(c.nonceText, new RegExp(`^([${NONCE_ALPHABET}]{4}-){2}[${NONCE_ALPHABET}]{4}$`));
   assert.deepEqual(await env.guardian.submit({ id: c.id, code: c.code, url: URL_A }), { ok: true });
   const again = await env.guardian.submit({ id: c.id, code: c.code, url: URL_A });
   assert.equal(again.ok, false);

@@ -44,7 +44,7 @@
     <label for="domain">Tên miền hiện trên màn hình</label>
     <input id="domain" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ví dụ: vietcombank-xacthuc.top">
     <label for="nonce">Mã thử thách</label>
-    <input id="nonce" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ví dụ: K7QF-3MZD">
+    <input id="nonce" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ví dụ: K7QF-3MZD-X9HP">
     <p class="muted">Hoặc dán nguyên nội dung mã QR vào ô “Tên miền” (dạng CHOTTO-GUARDIAN-v1|tên miền|mã).</p>
     <button id="go" type="button">Kiểm tra</button>
     <p id="error" class="error" role="alert"></p>
@@ -93,7 +93,7 @@
   };
   const normNonce = (t) => {
     const n = t.replace(/[\s-]/g, "").toUpperCase();
-    return /^[A-Z2-7]{8}$/.test(n) ? n : null;
+    return /^[2-9A-HJKMNP-Z]{12}$/.test(n) ? n : null;
   };
   async function code(secret, domain, nonce) {
     const key = await crypto.subtle.importKey("raw", secret, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -112,7 +112,11 @@
     $("reveal").disabled = true;
     let domainText = $("domain").value;
     let nonceText = $("nonce").value;
-    if (domainText.includes("|")) {
+    const linked = domainText.includes("#") ? new URLSearchParams(domainText.slice(domainText.indexOf("#") + 1).trim()) : null;
+    if (linked && linked.get("d")) {   // liên kết trang người giám hộ: ...#v=1&d=<tên miền>&n=<mã>
+      domainText = linked.get("d");
+      nonceText = linked.get("n") || "";
+    } else if (domainText.includes("|")) {
       const parts = domainText.trim().split("|");
       if (parts.length !== 3 || parts[0] !== CONTEXT) { $("error").textContent = "Nội dung QR không đúng dạng."; return; }
       [, domainText, nonceText] = parts;
@@ -122,7 +126,7 @@
     let secret;
     try { secret = b64($("secret").value.trim()); } catch { secret = new Uint8Array(0); }
     if (!domain) { $("error").textContent = "Tên miền không hợp lệ (tên miền Unicode phải ở dạng xn--…)."; return; }
-    if (!nonce) { $("error").textContent = "Mã thử thách gồm 8 ký tự, ví dụ K7QF-3MZD."; return; }
+    if (!nonce) { $("error").textContent = "Mã gồm 12 ký tự (không có chữ I, L, O và số 0, 1), ví dụ K7QF-3MZD-X9HP."; return; }
     if (secret.length < 16) { $("error").textContent = "Chưa có bí mật HMAC hợp lệ."; return; }
     pending = { secret, domain, nonce };
     $("shown-domain").textContent = domain;

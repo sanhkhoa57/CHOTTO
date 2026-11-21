@@ -7,6 +7,7 @@ import hashlib
 import hmac as hmac_module
 import io
 import json
+import math
 import os
 import sys
 import tempfile
@@ -35,42 +36,92 @@ class CodeTests(unittest.TestCase):
 
     def test_hotp_truncation_matches_rfc4226_algorithm(self) -> None:
         """Cắt bớt đúng RFC 4226 §5.3: 31 bit từ offset = nibble thấp của byte cuối."""
-        message = guardian.challenge_message("example.com", "AAAAAAAA").encode()
+        message = guardian.challenge_message("example.com", "AAAAAAAAAAAA").encode()
         mac = hmac_module.new(SECRET, message, hashlib.sha256).digest()
         offset = mac[-1] & 0xF
         expected = ((mac[offset] & 0x7F) << 24 | mac[offset + 1] << 16 | mac[offset + 2] << 8 | mac[offset + 3]) % 10**6
-        self.assertEqual(guardian.compute_code(SECRET, "example.com", "AAAAAAAA"), f"{expected:06d}")
+        self.assertEqual(guardian.compute_code(SECRET, "example.com", "AAAAAAAAAAAA"), f"{expected:06d}")
 
     def test_code_depends_on_domain_nonce_and_secret(self) -> None:
-        base = guardian.compute_code(SECRET, "a.com", "AAAAAAAA")
-        self.assertNotEqual(base, guardian.compute_code(SECRET, "b.com", "AAAAAAAA"))
+        base = guardian.compute_code(SECRET, "a.com", "AAAAAAAAAAAA")
+        self.assertNotEqual(base, guardian.compute_code(SECRET, "b.com", "AAAAAAAAAAAA"))
         self.assertNotEqual(base, guardian.compute_code(SECRET, "a.com", "AAAAAAAB"))
-        self.assertNotEqual(base, guardian.compute_code(bytes(32), "a.com", "AAAAAAAA"))
+        self.assertNotEqual(base, guardian.compute_code(bytes(32), "a.com", "AAAAAAAAAAAA"))
         self.assertRegex(base, r"^\d{6}$")
 
     def test_normalize(self) -> None:
         self.assertEqual(guardian.normalize_domain(" Example.COM. "), "example.com")
         self.assertTrue(guardian.normalize_domain("vietcombánk.com").startswith("xn--"))
         self.assertEqual(guardian.normalize_domain("my_host.example.com"), "my_host.example.com")
-        self.assertEqual(guardian.normalize_nonce("k7qf-3mzd"), "K7QF3MZD")
+        self.assertEqual(guardian.normalize_nonce("k7qf-3mzd-x9hp"), "K7QF3MZDX9HP")
         for bad in ("", "a|b.com", "exa mple.com"):
             with self.assertRaises(guardian.GuardianError):
                 guardian.normalize_domain(bad)
-        for bad in ("K7QF-3MZ", "K7QF-3M10", "!!!!!!!!"):
+        for bad in ("K7QF-3MZD", "K7QF-3MZD-X9H1", "K7QF-3MZD-X9HO", "!!!!!!!!!!!!"):
             with self.assertRaises(guardian.GuardianError):
                 guardian.normalize_nonce(bad)
 
     def test_parse_challenge_accepts_qr_payload(self) -> None:
-        self.assertEqual(guardian.parse_challenge("CHOTTO-GUARDIAN-v1|Example.com|k7qf-3mzd", None), ("example.com", "K7QF3MZD"))
-        self.assertEqual(guardian.parse_challenge("example.com", "K7QF-3MZD"), ("example.com", "K7QF3MZD"))
+        self.assertEqual(guardian.parse_challenge("CHOTTO-GUARDIAN-v1|Example.com|k7qf-3mzd-x9hp", None), ("example.com", "K7QF3MZDX9HP"))
+        self.assertEqual(guardian.parse_challenge("example.com", "K7QF-3MZD-X9HP"), ("example.com", "K7QF3MZDX9HP"))
         with self.assertRaises(guardian.GuardianError):
             guardian.parse_challenge("example.com", None)
         with self.assertRaises(guardian.GuardianError):
-            guardian.parse_challenge("OTHER|example.com|K7QF3MZD", None)
+            guardian.parse_challenge("OTHER|example.com|K7QF3MZDX9HP", None)
 
-    def test_nonce_vectors_base32(self) -> None:
-        for item in VECTORS["nonce_bytes"]:
-            self.assertEqual(base64.b32encode(bytes.fromhex(item["hex"])).decode(), item["base32"])
+    def test_nonce_alphabet_is_unambiguous_and_strong(self) -> None:
+        self.assertEqual(guardian.NONCE_ALPHABET, VECTORS["nonce_alphabet"])
+        for bad in "ILO01":
+            self.assertNotIn(bad, guardian.NONCE_ALPHABET)
+        self.assertEqual(len(set(guardian.NONCE_ALPHABET)), len(guardian.NONCE_ALPHABET))
+        self.assertGreaterEqual(guardian.NONCE_LENGTH * math.log2(len(guardian.NONCE_ALPHABET)), 40)
+        self.assertEqual(guardian.format_nonce("K7QF3MZDX9HP"), "K7QF-3MZD-X9HP")
+
+    def test_nonce_stream_vectors(self) -> None:
+        for item in VECTORS["nonce_streams"]:
+            self.assertEqual(guardian.nonce_from_bytes(bytes.fromhex(item["hex"])), item["nonce"], item["hex"])
+
+    def test_name_and_page_url_vectors(self) -> None:
+        for item in VECTORS["names"]:
+            self.assertEqual(guardian.sanitize_name(item["input"]), item["expected"], repr(item["input"]))
+        for item in VECTORS["page_urls"]:
+            self.assertEqual(guardian.sanitize_page_url(item["input"]), item["expected"], repr(item["input"]))
+        for item in VECTORS["share_links"]:
+            self.assertEqual(guardian.build_share_link(item["page"], item["domain"], item["nonce"]), item["link"])
+
+    def test_parse_challenge_accepts_share_link(self) -> None:
+        link = guardian.build_share_link("https://example.github.io/CHOTTO/guardian/", "vietcombank-xacthuc.top", "K7QF3MZDX9HP")
+        self.assertEqual(guardian.parse_challenge(link, None), ("vietcombank-xacthuc.top", "K7QF3MZDX9HP"))
+        self.assertEqual(guardian.parse_challenge(f"  {link}\n", None), ("vietcombank-xacthuc.top", "K7QF3MZDX9HP"))
+        with self.assertRaises(guardian.GuardianError):
+            guardian.parse_challenge(link.replace("#v=1", "#v=9"), None)
+
+    def test_reg_has_optional_name_and_page_url(self) -> None:
+        extension_id = "a" * 32
+        plain = guardian.make_reg_files("chrome", extension_id, "PUB", "SEC", 0)["policy"]
+        self.assertNotIn("guardian_name", plain)
+        self.assertNotIn("guardian_page_url", plain)
+        named = guardian.make_reg_files("chrome", extension_id, "PUB", "SEC", 0, name="  Bà\u202e  Lan ",
+                                        page_url="https://example.github.io/CHOTTO/guardian/")["policy"]
+        self.assertIn('"guardian_name"="Bà Lan"', named)
+        self.assertIn('"guardian_page_url"="https://example.github.io/CHOTTO/guardian/"', named)
+        self.assertNotIn("\u202e", named)
+        with self.assertRaises(guardian.GuardianError):
+            guardian.make_reg_files("chrome", extension_id, "PUB", "SEC", 0, page_url="http://example.com/g/")
+
+    def test_export_guardian_setup_string_and_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp) / "g"
+            keys = guardian.init_keys(directory)
+            self.assertEqual(guardian.setup_string(keys), "CHOTTO-GUARDIAN-SETUP-v1:" + keys["hmac_secret"])
+            page = guardian.make_setup_html(directory, "https://example.github.io/CHOTTO/guardian/", Path(tmp) / "setup.html")
+            text = page.read_text("utf-8")
+            self.assertIn(keys["hmac_secret"], text)
+            self.assertIn("qrcode", text)
+            with self.assertRaises(guardian.GuardianError):
+                guardian.make_setup_html(directory, "http://example.com/", Path(tmp) / "bad.html")
+            with self.assertRaises(guardian.GuardianError):
+                guardian.make_setup_html(directory, "https://example.com/", ROOT / "setup-test.html")
 
 
 class PolicyTests(unittest.TestCase):
@@ -223,11 +274,11 @@ class AssessTests(unittest.TestCase):
             keys = guardian.init_keys(directory)
             out = io.StringIO()
             with contextlib.redirect_stdout(out):
-                self.assertEqual(guardian.code_command(directory, "vietcombank-xacthuc.top", "k7qf-3mzd", assume_yes=True), 0)
+                self.assertEqual(guardian.code_command(directory, "vietcombank-xacthuc.top", "k7qf-3mzd-x9hp", assume_yes=True), 0)
             text = out.getvalue()
             self.assertIn("VIETCOMBANK-XACTHUC.TOP", text)
             self.assertIn("HIGH", text)
-            expected = guardian.compute_code(guardian.b64u_decode(keys["hmac_secret"]), "vietcombank-xacthuc.top", "K7QF3MZD")
+            expected = guardian.compute_code(guardian.b64u_decode(keys["hmac_secret"]), "vietcombank-xacthuc.top", "K7QF3MZDX9HP")
             self.assertIn(guardian.format_code(expected), text)
 
     def test_code_command_requires_confirmation(self) -> None:
@@ -237,10 +288,10 @@ class AssessTests(unittest.TestCase):
             out = io.StringIO()
             with contextlib.redirect_stdout(out), mock.patch("sys.stdin.isatty", return_value=True), \
                     mock.patch("builtins.input", return_value="sai-ten-mien.com"):
-                self.assertEqual(guardian.code_command(directory, "momo-hoantien.vip", "K7QF3MZD", assume_yes=False), 1)
+                self.assertEqual(guardian.code_command(directory, "momo-hoantien.vip", "K7QF3MZDX9HP", assume_yes=False), 1)
             self.assertNotIn("MÃ MỞ KHÓA", out.getvalue())
             with contextlib.redirect_stdout(io.StringIO()), mock.patch("sys.stdin.isatty", return_value=False),                     self.assertRaises(guardian.GuardianError):
-                guardian.code_command(directory, "momo-hoantien.vip", "K7QF3MZD", assume_yes=False)
+                guardian.code_command(directory, "momo-hoantien.vip", "K7QF3MZDX9HP", assume_yes=False)
 
 
 if __name__ == "__main__":

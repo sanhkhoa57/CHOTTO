@@ -17,6 +17,7 @@ import { Fingerprints } from "./engine/tier1.js";
 import { BOOTSTRAP_URL, lookupAge, parseBootstrap, readLimited } from "./engine/tier3.js";
 import { URLParseError, parseUrl } from "./engine/url.js";
 import { Guardian } from "./guardian/guardian.js";
+import { buildShareLink, buildShareMessage } from "./guardian/share.js";
 import { DEFAULTS, frictionSecondsFor, loadSettings, saveSettings } from "./settings.js";
 import { Store } from "./storage.js";
 import { ensureSeeded, updateDue, updateFromSources } from "./updater.js";
@@ -332,7 +333,8 @@ async function handleInspect(message, sender) {
   const now = Date.now();
   const token = crypto.randomUUID();
   const ticketDomain = result.displayDomain || result.host;
-  const needsGuardian = Guardian.requires(await guardian.config(), result.level, ticketDomain);
+  const guardianConfig = await guardian.config();
+  const needsGuardian = Guardian.requires(guardianConfig, result.level, ticketDomain);
   await serialized(async () => {
     const tickets = await sessionTable("tickets", (/** @type {Ticket} */ t) => t.expires);
     tickets[token] = {
@@ -352,7 +354,7 @@ async function handleInspect(message, sender) {
   const data = await getData();
   return {
     action: "friction", token, lockMs, view: buildView(result, { plain: data.plain, rules: data.rules }),
-    ...(needsGuardian ? { guardian: true } : {}),
+    ...(needsGuardian ? { guardian: true, guardianName: guardianConfig.name } : {}),
   };
 }
 
@@ -426,9 +428,12 @@ async function handleGuardianRequest(message, sender) {
       await chrome.storage.session.set({ tickets });
     }
   });
+  // Lời nhắn soạn sẵn: câu ngắn + tên trang web + liên kết tới trang người giám hộ (dữ liệu nằm ở #fragment).
+  // Địa chỉ trang lấy từ managed (nguồn tin cậy), không bao giờ từ trang Zalo hay thông điệp của content script.
+  const link = buildShareLink((await guardian.config()).pageUrl, issued.domain, issued.nonce);
   return {
     state: "challenge", domain: issued.domain, nonceText: issued.nonceText, expiresAt: issued.expiresAt,
-    attemptsLeft: issued.attemptsLeft, qr: `CHOTTO-GUARDIAN-v1|${issued.domain}|${issued.nonce}`,
+    attemptsLeft: issued.attemptsLeft, link, qr: link, message: buildShareMessage({ domain: issued.domain, link }),
   };
 }
 
