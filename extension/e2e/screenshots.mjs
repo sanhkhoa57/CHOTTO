@@ -24,6 +24,7 @@ async function main(outDir) {
   const profile = await mkdtemp(path.join(os.tmpdir(), "chotto-shots-"));
   const context = await chromium.launchPersistentContext(profile, {
     channel: "chromium",
+    executablePath: process.env.CHROMIUM_PATH || undefined,
     headless: true,
     viewport: { width: 1280, height: 800 },
     deviceScaleFactor: 2,

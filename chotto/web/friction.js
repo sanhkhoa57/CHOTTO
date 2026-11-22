@@ -1,72 +1,27 @@
 // Màn hình đệm. Dữ liệu đến từ Python (chotto/webhost.py) qua pywebview:
-//   api.initial()        -> {view, lock_s}   (view: chotto/viewmodel.friction_view, có view.lang)
+//   api.initial()        -> {view, lock_s}   (view: chotto/shield.shield_view, có view.lang)
 //   api.decide(proceed)  -> {ok}             (Python tự kiểm lại thời gian khóa)
-//   window.CHOTTO.update({view, lock_s})     do Python gọi khi Tầng 3 xong
-// Mở bằng trình duyệt thường với ?demo để xem với dữ liệu mẫu (?demo&vi để xem tiếng Việt).
+//   window.CHOTTO.update({view, lock_s})     do Python gọi khi Tầng 3 xong (mức chỉ tăng, bố cục không nhảy)
+// Phần dựng giao diện nằm ở shield.js (dùng chung với tiện ích trình duyệt). Mở bằng trình duyệt thường với ?demo
+// để xem với dữ liệu mẫu (?demo&vi: tiếng Việt; ?demo&level=WARN|HIGH|BLOCKED; ?demo&checking: đang tra tuổi tên miền).
 "use strict";
 (() => {
-  const $ = (s) => document.querySelector(s);
   const I18N = window.CHOTTO_I18N;
-  const t = I18N.t;
-  const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const okIcon = '<span class="ok" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"/></svg></span>';
-  const RING = 50.27;
 
   let api = null;
+  let shield = null;
   let opened = 0;          // thời điểm hiện cửa sổ (performance.now)
   let unlockAt = Infinity;
   let shownLevel = "";
   let deciding = false;
-
-  function setMeter(score) {
-    const spans = document.querySelectorAll(".track i");
-    [[0, 30], [30, 60], [60, 100]].forEach(([a, b], i) => {
-      spans[i].style.transform = `scaleX(${Math.max(0, Math.min(1, (score - a) / (b - a)))})`;
-    });
-  }
-
-  function render(view, fresh) {
-    if (view.lang && view.lang !== I18N.lang) I18N.apply(view.lang);
-    const level = view.level;
-    $("#shell").dataset.level = level;
-    $("#verdict").dataset.level = level;
-    $("#vTitle").textContent = view.title;
-    $("#vText").textContent = view.text;
-    $("#vScore").textContent = view.score;
-    setMeter(view.score);
-    $("#parts").innerHTML = view.parts.map((p) =>
-      `<span class="part ${esc(p.kind)}"><code>${esc(p.text)}</code>${p.label ? `<small>${esc(p.label)}</small>` : ""}</span>`).join("");
-    const compare = $("#compare");
-    compare.hidden = !view.official;
-    if (view.official) compare.innerHTML = `${okIcon}<span>${t("official", { brand: esc(view.brand), domain: esc(view.official) })}</span>`;
-    $("#full").textContent = view.full_url;
-    $("#reasonsTitle").textContent = t(level === "WARN" ? "f.whyWarn" : "f.whyBlock");
-    const rows = view.reasons.map((r) => `<li><i class="dot"></i><div>${esc(r)}</div></li>`);
-    if (view.checking) rows.push(`<li><i class="dot pending"></i><div>${esc(t("f.checking"))}</div></li>`);
-    $("#reasons").innerHTML = rows.join("");
-    if (fresh) $("#reasons").lastElementChild?.classList.add("fresh");
-    $("#src").textContent = t("f.source", { s: view.source });
-    $("#adviceText").textContent = view.advice || view.general;
-    $("#general").textContent = view.advice ? t("f.call") : "";
-    shownLevel = level;
-  }
 
   function setLock(seconds) {
     unlockAt = Math.max(unlockAt === Infinity ? 0 : unlockAt, opened + seconds * 1000);
   }
 
   function tick() {
-    const btn = $("#btnOpen");
     const left = unlockAt - performance.now();
-    const total = unlockAt - opened;
-    $("#ring").style.strokeDashoffset = RING * Math.max(0, left / total);
-    if (left > 0) {
-      btn.disabled = true;
-      $("#openLabel").textContent = t("f.openIn", { n: Math.ceil(left / 1000) });
-    } else if (btn.disabled) {
-      btn.disabled = false;
-      $("#openLabel").textContent = t("f.open");
-    }
+    shield.setLock(Math.max(0, Math.ceil(left / 1000)), left / Math.max(1, unlockAt - opened));
     requestAnimationFrame(tick);
   }
 
@@ -82,63 +37,92 @@
     }
   }
 
+  function show(view) {
+    if (view.lang && view.lang !== I18N.lang) I18N.apply(view.lang);
+    document.documentElement.lang = view.lang || "en";
+    if (shield) shield.update(view);
+    else {
+      shield = window.ChottoShield.mount(document.getElementById("scroll"), view, { theme: "dark" });
+      shield.back.addEventListener("click", () => decide(false));
+      shield.proceed.addEventListener("click", () => decide(true));
+    }
+    shownLevel = view.level;
+  }
+
   window.CHOTTO = {
     update(payload) {
       const rising = payload.view.level !== shownLevel;
-      render(payload.view, true);
+      show(payload.view);
       if (rising) setLock(payload.lock_s);
     },
   };
 
   function start(payload) {
     opened = performance.now();
-    render(payload.view, false);
+    show(payload.view);
     setLock(payload.lock_s);
     requestAnimationFrame(tick);
-    $("#btnClose").focus();
+    shield.back.focus();
   }
 
-  $("#btnClose").addEventListener("click", () => decide(false));
-  $("#btnX").addEventListener("click", () => decide(false));
-  $("#btnOpen").addEventListener("click", () => decide(true));
-  $("#btnMin").addEventListener("click", () => api && api.minimize());
+  document.getElementById("btnX").addEventListener("click", () => decide(false));
+  document.getElementById("btnMin").addEventListener("click", () => api && api.minimize());
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") decide(false); });
 
   const DEMO = {
-    en: {
-      lock_s: 8,
-      view: {
-        lang: "en", level: "HIGH", score: 92, title: "This is a fake page.", text: "Don't sign in or enter any OTP code on this page.",
-        parts: [{ text: "https://", kind: "dim", label: "" }, { text: "vietcombank.com.vn.", kind: "decoy", label: "disguise" },
-          { text: "xacthuc-tk.top", kind: "real", label: "where you actually go" }, { text: "/dang-nhap", kind: "dim", label: "" }],
-        brand: "Vietcombank", official: "vietcombank.com.vn",
-        reasons: ["This domain is on a scam list reported by the community", "The domain contains the name “Vietcombank” but is not the official site", "Domain registered only 2 day(s) ago"],
-        checking: false,
-        advice: "A fake Vietcombank page on a domain registered a few days ago: almost certainly a scam. Never sign in or enter an OTP code.",
-        general: "", source: "Scam list", full_url: "https://vietcombank.com.vn.xacthuc-tk.top/dang-nhap?ref=zalo",
-      },
-    },
     vi: {
       lock_s: 8,
       view: {
-        lang: "vi", level: "HIGH", score: 92, title: "Đây là trang giả.", text: "Đừng đăng nhập hay nhập mã OTP vào trang này.",
-        parts: [{ text: "https://", kind: "dim", label: "" }, { text: "vietcombank.com.vn.", kind: "decoy", label: "phần ngụy trang" },
-          { text: "xacthuc-tk.top", kind: "real", label: "nơi bạn thật sự tới" }, { text: "/dang-nhap", kind: "dim", label: "" }],
-        brand: "Vietcombank", official: "vietcombank.com.vn",
-        reasons: ["Tên miền nằm trong danh sách lừa đảo đã được cộng đồng báo cáo", "Tên miền chứa tên “Vietcombank” nhưng không phải trang chính thức", "Tên miền mới đăng ký cách đây 2 ngày"],
+        lang: "vi", level: "HIGH", levelLabel: "Khoan đã! Link nguy hiểm", headline: "Giả danh Vietcombank và hối thúc bạn",
+        reasonShort: "Đừng đăng nhập hay nhập mã OTP vào trang này.",
+        domain: { userinfo: "", prefix: "", decoyPrefix: false, registered: "vcb-digibanks.top", rest: "/xac-nhan", hit: "vcb",
+          punycode: "", isIp: false, brand: "Vietcombank", official: "vietcombank.com.vn" },
+        officialLine: "Trang chính thức của Vietcombank là vietcombank.com.vn",
+        details: [{ icon: "badge", text: "Có tên Vietcombank nhưng không phải trang chính thức" }, { icon: "tag", text: "Đuôi .top hay bị kẻ xấu lợi dụng" },
+          { icon: "alert", text: "Có từ hối thúc: “xác nhận”" }],
         checking: false,
-        advice: "Trang giả Vietcombank trên một tên miền vừa đăng ký vài ngày: gần như chắc chắn là lừa đảo. Tuyệt đối không đăng nhập hay nhập mã OTP.",
-        general: "", source: "Danh sách lừa đảo", full_url: "https://vietcombank.com.vn.xacthuc-tk.top/dang-nhap?ref=zalo",
+        actions: { back: "Quay lại an toàn", proceed: "Vẫn mở link", copy: "Sao chép địa chỉ", report: "Báo cho người gửi", copied: "Đã sao chép địa chỉ",
+          reported: "Đã chép lời nhắn, hãy dán vào Zalo", hint: "Nhấn Esc để quay lại", copyText: "https://vcb-digibanks.top/xac-nhan",
+          reportText: "Link này có vẻ lừa đảo, bạn đừng bấm nhé: vcb-digibanks[.]top" },
+        labels: { caption: "Link này thật sự dẫn tới", why: "Xem vì sao", checking: "Đang xác minh tuổi tên miền…",
+          proceedWait: "Vẫn mở link (mở khóa sau {n} giây)", decoy: "phần ngụy trang", ip: "dãy số, không phải tên trang" },
+      },
+    },
+    en: {
+      lock_s: 8,
+      view: {
+        lang: "en", level: "HIGH", levelLabel: "Hold on! Dangerous link", headline: "Pretends to be Vietcombank and rushes you",
+        reasonShort: "Don't sign in or type any OTP code on this page.",
+        domain: { userinfo: "", prefix: "", decoyPrefix: false, registered: "vcb-digibanks.top", rest: "/xac-nhan", hit: "vcb",
+          punycode: "", isIp: false, brand: "Vietcombank", official: "vietcombank.com.vn" },
+        officialLine: "The official Vietcombank site is vietcombank.com.vn",
+        details: [{ icon: "badge", text: "Has the name Vietcombank but isn't the official site" }, { icon: "tag", text: "The .top ending is often abused by scammers" },
+          { icon: "alert", text: "Has a pressure word: “xác nhận”" }],
+        checking: false,
+        actions: { back: "Go back to safety", proceed: "Open anyway", copy: "Copy address", report: "Tell the sender", copied: "Address copied",
+          reported: "Message copied, paste it into Zalo", hint: "Press Esc to go back", copyText: "https://vcb-digibanks.top/xac-nhan",
+          reportText: "This link looks like a scam, please don't tap it: vcb-digibanks[.]top" },
+        labels: { caption: "This link really goes to", why: "See why", checking: "Checking how old the domain is…",
+          proceedWait: "Open anyway (unlocks in {n} s)", decoy: "disguise", ip: "numbers, not a site name" },
       },
     },
   };
+
+  function demo() {
+    if (window.__DEMO__) return window.__DEMO__;
+    const payload = JSON.parse(JSON.stringify(location.search.includes("vi") ? DEMO.vi : DEMO.en));
+    const level = (location.search.match(/level=(WARN|HIGH|BLOCKED)/) || [])[1];
+    if (level) payload.view.level = level;
+    if (location.search.includes("checking")) payload.view.checking = true;
+    return payload;
+  }
 
   function boot() {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.initial) {
       api = window.pywebview.api;
       api.initial().then(start);
     } else if (location.search.includes("demo")) {
-      start(location.search.includes("vi") ? DEMO.vi : DEMO.en);
+      start(demo());
     }
   }
   I18N.apply("en");

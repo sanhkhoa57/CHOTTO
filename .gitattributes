@@ -1,0 +1,3 @@
+# Trang người giám hộ: CSP ghim băm SHA-256 của khối script/style nên file PHẢI giữ LF (không để Git đổi sang CRLF).
+guardian/index.html text eol=lf
+guardian/sw.js text eol=lf

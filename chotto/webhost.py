@@ -582,7 +582,7 @@ class Host:
             screen_h = int(self._webview.screens[0].height)
         except Exception:  # noqa: BLE001 - không đọc được màn hình: dùng cỡ an toàn
             screen_h = 900
-        return max(560, min(940, screen_h - 80))
+        return max(560, min(740, screen_h - 80))
 
     def _centered(self, width: int, height: int) -> dict[str, int]:
         """``x``/``y`` để cửa sổ ``width`` x ``height`` nằm giữa màn hình chính (không chỉ vị trí thì Windows xếp vào góc)."""
@@ -599,14 +599,14 @@ class Host:
         window = self._webview.create_window(
             _msg(str(payload.get("view", {}).get("lang", "en")), "friction_title"),
             url=str(web_root() / "friction.html"), js_api=api,
-            width=820, height=height, min_size=(600, 520), frameless=True, easy_drag=False,
-            on_top=True, background_color=BG, text_select=True, **self._centered(820, height))
+            width=620, height=height, min_size=(460, 520), frameless=True, easy_drag=False,
+            on_top=True, background_color=BG, text_select=True, **self._centered(620, height))
         api._window = window  # noqa: SLF001 - cùng mô-đun
         _reload_on_show(window, str(web_root() / "friction.html"))
         with self._lock:
             self._frictions[fid] = (window, api)
         window.events.closed += lambda: self._on_friction_closed(fid)
-        _when_shown(window, lambda: _center_on_screen(window, 820, 940))
+        _when_shown(window, lambda: _center_on_screen(window, 620, 740))
         _when_shown(window, lambda: _activate(window))
         if sys.platform == "win32":
             window.events.loaded += lambda: _activate(window)             # trang tải xong: lấy focus lần nữa để Esc dùng được ngay

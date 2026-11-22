@@ -24,7 +24,7 @@ from tkinter import filedialog, messagebox
 from tkinter import font as tkfont
 from typing import TYPE_CHECKING, Any, Final
 
-from .core.url import domain_to_unicode
+from . import plain
 from .util import sanitize_for_display
 
 if TYPE_CHECKING:
@@ -50,12 +50,6 @@ DISABLED_BG: Final[str] = "#3a3e4b"
 DISABLED_FG: Final[str] = "#7a7f90"
 ADVICE_FG: Final[str] = "#d6d9e2"
 COLORS: Final[dict[str, str]] = {"WARN": "#f5a623", "HIGH": "#ff4d4f", "BLOCKED": "#ff4d4f", "SAFE": "#3ecf8e"}
-TITLES: Final[dict[str, str]] = {
-    "WARN": "Khoan đã! Liên kết này đáng ngờ",
-    "HIGH": "Khoan đã! Liên kết này rất nguy hiểm",
-    "BLOCKED": "Đã chặn! Liên kết nằm trong danh sách lừa đảo",
-}
-UNPARSEABLE_TITLE: Final[str] = "Khoan đã! CHOTTO không đọc được liên kết này"
 _WRAP: Final[int] = 470
 _URL_DISPLAY_LIMIT: Final[int] = 120
 _TICK_MS: Final[int] = 200
@@ -64,7 +58,8 @@ _OWN_BUNDLE: Final[str] = "vn.chotto.app"
 _DWMWA_DARK_MODE_OLD: Final[int] = 19
 _DWMWA_DARK_MODE: Final[int] = 20
 _DWMWA_CAPTION_COLOR: Final[int] = 35
-CHECKING_TEXT: Final[str] = "Đang xác minh tuổi tên miền…"
+CHECKING_TEXT: Final[str] = plain.LABELS["vi"]["checking"]
+SHIELD_BG: Final[str] = "#0c0a08"
 
 
 def enable_dpi_awareness() -> None:
@@ -186,17 +181,6 @@ def tier_text(result: Result) -> str:
     return "Tầng 2 – Phân tích tên miền"
 
 
-def _domain_line(result: Result) -> str:
-    """Dòng "Trang sẽ mở" với tên miền thật; IDN hiển thị cả dạng Unicode và punycode."""
-    domain = result.display_domain or result.host
-    if not domain:
-        return "Trang sẽ mở: (không xác định)"
-    readable = domain_to_unicode(domain)
-    if readable != domain:
-        return f"Trang sẽ mở: {sanitize_for_display(readable)}  ({domain})"
-    return f"Trang sẽ mở: {domain}"
-
-
 def _set_dark_title_bar(window: tk.Toplevel | tk.Tk) -> None:
     """Thanh tiêu đề tối trên Windows 10 (1809+) và 11 cho hợp với nền tối; nền tảng khác bỏ qua.
 
@@ -228,51 +212,11 @@ def _set_dark_title_bar(window: tk.Toplevel | tk.Tk) -> None:
         _LOG.info("Không đặt được thanh tiêu đề tối", exc_info=True)
 
 
-@dataclass
-class _FrictionView:
-    """Các widget của màn hình đệm cần cập nhật khi Tầng 3 trả kết quả."""
-
-    accent_bar: tk.Frame
-    title: tk.Label
-    bar: tk.Canvas
-    bar_fill: int
-    score: tk.Label
-    tier: tk.Label
-    reasons: tk.Frame
-    advice_box: tk.Frame
-    advice_text: tk.Label
-    advice_title: tk.Label
-    ui_font: str
-
-    def render(self, result: Result, checking: bool) -> None:
-        """Hiển thị ``result``; ``checking`` = Tầng 3 đang chạy nền."""
-        accent = COLORS.get(result.level, COLORS["WARN"])
-        self.accent_bar.config(bg=accent)
-        title = UNPARSEABLE_TITLE if result.tier_reached == 0 else TITLES.get(result.level, TITLES["WARN"])
-        self.title.config(text=title, fg=accent)
-        self.bar.coords(self.bar_fill, 0, 0, _WRAP * max(0, min(100, result.score)) / 100, 8)
-        self.bar.itemconfigure(self.bar_fill, fill=accent)
-        self.score.config(text=f"Điểm rủi ro: {result.score}/100")
-        self.tier.config(text=CHECKING_TEXT if checking else "Phát hiện ở: " + tier_text(result))
-        for child in self.reasons.winfo_children():
-            child.destroy()
-        for reason in result.reasons[:4]:
-            row = tk.Frame(self.reasons, bg=BG)
-            row.pack(fill="x", pady=1)
-            tk.Label(row, text="•", bg=BG, fg=FG, font=(self.ui_font, 11)).pack(side="left", anchor="n", padx=(0, 8))
-            tk.Label(row, text=sanitize_for_display(reason), bg=BG, fg=FG, font=(self.ui_font, 11),
-                     wraplength=_WRAP - 20, justify="left", anchor="w").pack(side="left", fill="x")
-        if result.advice and not checking:
-            self.advice_title.config(fg=accent)
-            self.advice_text.config(text=result.advice)
-            self.advice_box.pack(fill="x", pady=(12, 0))
-        else:
-            self.advice_box.pack_forget()
-
-
 def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int],
                   pending: Future[Result] | None = None) -> tuple[bool, int, Result]:
-    """Hiển thị màn hình đệm và chờ người dùng quyết định.
+    """Hiển thị màn hình đệm (đường lùi của giao diện HTML) và chờ người dùng quyết định.
+
+    Cùng cấu trúc và cùng chữ với giao diện HTML: ``chotto.shield.shield_view`` rồi ``chotto.ui_shield.Shield``.
 
     Args:
         root: Cửa sổ gốc Tk (có thể đang ẩn).
@@ -287,70 +231,27 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
     Raises:
         tk.TclError: Không dựng được cửa sổ (người gọi phải xử lý theo chính sách fail-safe).
     """
+    from .config import load_rules
+    from .shield import shield_view
+    from .ui_shield import Shield
+
+    rules = load_rules()
     ui_font, mono_font = _fonts(root)
     top = tk.Toplevel(root)
     top.title("CHOTTO")
-    top.configure(bg=BG)
+    top.configure(bg=SHIELD_BG)
     top.resizable(False, False)
     state: dict[str, Any] = {"open": False, "result": result, "pending": pending}
     started = time.monotonic()
     unlock = {"at": started + max(0, seconds_for(result.level))}
-
-    accent_bar = tk.Frame(top, bg=BG, height=6)
-    accent_bar.pack(fill="x")
-    body = tk.Frame(top, bg=BG, padx=24, pady=18)
-    body.pack(fill="both")
-    title = tk.Label(body, text="", bg=BG, font=(ui_font, 15, "bold"), anchor="w")
-    title.pack(fill="x")
-
-    tk.Label(body, text=_domain_line(result), bg=BG, fg=FG, font=(ui_font, 12, "bold"), anchor="w",
-             wraplength=_WRAP, justify="left").pack(fill="x", pady=(10, 0))
-    box = tk.Frame(body, bg=PANEL, padx=12, pady=10)
-    box.pack(fill="x", pady=(8, 8))
-    shown_url = middle_truncate(sanitize_for_display(result.final_url), _URL_DISPLAY_LIMIT)
-    tk.Label(box, text=shown_url, bg=PANEL, fg=FG, font=(mono_font, 10), wraplength=_WRAP, justify="left",
-             anchor="w").pack(fill="x")
-
-    bar = tk.Canvas(body, width=_WRAP, height=8, bg=PANEL, highlightthickness=0)
-    bar.pack(pady=(0, 4))
-    bar_fill = bar.create_rectangle(0, 0, 0, 8, fill=BG, width=0)
-    score = tk.Label(body, text="", bg=BG, fg=MUTED, font=(ui_font, 9), anchor="w")
-    score.pack(fill="x")
-    tier = tk.Label(body, text="", bg=BG, fg=MUTED, font=(ui_font, 9), anchor="w")
-    tier.pack(fill="x")
-
-    tk.Label(body, text="Vì sao CHOTTO cảnh báo:", bg=BG, fg=FG, font=(ui_font, 11, "bold"),
-             anchor="w").pack(fill="x", pady=(12, 4))
-    reasons = tk.Frame(body, bg=BG)
-    reasons.pack(fill="x")
-
-    # Lời khuyên: chữ thường cỡ 11, màu sáng trên nền panel, có tiêu đề màu nhấn để dễ đọc với người lớn tuổi.
-    advice_slot = tk.Frame(body, bg=BG)          # giữ chỗ cố định: hộp lời khuyên hiện/ẩn mà không đổi thứ tự
-    advice_slot.pack(fill="x")
-    advice_box = tk.Frame(advice_slot, bg=PANEL, padx=14, pady=12)
-    advice_title = tk.Label(advice_box, text="Lời khuyên (AI chạy cục bộ)", bg=PANEL, font=(ui_font, 11, "bold"),
-                            anchor="w")
-    advice_title.pack(fill="x")
-    advice_text = tk.Label(advice_box, text="", bg=PANEL, fg=ADVICE_FG, font=(ui_font, 11), wraplength=_WRAP - 28,
-                           justify="left", anchor="w")
-    advice_text.pack(fill="x", pady=(4, 0))
-
-    buttons = tk.Frame(body, bg=BG)
-    buttons.pack(fill="x", pady=(18, 0))
-
-    view = _FrictionView(accent_bar, title, bar, bar_fill, score, tier, reasons, advice_box, advice_text,
-                         advice_title, ui_font)
-    view.render(result, checking=pending is not None)
 
     def finish(open_it: bool) -> None:
         state["open"] = open_it
         if top.winfo_exists():
             top.destroy()
 
-    button_font = (ui_font, 11, "bold")
-    FlatButton(buttons, "Đóng, không mở", lambda: finish(False), "#3ecf8e", button_font).pack(side="left")
-    proceed = FlatButton(buttons, "", lambda: finish(True), "#d0d3dc", button_font)
-    proceed.pack(side="right")
+    shield = Shield(top, ui_font, mono_font, lambda: finish(False), lambda: finish(True))
+    shield.render(shield_view(result, pending is not None, rules, "vi"), reserve=pending is not None)
 
     def check_pending() -> None:
         future: Future[Result] | None = state["pending"]
@@ -361,21 +262,18 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
             final = future.result()
         except Exception:  # noqa: BLE001 - Tầng 3 lỗi: giữ nguyên kết quả đang hiển thị
             _LOG.exception("Tầng 3 nền lỗi, giữ kết quả sơ bộ")
-            view.render(state["result"], checking=False)
+            shield.render(shield_view(state["result"], False, rules, "vi"), reserve=True)
             return
         state["result"] = final
         unlock["at"] = max(unlock["at"], started + max(0, seconds_for(final.level)))
-        view.render(final, checking=False)
+        shield.render(shield_view(final, False, rules, "vi"), reserve=True)
 
     def tick() -> None:
         if not top.winfo_exists():
             return
         check_pending()
         remaining = unlock["at"] - time.monotonic()
-        if remaining > 0:
-            proceed.set_enabled(False, f"Tôi hiểu rủi ro, vẫn mở ({math.ceil(remaining)})")
-        else:
-            proceed.set_enabled(True, "Tôi hiểu rủi ro, vẫn mở")
+        shield.set_lock(remaining, unlock["at"] - started)
         if remaining > 0 or state["pending"] is not None:
             top.after(_TICK_MS, tick)
 
@@ -387,6 +285,7 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
     top.geometry(f"+{(top.winfo_screenwidth() - width) // 2}+{(top.winfo_screenheight() - height) // 3}")
     _set_dark_title_bar(top)
     _bring_to_front(top)
+    shield.back.focus_set()
     root.wait_window(top)
     return bool(state["open"]), int((time.monotonic() - started) * 1000), state["result"]
 

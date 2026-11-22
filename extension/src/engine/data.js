@@ -6,6 +6,7 @@
  */
 
 import { validateAdvice } from "./advisor.js";
+import { validatePlain } from "../view.js";
 import { PublicSuffixList } from "./psl.js";
 import { configureUtil } from "./util.js";
 
@@ -75,6 +76,7 @@ export function validateRules(data) {
  * @typedef {object} EngineData
  * @property {import("./tier2.js").Rules} rules Bộ luật đã gắn ``popularDomains``.
  * @property {import("./advisor.js").AdviceData} advice
+ * @property {import("../view.js").PlainData} plain Bảng chữ đời thường của màn hình cảnh báo.
  * @property {PublicSuffixList} psl
  * @property {string[]} seed Danh sách đen khởi tạo.
  * @property {{chotto_version: string, sources: Record<string, string>}} sync Thông tin đồng bộ dữ liệu.
@@ -87,9 +89,9 @@ export function validateRules(data) {
  * @throws {RulesError | TypeError | SyntaxError} Dữ liệu đóng gói hỏng.
  */
 export async function loadEngineData(readText) {
-  const [rulesText, pslText, confusablesText, popularText, adviceText, seedText, syncText] = await Promise.all([
+  const [rulesText, pslText, confusablesText, popularText, adviceText, plainText, seedText, syncText] = await Promise.all([
     readText("rules.json"), readText("psl.json"), readText("confusables.json"), readText("popular.json"),
-    readText("advice.json"), readText("blacklist.seed.txt"), readText("sync.json"),
+    readText("advice.json"), readText("plain.json"), readText("blacklist.seed.txt"), readText("sync.json"),
   ]);
   const rules = validateRules(JSON.parse(rulesText));
   const psl = new PublicSuffixList(JSON.parse(pslText));
@@ -102,6 +104,7 @@ export async function loadEngineData(readText) {
   return {
     rules,
     advice: validateAdvice(JSON.parse(adviceText)),
+    plain: validatePlain(JSON.parse(plainText)),
     psl,
     seed: seedText.split(/\r?\n/),
     sync: JSON.parse(syncText),

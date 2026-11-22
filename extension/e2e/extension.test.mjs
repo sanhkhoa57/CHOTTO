@@ -174,8 +174,11 @@ async function readFriction(page) {
   const find = (/** @type {string} */ name, /** @type {string} */ cls) => inside.find((n) => n.nodeName === name
     && (n.attributes ?? []).some((/** @type {string} */ a, /** @type {number} */ i, /** @type {string[]} */ arr) => a === "class" && arr[i + 1] === cls));
   const title = inside.find((n) => n.nodeName === "H1");
-  const back = find("BUTTON", "back");
-  const proceed = find("BUTTON", "proceed");
+  const back = find("BUTTON", "sh-back");
+  const proceed = find("BUTTON", "sh-proceed");
+  const chip = find("SPAN", "sh-chip");
+  const why = find("BUTTON", "sh-whybtn");
+  const report = find("BUTTON", "sh-ghost sh-report");
   const shadowMode = (host.shadowRoots ?? [])[0]?.shadowRootType;
   /** @param {any} node */
   const center = async (node) => {
@@ -186,9 +189,15 @@ async function readFriction(page) {
   await session.send("DOM.scrollIntoViewIfNeeded", { backendNodeId: proceed.backendNodeId }).catch(() => undefined);
   return {
     title: textOf(title),
+    level: textOf(chip),
     text: textOf(host),
-    proceedText: textOf(proceed),
+    proceedLocked: (proceed.attributes ?? []).some((/** @type {string} */ a, /** @type {number} */ i, /** @type {string[]} */ arr) =>
+      a === "aria-disabled" && arr[i + 1] === "true"),
     shadowMode,
+    whyOpen: (why.attributes ?? []).some((/** @type {string} */ a, /** @type {number} */ i, /** @type {string[]} */ arr) =>
+      a === "aria-expanded" && arr[i + 1] === "true"),
+    whyAt: await center(why),
+    reportAt: await center(report),
     backAt: await center(back),
     proceedAt: await center(proceed),
     detach: () => session.detach(),
@@ -238,10 +247,11 @@ test("link mạo danh hiện Khoan đã!, nút vẫn mở bị khóa rồi mới
   const page = await openZalo();
   await page.click("#phish");
   const shown = await waitFor(() => friction(page));
-  assert.match(shown.title, /^Khoan đã!/);
-  assert.match(shown.text, /Trang sẽ mở: vietcombank-xacthuc\.top/);
-  assert.match(shown.text, /Vietcombank/);
-  assert.match(shown.proceedText, /vẫn mở \(\d\)/);
+  assert.match(shown.level, /^Khoan đã!/);
+  assert.match(shown.title, /Vietcombank/);
+  assert.match(shown.text, /vietcombank-xacthuc\.top/);
+  assert.match(shown.text, /Trang chính thức của Vietcombank là vietcombank\.com\.vn/);
+  assert.equal(shown.proceedLocked, true);
   assert.equal(shown.shadowMode, "closed");
 
   // Bấm khi còn khóa: không có tab nào mở, hộp thoại báo đang khóa.
@@ -252,7 +262,7 @@ test("link mạo danh hiện Khoan đã!, nút vẫn mở bị khóa rồi mới
   // Đợi hết khóa (HIGH = 3 + 3 giây). Phím Enter lúc này rơi vào nút "Đóng" (nút "vẫn mở" không nhận phím).
   const unlocked = await waitFor(async () => {
     const state = await friction(page);
-    return state && state.proceedText === "Tôi hiểu rủi ro, vẫn mở" ? state : null;
+    return state && !state.proceedLocked ? state : null;
   }, 12000);
   const opened = context.waitForEvent("page");
   await page.mouse.click(unlocked.proceedAt.x, unlocked.proceedAt.y);
@@ -265,11 +275,36 @@ test("link mạo danh hiện Khoan đã!, nút vẫn mở bị khóa rồi mới
   await page.close();
 });
 
+test("mặc định gọn: Xem vì sao thu gọn, mở ra thì hiện lý do; Báo cho người gửi chép lời nhắn an toàn vào clipboard", async () => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: "https://chat.zalo.me" });
+  const page = await openZalo();
+  await page.click("#phish");
+  const shown = await waitFor(() => friction(page));
+  assert.equal(shown.whyOpen, false);
+  assert.doesNotMatch(shown.level, /Tầng|điểm/i);
+  await page.mouse.click(shown.whyAt.x, shown.whyAt.y);
+  const opened = await waitFor(async () => {
+    const state = await friction(page);
+    return state?.whyOpen ? state : null;
+  });
+  assert.match(opened.text, /Có tên Vietcombank nhưng không phải trang chính thức/);
+  await page.mouse.click(opened.reportAt.x, opened.reportAt.y);
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()),
+    "Link này có vẻ lừa đảo, bạn đừng bấm nhé: vietcombank-xacthuc[.]top");
+  assert.match((await waitFor(() => friction(page))).text, /Đã chép lời nhắn/);
+  await opened.detach();
+  await shown.detach();
+  await page.keyboard.press("Escape");
+  await waitFor(async () => ((await friction(page)) === null ? true : null));
+  await page.close();
+});
+
 test("đóng hộp thoại thì không mở gì; Escape cũng là đóng", async () => {
   const page = await openZalo();
   await page.click("#blocked");
   const shown = await waitFor(() => friction(page));
-  assert.match(shown.title, /^Đã chặn!/);
+  assert.match(shown.level, /^Đã chặn!/);
   await page.mouse.click(shown.backAt.x, shown.backAt.y);
   await waitFor(async () => ((await friction(page)) === null ? true : null));
   await page.click("#nested-inner");
@@ -341,7 +376,7 @@ test("trang tùy chọn: trạng thái danh sách đen, thử link, nhật ký c
   const page = await context.newPage();
   await page.goto(`chrome-extension://${extensionId}/src/ui/options.html`);
   await page.waitForFunction(() => /mục/.test(document.getElementById("blacklist")?.textContent ?? ""));
-  assert.match(await page.textContent("#version") ?? "", /^1\.4\.0$/);
+  assert.match(await page.textContent("#version") ?? "", /^\d+\.\d+\.\d+$/);
   await page.fill('input[name="url"]', "https://vcb-digibank-xacthuc.top/");
   await page.click("#test button");
   await page.waitForFunction(() => /Danh sách đen/.test(document.getElementById("test-status")?.textContent ?? ""));

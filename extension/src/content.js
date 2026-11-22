@@ -75,8 +75,16 @@
    * vẫn bắt người dùng dừng lại, rồi tự mở bằng cú bấm thật của họ.
    * @param {string} url
    */
-  function fallbackFriction(url) {
+  async function fallbackFriction(url) {
+    // Guardian bật (đọc được từ managed storage) thì KHÔNG có đường "vẫn mở" khi không kiểm tra được: fail-closed.
+    let guardianOn = false;
+    try {
+      guardianOn = (await chrome.storage.managed.get("guardian_enabled")).guardian_enabled === true;
+    } catch {
+      guardianOn = false;
+    }
     /** @type {any} */ (globalThis).ChottoFriction.show({
+      noProceed: guardianOn,
       view: {
         level: "WARN",
         title: "Khoan đã! CHOTTO chưa kiểm tra được liên kết này",
@@ -118,6 +126,11 @@
           lockMs: answer.lockMs,
           decide: (/** @type {string} */ choice, /** @type {boolean} */ trusted) =>
             ask({ type: "decide", token: answer.token, choice, trusted }),
+          guardian: answer.guardian ? {
+            request: () => ask({ type: "guardian-request", token: answer.token }),
+            submit: (/** @type {string} */ code) => ask({ type: "guardian-submit", token: answer.token, code }),
+            name: typeof answer.guardianName === "string" ? answer.guardianName : null,
+          } : undefined,
         });
       }
     } catch (error) {
