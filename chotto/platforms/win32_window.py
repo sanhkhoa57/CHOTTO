@@ -8,7 +8,9 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import threading
 import time
+from collections.abc import Callable
 from typing import Any
 
 __all__ = [
@@ -27,6 +29,7 @@ __all__ = [
     "system_dpi_scale",
     "taskbar_work_area",
     "toplevel_hwnd",
+    "watch_session_end",
     "window_dpi_scale",
     "window_rect",
 ]
@@ -339,6 +342,70 @@ def make_tool_window(hwnd: int) -> None:
     user32.SetWindowPos.argtypes = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                                     ctypes.c_int, ctypes.c_uint)
     user32.SetWindowPos(hwnd, ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0020)  # TOPMOST, giữ chỗ
+
+
+def watch_session_end(callback: Callable[[], None]) -> None:
+    """Gọi ``callback`` (trên luồng nền) khi phiên Windows sắp kết thúc: tắt máy, khởi động lại hoặc đăng xuất.
+
+    Cần một cửa sổ thật để nhận ``WM_ENDSESSION`` (handler console không đến được tiến trình có user32), nên
+    mở một cửa sổ ẩn trên luồng nền riêng. Lỗi thì bỏ qua: chỉ mất tính năng, không ảnh hưởng agent.
+    """
+    def run() -> None:
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            lresult = ctypes.c_ssize_t
+            wndproc_t = ctypes.WINFUNCTYPE(lresult, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+            user32.DefWindowProcW.restype = lresult
+            user32.DefWindowProcW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
+            kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+            kernel32.GetModuleHandleW.argtypes = (wintypes.LPCWSTR,)
+            wm_endsession = 0x0016
+
+            def proc(hwnd: Any, msg: int, wparam: int, lparam: int) -> int:
+                if msg == wm_endsession and wparam:          # wParam = TRUE: phiên thật sự kết thúc
+                    try:
+                        callback()
+                    except Exception:  # noqa: BLE001 - không để lỗi thoát ra ngoài WNDPROC
+                        _LOG.exception("Lỗi khi xử lý kết thúc phiên")
+                    return 0
+                return int(user32.DefWindowProcW(hwnd, msg, wparam, lparam))
+
+            callback_ref = wndproc_t(proc)
+            _SNAP_KEEPALIVE.append(callback_ref)
+
+            class WndClass(ctypes.Structure):
+                _fields_ = [("style", wintypes.UINT), ("lpfnWndProc", wndproc_t), ("cbClsExtra", ctypes.c_int),
+                            ("cbWndExtra", ctypes.c_int), ("hInstance", wintypes.HINSTANCE), ("hIcon", wintypes.HANDLE),
+                            ("hCursor", wintypes.HANDLE), ("hbrBackground", wintypes.HANDLE),
+                            ("lpszMenuName", wintypes.LPCWSTR), ("lpszClassName", wintypes.LPCWSTR)]
+
+            user32.RegisterClassW.argtypes = (ctypes.POINTER(WndClass),)
+            user32.CreateWindowExW.restype = wintypes.HWND
+            user32.CreateWindowExW.argtypes = (wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+                                               ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.HWND,
+                                               wintypes.HANDLE, wintypes.HINSTANCE, wintypes.LPVOID)
+            cls = WndClass()
+            cls.lpfnWndProc = callback_ref
+            cls.hInstance = kernel32.GetModuleHandleW(None)
+            cls.lpszClassName = "ChottoSessionWatcher"
+            user32.RegisterClassW(ctypes.byref(cls))
+            # Cửa sổ ẩn cấp cao nhất (không phải message-only: loại này không nhận WM_ENDSESSION).
+            hwnd = user32.CreateWindowExW(0, cls.lpszClassName, "CHOTTO", 0, 0, 0, 0, 0, None, None, cls.hInstance, None)
+            if not hwnd:
+                return
+            msg = wintypes.MSG()
+            user32.GetMessageW.argtypes = (ctypes.POINTER(wintypes.MSG), wintypes.HWND, wintypes.UINT, wintypes.UINT)
+            while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
+                user32.TranslateMessage(ctypes.byref(msg))
+                user32.DispatchMessageW(ctypes.byref(msg))
+        except Exception:  # noqa: BLE001 - chỉ là tiện ích
+            _LOG.debug("Không theo dõi được kết thúc phiên", exc_info=True)
+
+    threading.Thread(target=run, name="chotto-session-watch", daemon=True).start()
 
 
 def foreground_window() -> int:

@@ -388,6 +388,48 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
             m.start()                                                # không ném lỗi, chỉ ghi log
         self.assertTrue(m._broken)
 
+    def _start_with(self, **cfg: Any) -> tuple[Any, list[str]]:
+        save_config(dict(DEFAULTS, **cfg))
+        m = mascot.TaskbarMascot(FakeRoot(), lambda: None)  # type: ignore[arg-type]
+        calls: list[str] = []
+        m._show = lambda: (calls.append("show"), setattr(m, "_enabled", True))  # type: ignore[method-assign,assignment]
+        m._hide = lambda: (calls.append("hide"), setattr(m, "_enabled", False))  # type: ignore[method-assign,assignment]
+        return m, calls
+
+    def test_startup_zalo_follows_zalo_process(self) -> None:
+        m, calls = self._start_with(mascot_enabled=True, mascot_startup="zalo")
+        running = [False]
+        with patch.object(mascot.taskbar, "any_process_running", side_effect=lambda names: running[0]):
+            m._poll()
+            self.assertEqual(calls, [])                              # Zalo chưa mở: chưa hiện
+            running[0] = True
+            m._poll()
+            self.assertEqual(calls, ["show"])
+            running[0] = False
+            m._poll()
+            self.assertEqual(calls, ["show", "hide"])
+        m.stop()
+
+    def test_startup_login_ignores_zalo(self) -> None:
+        m, calls = self._start_with(mascot_enabled=True, mascot_startup="login")
+        with patch.object(mascot.taskbar, "any_process_running", return_value=False):
+            m._poll()
+        self.assertEqual(calls, ["show"])
+        m.stop()
+
+    def test_startup_validation_and_session_end_reset(self) -> None:
+        self.assertEqual(validate_config({})["mascot_startup"], "login")
+        self.assertEqual(validate_config({"mascot_startup": "bogus"})["mascot_startup"], "login")
+        self.assertEqual(validate_config({"mascot_startup": "zalo"})["mascot_startup"], "zalo")
+        from chotto.service.app import _reset_mascot_on_session_end
+
+        save_config(dict(DEFAULTS, mascot_enabled=True, mascot_startup="login"))
+        _reset_mascot_on_session_end()
+        self.assertTrue(load_config()["mascot_enabled"])             # chỉ chế độ "off" mới tự về tắt
+        save_config(dict(DEFAULTS, mascot_enabled=True, mascot_startup="off"))
+        _reset_mascot_on_session_end()
+        self.assertFalse(load_config()["mascot_enabled"])
+
     def test_headless_has_no_support_off_windows(self) -> None:
         with patch.object(mascot.taskbar.osw, "OVERLAY_SUPPORTED", False):
             self.assertFalse(mascot.supported())

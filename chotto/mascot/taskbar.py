@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 from ..config import MASCOT_DEFAULT_COLORS, config_stamp, data_dir, load_config
+from ..platforms import any_process_running
 from ..platforms import win32_window as w32
 from ..platforms import window as osw
 from ..util import clamp as _clamp
@@ -99,6 +100,9 @@ class TaskbarMascot:
         self._reload = threading.Event()
         self._broken = False
         self._enabled = False
+        self._switch_on = False                # công tắc "mascot_enabled" trong cấu hình (khác với đang hiện)
+        self._startup = "login"
+        self._zalo_names: tuple[str, ...] = ()
         self._colors: tuple[str, ...] = tuple(MASCOT_DEFAULT_COLORS)
         self._lang = "en"
         self._stamp: tuple[int, int] | None = None
@@ -187,6 +191,7 @@ class TaskbarMascot:
     def _poll(self) -> None:
         """Theo dõi cấu hình mỗi ``_POLL_MS`` (dự phòng cho tín hiệu ``config_changed``)."""
         self._apply_config(force=self._stamp is None)
+        self._reconcile()
         if self._enabled and self._window is not None:
             self._place_bounds()                      # đổi độ phân giải / dời taskbar
         if not self._broken:
@@ -206,11 +211,19 @@ class TaskbarMascot:
         if colors != self._colors or self._poses is None:
             self._colors = colors
             self._render_async(colors)
-        if cfg["mascot_enabled"] and not self._enabled:
-            self._show()
-        elif not cfg["mascot_enabled"] and self._enabled:
-            self._hide()
+        self._switch_on = bool(cfg["mascot_enabled"])
+        self._startup = cfg["mascot_startup"]
+        self._zalo_names = tuple(cfg["zalo_processes"])
+        self._reconcile()
         self._sync_pin()
+
+    def _reconcile(self) -> None:
+        """Hiện/ẩn theo công tắc; chế độ "zalo" thì chỉ hiện khi Zalo đang chạy."""
+        want = self._switch_on and (self._startup != "zalo" or any_process_running(self._zalo_names))
+        if want and not self._enabled:
+            self._show()
+        elif not want and self._enabled:
+            self._hide()
 
     def _render_async(self, colors: tuple[str, ...]) -> None:
         """Tô màu trên luồng nền (lần đầu mất tới ~1 giây); Tk nhận kết quả ở khung hình sau."""
@@ -362,6 +375,7 @@ class TaskbarMascot:
         """"Ẩn nhân vật" trong menu: lưu ``mascot_enabled = false`` để công tắc trong ứng dụng khớp."""
         from ..service.app import save_settings
 
+        self._switch_on = False
         self._hide()
         try:
             save_settings({"mascot_enabled": False})

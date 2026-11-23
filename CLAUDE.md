@@ -80,6 +80,8 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   app lưu cài đặt thì host gửi `config_changed` → `WebUI.on_config_changed` (ngoài ra agent tự stat `config.json` mỗi 1,5 giây).
 - Bẫy: Tk `deiconify` luôn kích hoạt cửa sổ dù có `WS_EX_NOACTIVATE` → `_give_back_focus` trả focus sau 30/250/600 ms (lấy cửa sổ trước đó TRƯỚC khi dựng cửa sổ).
 - Giao diện Tk dự phòng (`ui.py`) không có mục nhân vật.
+- Khởi động nhân vật (`mascot_startup`): `login` (mặc định) | `zalo` (chỉ hiện khi `zalo_processes` đang chạy, `TaskbarMascot._reconcile` kiểm mỗi 1,5 giây qua `platforms.any_process_running`) | `off`
+  (`WM_ENDSESSION` do `win32_window.watch_session_end` bắt → `_reset_mascot_on_session_end` ghi `mascot_enabled=false`). Tắt máy cưỡng bức/mất điện thì không reset được.
 - Cỡ (2026-11-23): `_BASE_SCALE = 0.30` (cỡ thường), tư thế "Khoan đã!" nhân thêm `_STOP_MUL = 2` (gấp 4 bản đầu). Cửa sổ nhân vật dựng theo cỡ to nhất nên vùng chạy hẹp hơn ở hai đầu.
 - Muốn thấy sửa đổi của agent/mascot phải tắt agent cũ (`main.py agent`, `ui-host`) rồi chạy lại: `main.py` chỉ nối vào agent đang chạy.
 

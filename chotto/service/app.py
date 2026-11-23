@@ -22,6 +22,7 @@ from .. import logdb, platforms
 from ..config import SETTINGS_KEYS, Config, config_stamp, load_config, load_rules, save_config
 from ..messages import msg
 from ..platforms import Caller, detect_caller
+from ..platforms import window as osw
 from ..engine import Engine, Result
 from ..tier1 import BlacklistError, update_due, update_from_sources
 from . import agent as agent_mod
@@ -366,6 +367,16 @@ def _start_mascot(root: tk.Tk, open_app: Callable[[], None], web: WebUI | None) 
         return None
 
 
+def _reset_mascot_on_session_end() -> None:
+    """Tắt máy/đăng xuất: chế độ nhân vật "off" thì đưa công tắc về tắt để lần mở máy sau khớp với thực tế."""
+    try:
+        cfg = load_config()
+        if cfg["mascot_startup"] == "off" and cfg["mascot_enabled"]:
+            save_settings({"mascot_enabled": False})
+    except Exception:  # noqa: BLE001 - phiên đang đóng, không có gì để báo lỗi tới
+        _LOG.exception("Không đặt lại công tắc nhân vật khi kết thúc phiên")
+
+
 def run_resident(open_settings_after_ms: int | None = None, show_settings_now: bool = False) -> int:
     """Agent thường trú: chạy đến khi nhận lệnh tắt.
 
@@ -405,6 +416,7 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
         web.start()                    # giữ sẵn: màn hình đệm sau hiện trong khoảng 0,2 giây
     state: dict[str, Any] = {"busy": False, "handled": False, "settings": None}
     mascot = _start_mascot(window, lambda: open_settings(), web)
+    osw.watch_session_end(_reset_mascot_on_session_end)
     handlers = _HandlerCache(window, web, mascot.notify if mascot is not None else None)
 
     def drain() -> None:

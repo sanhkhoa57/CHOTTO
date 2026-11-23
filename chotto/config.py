@@ -38,6 +38,8 @@ _LOG = logging.getLogger(__name__)
 UnknownCallerPolicy = Literal["inspect", "forward"]
 UILanguage = Literal["en", "vi"]
 UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
+MascotStartup = Literal["login", "zalo", "off"]
+MASCOT_STARTUPS: Final[tuple[str, ...]] = ("login", "zalo", "off")
 # Màu mặc định của 6 nhóm nhân vật taskbar (Tóc, Mắt, Da, Áo choàng, Váy, Giày/phụ kiện): khớp ``D.def`` của
 # design/chotto_mascot_customizer.html và ``chotto/mascot/assets/palette.json`` (có test kiểm tra).
 MASCOT_DEFAULT_COLORS: Final[tuple[str, ...]] = ("#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f")
@@ -64,6 +66,7 @@ class Config(TypedDict):
     auto_update: bool
     ui_language: UILanguage
     mascot_enabled: bool
+    mascot_startup: MascotStartup
     mascot_colors: list[str]
     mascot_pinned: bool
     mascot_pos: float
@@ -87,6 +90,7 @@ DEFAULTS: Final[Config] = {
     "auto_update": True,            # Agent tự cập nhật danh sách đen mỗi ngày (tải tăng dần theo ETag)
     "ui_language": "en",            # Ngôn ngữ giao diện HTML: "en" | "vi" (giao diện Tk dự phòng luôn tiếng Việt)
     "mascot_enabled": False,        # Nhân vật đồng hành trên thanh taskbar (Windows); người dùng tự bật
+    "mascot_startup": "login",      # Khi nào nhân vật hiện: "login" (cùng agent) | "zalo" (khi Zalo mở) | "off" (tự về tắt khi tắt máy)
     "mascot_colors": list(MASCOT_DEFAULT_COLORS),
     "mascot_pinned": False,         # Cố định nhân vật tại một chỗ (không chạy qua lại)
     "mascot_pos": 0.85,             # Vị trí cố định: tỉ lệ 0 (trái) .. 1 (phải) trên chiều ngang màn hình
@@ -95,7 +99,7 @@ DEFAULTS: Final[Config] = {
 # Các khóa người dùng được xem và sửa từ cửa sổ ứng dụng / cài đặt (các khóa khác như trình duyệt đã lưu thì không).
 SETTINGS_KEYS: Final[tuple[str, ...]] = (
     "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
-    "mascot_enabled", "mascot_colors", "mascot_pinned", "mascot_pos",
+    "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos",
 )
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
@@ -229,6 +233,8 @@ def validate_config(raw: Mapping[str, Any]) -> Config:
             accepted = value if value in ("inspect", "forward") else None
         elif key == "ui_language":
             accepted = value if value in UI_LANGUAGES else None
+        elif key == "mascot_startup":
+            accepted = value if value in MASCOT_STARTUPS else None
         elif isinstance(default, str):
             accepted = value if isinstance(value, str) else None
         if accepted is None:

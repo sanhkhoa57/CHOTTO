@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable
 from typing import Any, Final
 
 from . import cocoa_window, win32_window
@@ -21,6 +22,7 @@ __all__ = [
     "fade",
     "reload_on_show",
     "set_icon",
+    "watch_session_end",
 ]
 
 _LOG = logging.getLogger("chotto")
@@ -69,6 +71,12 @@ def enable_snap(window: Any) -> None:
     """Cho cửa sổ không viền dùng được Snap của Windows."""
     if _WIN:
         win32_window.enable_snap(window)
+
+
+def watch_session_end(callback: Callable[[], None]) -> None:
+    """Gọi ``callback`` khi phiên kết thúc (tắt máy/đăng xuất/khởi động lại); chỉ Windows, nơi khác không làm gì."""
+    if _WIN:
+        win32_window.watch_session_end(callback)
 
 
 def fade(window: Any, start: int, end: int, ms: int = 160) -> None:

@@ -11,9 +11,10 @@ from __future__ import annotations
 import importlib
 import logging
 import sys
-from collections.abc import Mapping, MutableMapping
+from collections.abc import Iterable, Mapping, MutableMapping
 from typing import Any, Final, Protocol, cast
 
+from . import windows
 from .common import Caller, PlatformSetupError, build_browser_argv, decide_from_evidence, is_http_url
 from .windows import split_windows_command
 
@@ -21,6 +22,7 @@ __all__ = [
     "Caller",
     "PlatformSetupError",
     "agent_argv",
+    "any_process_running",
     "build_browser_argv",
     "decide_from_evidence",
     "detect_caller",
@@ -128,6 +130,18 @@ def uninstall(cfg: Mapping[str, Any] | None = None) -> str:
     """Gỡ đăng ký CHOTTO và tắt tự khởi động. macOS: trả trình mở link về trình duyệt đã ghi nhớ lúc cài."""
     disable_autostart()
     return _OS.uninstall(cfg or {})
+
+
+def any_process_running(names: Iterable[str]) -> bool:
+    """Có tiến trình nào trong ``names`` (tên file, không phân biệt hoa thường) đang chạy không. Chỉ Windows; nơi khác ``False``."""
+    if sys.platform != "win32":
+        return False
+    wanted = {str(n).lower() for n in names}
+    try:
+        return bool(wanted & windows.running_process_names())
+    except OSError:
+        _LOG.debug("Không liệt kê được tiến trình", exc_info=True)
+        return False
 
 
 def open_in_real_browser(url: str, cfg: Mapping[str, Any]) -> bool:

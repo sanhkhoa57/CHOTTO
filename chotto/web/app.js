@@ -109,6 +109,7 @@
       sw.setAttribute("aria-checked", k === "unknown_caller_policy" ? s.settings[k] === "inspect" : !!s.settings[k]);
     });
     $$("#seconds button").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.s) === s.settings.friction_seconds));
+    $$("#buddyStartup button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === (s.settings.mascot_startup || "login")));
     buddySync(s);
     buddyPlaceUI();
   }
@@ -182,6 +183,11 @@
     const before = $("#seconds [aria-pressed=true]");
     $$("#seconds button").forEach((x) => x.setAttribute("aria-pressed", x === b));
     save({ friction_seconds: Number(b.dataset.s) }, () => $$("#seconds button").forEach((x) => x.setAttribute("aria-pressed", x === before)));
+  }));
+  $$("#buddyStartup button").forEach((b) => b.addEventListener("click", () => {
+    const before = $("#buddyStartup [aria-pressed=true]");
+    $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+    save({ mascot_startup: b.dataset.v }, () => $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === before)));
   }));
   $$("[data-lang-switch] button").forEach((b) => b.addEventListener("click", () => {
     const before = I18N.lang;
@@ -409,7 +415,7 @@
     default_handler: !location.search.includes("off"), blacklist_text: "Scam list updated at 07:42 today",
     settings: { tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
       ui_language: location.search.includes("vi") ? "vi" : "en",
-      mascot_enabled: true, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"] },
+      mascot_enabled: true, mascot_startup: "login", mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"] },
     summary: { total: 128, safe: 121, warned: 7, closed: 6, blocked: 2 },
     recent: [
       { ts: now - 3600, host: "xacthuc-tk.top", level: "BLOCKED", decision: "cancel" },

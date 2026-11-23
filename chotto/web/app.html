@@ -332,6 +332,10 @@ body { background: var(--bg); font-family: var(--sans); }
         <h2 class="h2" data-i18n="set.buddy">Taskbar character</h2>
         <div class="opt"><div><strong data-i18n="set.buddyOn">Show on the taskbar</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddy">i</span></div><button class="switch" role="switch" data-key="mascot_enabled" aria-checked="false" data-i18n-attr="aria-label:set.buddyOn" aria-label="Show on the taskbar"></button></div>
         <div class="fold" id="buddyFold"><div class="fold-in">
+        <div class="opt"><div><strong data-i18n="set.buddyStart">When to show it</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyStart">i</span></div>
+          <div class="seg" role="group" id="buddyStartup" data-i18n-attr="aria-label:set.buddyStart" aria-label="When to show it">
+            <button data-v="login" aria-pressed="false" data-i18n="start.login">At sign-in</button><button data-v="zalo" aria-pressed="false" data-i18n="start.zalo">With Zalo</button><button data-v="off" aria-pressed="false" data-i18n="start.off">Off</button>
+          </div></div>
         <div class="opt"><div><strong data-i18n="set.buddyPin">Keep it in one place</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyPin">i</span></div><button class="switch" role="switch" data-key="mascot_pinned" aria-checked="false" data-i18n-attr="aria-label:set.buddyPin" aria-label="Keep it in one place"></button></div>
         <div class="opt" id="buddyPlaceRow"><div><strong data-i18n="buddy.place">Position</strong><small id="buddyPlaceHint" data-i18n="buddy.placeHint">Drag the character left or right on the taskbar, then press Done.</small></div><button class="btn btn--secondary buddy-place" id="buddyPlace" data-i18n="buddy.placeBtn">Choose position</button></div>
         </div></div>
