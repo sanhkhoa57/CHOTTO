@@ -188,7 +188,10 @@ details[open] summary::after{transform:rotate(45deg)}
 @media (max-width:1100px){#platforms{grid-template-columns:repeat(2,1fr);row-gap:16px}}
 #platforms>.card{display:grid;grid-template-rows:subgrid;grid-row:span 5;row-gap:0}
 @media (max-width:960px){#platforms{grid-template-columns:1fr;row-gap:16px}#platforms>.card{display:flex;flex-direction:column;grid-row:auto}}
-@media (max-width:760px){.wrap{padding:0 16px}.hidem{display:none!important}}
+@media (max-width:760px){.wrap{padding:0 16px}.hidem{display:none!important}
+.bar{gap:8px!important;padding:0 6px 0 14px!important}.bar>div:first-child{flex:0 0 auto!important}.bar>div:last-child{flex:1 1 auto!important;gap:6px!important;min-width:0}
+.bar .btn{padding:0 12px!important;font-size:13px!important;flex-shrink:0}.bar #logo{font-size:15px!important;gap:7px!important}}
+@media (max-width:380px){.bar #logo{font-size:0!important}.bar #logo img{width:26px;height:26px}}
 </style>
 </head>
 <body>
