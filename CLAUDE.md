@@ -55,6 +55,14 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   bản tiếng Anh dựng lại từ **mã dấu hiệu** trong `viewmodel._REASONS_EN` và `advisor.TIPS_EN/COMBOS_EN`. Thêm mã dấu hiệu mới thì phải thêm bản dịch (có test kiểm tra).
 - Font Newsreader + Onest nằm cục bộ trong `chotto/web/fonts` (giấy phép OFL kèm theo), có bộ chữ tiếng Việt.
 
+## Nhân vật taskbar (`chotto/mascot.py`, chưa commit)
+- Asset `chotto/mascot_assets/` (pose/mask PNG + `palette.json`) trích từ `design/chotto_mascot_customizer.html` bằng `python tools/extract_mascot.py`.
+  Thuật toán tô màu có HAI bản phải khớp từng điểm ảnh: Python `recolor_pixels` (taskbar) và `chotto/web/mascot.js` (xem trước trong app); test so bằng Node.
+- Chạy trên luồng Tk của agent (`_start_mascot` trong `service/app.py`), chỉ Windows. `LinkHandler.notify` báo `warning_open`/`warning_closed`;
+  app lưu cài đặt thì host gửi `config_changed` → `WebUI.on_config_changed` (ngoài ra agent tự stat `config.json` mỗi 1,5 giây).
+- Bẫy: Tk `deiconify` luôn kích hoạt cửa sổ dù có `WS_EX_NOACTIVATE` → `_give_back_focus` trả focus sau 30/250/600 ms (lấy cửa sổ trước đó TRƯỚC khi dựng cửa sổ).
+- Giao diện Tk dự phòng (`ui.py`) không có mục nhân vật.
+
 ## Việc đã thử và bỏ
 - **Mica/Acrylic (nền mờ Windows 11):** thử 4 cách với pywebview + WinForms đều không ra hiệu ứng (WinForms tô nền đè lên). Người dùng đồng ý bỏ qua.
 - Thư mục `design/` (bản demo nháp + mã hiệu ứng chép từ skill taste) và `.taste-skill/` đã vào `.gitignore`; **đừng commit** `design/assets` vì chưa rõ giấy phép.

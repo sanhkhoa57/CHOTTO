@@ -1,10 +1,10 @@
 package vn.chotto.app.ui.theme
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-private val ChottoColors = darkColorScheme(
+private val ChottoColors = lightColorScheme(
     primary = Accent,
     onPrimary = AccentInk,
     secondary = Warn,
@@ -18,7 +18,7 @@ private val ChottoColors = darkColorScheme(
     outline = Line,
 )
 
-/** Luôn tối, không dùng màu động của hệ thống: màn cảnh báo phải trông giống nhau trên mọi máy. */
+/** Luôn sáng (pastel), không dùng màu động của hệ thống: màn cảnh báo phải trông giống nhau trên mọi máy. */
 @Composable
 fun CHOTTOTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = ChottoColors, typography = Typography, content = content)

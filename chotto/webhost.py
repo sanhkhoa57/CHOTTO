@@ -10,6 +10,7 @@ nói chuyện với agent bằng từng dòng JSON:
   host → agent:  {"op": "ready", "pid"}
                  {"op": "decision", "id", "proceed", "dwell_ms"}
                  {"op": "settings_closed"}
+                 {"op": "config_changed"}   (cửa sổ ứng dụng vừa lưu cài đặt: agent đọc lại ngay, ví dụ nhân vật taskbar)
 
 Chính sách an toàn: host tự kiểm lại thời gian khóa nút "vẫn mở" (không tin JavaScript), đóng cửa sổ
 bằng bất kỳ cách nào đều là "không mở", và agent mất liên lạc (stdin đóng) thì host tự thoát. Mọi lỗi
@@ -42,9 +43,13 @@ __all__ = ["AppApi", "FrictionApi", "Host", "run_host"]
 _LOG = logging.getLogger("chotto")
 
 BG: Final[str] = "#0c0a08"
+_APP_BG: Final[str] = "#fbf6f1"                 # nền sáng của cửa sổ ứng dụng (tránh chớp đen lúc mở)
+_APP_W: Final[int] = 420                         # cửa sổ ứng dụng theo tỉ lệ điện thoại (~9:19,5)
+_APP_H: Final[int] = 880
 _UNLOCK_SLACK_S: Final[float] = 0.25          # bù độ trễ hiển thị của đồng hồ đếm ngược phía JavaScript
 _SETTINGS_KEYS: Final[tuple[str, ...]] = (
     "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
+    "mascot_enabled", "mascot_colors", "mascot_pinned",
 )
 _MAX_CHECK_URL: Final[int] = 4096
 
@@ -460,6 +465,7 @@ class AppApi:
             "recent": logdb.recent(30) if cfg["log_decisions"] else [],
             "default_handler": platform_setup.is_default_handler(),
             "blacklist_text": _blacklist_text(last_update_success(), lang=cfg["ui_language"]),
+            "mascot_supported": sys.platform == "win32",
         }
 
     def save(self, values: dict[str, Any]) -> dict[str, Any]:
@@ -473,7 +479,37 @@ class AppApi:
         except OSError as exc:
             _LOG.exception("Không lưu được cấu hình")
             return {"ok": False, "error": _msg(lang, "save_failed", error=exc)}
+        self._host.config_changed()
         return {"ok": True, "settings": _settings_of(load_config())}
+
+    def mascot_place(self, on: bool) -> None:
+        """Bật/tắt chế độ "chọn vị trí" bằng file cờ (cửa sổ này có thể không cùng tiến trình với agent)."""
+        from . import mascot
+
+        mascot.set_place_flag(bool(on))
+
+    def mascot(self) -> dict[str, Any]:
+        """Sprite, mask (data URL) và tham số tô màu cho phần xem trước nhân vật (JavaScript tô màu tại chỗ)."""
+        import base64
+
+        from . import mascot
+
+        try:
+            poses = []
+            for n in range(4):
+                pair = {}
+                for key, name in (("img", "pose"), ("mask", "mask")):
+                    raw = resource_path("mascot_assets", f"{name}_{n}.png").read_bytes()
+                    pair[key] = "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
+                poses.append(pair)
+            palette = mascot.load_palette()
+        except (OSError, ValueError, KeyError):
+            _LOG.exception("Không đọc được asset nhân vật")
+            return {"ok": False, "supported": False}
+        return {"ok": True, "supported": mascot.supported(), "poses": poses,
+                "palette": {"default": list(palette.default), "pivot": list(palette.pivot),
+                            "params": [list(p) for p in palette.params],
+                            "swatches": [list(s) for s in palette.swatches]}}
 
     def check(self, url: str) -> dict[str, Any]:
         """Kiểm tra một link người dùng dán vào (không mở trang)."""
@@ -600,7 +636,7 @@ class Host:
             _msg(str(payload.get("view", {}).get("lang", "en")), "friction_title"),
             url=str(web_root() / "friction.html"), js_api=api,
             width=620, height=height, min_size=(460, 520), frameless=True, easy_drag=False,
-            on_top=True, background_color=BG, text_select=True, **self._centered(620, height))
+            on_top=True, background_color=_APP_BG, text_select=True, **self._centered(620, height))
         api._window = window  # noqa: SLF001 - cùng mô-đun
         _reload_on_show(window, str(web_root() / "friction.html"))
         with self._lock:
@@ -646,22 +682,27 @@ class Host:
             except Exception:  # noqa: BLE001 - cửa sổ cũ hỏng: tạo cửa sổ mới
                 self._app_window = None
         window = self._webview.create_window(
-            "Chotto", url=str(web_root() / "app.html"), js_api=AppApi(self), width=1100, height=760,
-            min_size=(760, 560), frameless=True, easy_drag=False, background_color=BG, text_select=True,
-            **self._centered(1100, 760))
+            "Chotto", url=str(web_root() / "app.html"), js_api=AppApi(self), width=_APP_W, height=_APP_H,
+            min_size=(360, 640), frameless=True, easy_drag=False, background_color=_APP_BG, text_select=True,
+            hidden=sys.platform == "win32", **self._centered(_APP_W, _APP_H))   # Windows: ẩn hẳn tới khi trang tải xong (không nháy)
         self._app_window = window
         _reload_on_show(window, str(web_root() / "app.html"))
         window.events.closed += self._on_settings_closed
-        _when_shown(window, lambda: _center_on_screen(window, 1100, 760))
+        _when_shown(window, lambda: _center_on_screen(window, _APP_W, _APP_H))
         _when_shown(window, lambda: _activate(window))
         window.events.shown += lambda: _enable_snap(window)
         window.events.shown += lambda: _set_window_icon(window)
-        window.events.shown += lambda: _fade(window, 0, 0, 0)            # ẩn tới khi trang tải xong rồi hiện dần
         opened = threading.Event()
 
         def reveal() -> None:
             if not opened.is_set():
                 opened.set()
+                _fade(window, 0, 0, 0)                                   # trong suốt hoàn toàn TRƯỚC khi hiện, để không nháy
+                try:
+                    window.show()
+                except Exception:  # noqa: BLE001 - cửa sổ đã đóng
+                    return
+                _activate(window)
                 _fade(window, 0, 255, 220)
 
         window.events.loaded += lambda: threading.Timer(0.12, reveal).start()
@@ -686,8 +727,15 @@ class Host:
         self._faded_out = False
         threading.Thread(target=_fade, args=(window, 0, 255, 200), name="chotto-reveal", daemon=True).start()
 
+    def config_changed(self) -> None:
+        """Báo agent đọc lại cấu hình ngay (không chờ lần kiểm tra định kỳ)."""
+        self._wire.send({"op": "config_changed"})
+
     def _on_settings_closed(self) -> None:
         self._app_window = None
+        from . import mascot
+
+        mascot.set_place_flag(False)                 # đóng cửa sổ ứng dụng = hết chế độ chọn vị trí
         self._wire.send({"op": "settings_closed"})
 
     def app_window_op(self, op: str) -> None:

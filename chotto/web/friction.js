@@ -42,7 +42,7 @@
     document.documentElement.lang = view.lang || "en";
     if (shield) shield.update(view);
     else {
-      shield = window.ChottoShield.mount(document.getElementById("scroll"), view, { theme: "dark" });
+      shield = window.ChottoShield.mount(document.getElementById("scroll"), view, { theme: "light" });
       shield.back.addEventListener("click", () => decide(false));
       shield.proceed.addEventListener("click", () => decide(true));
     }
@@ -73,7 +73,7 @@
     vi: {
       lock_s: 8,
       view: {
-        lang: "vi", level: "HIGH", levelLabel: "Khoan đã! Link nguy hiểm", headline: "Giả danh Vietcombank và hối thúc bạn",
+        lang: "vi", level: "HIGH", score: 87, levelLabel: "Khoan đã! Link nguy hiểm", headline: "Giả danh Vietcombank và hối thúc bạn",
         reasonShort: "Đừng đăng nhập hay nhập mã OTP vào trang này.",
         domain: { userinfo: "", prefix: "", decoyPrefix: false, registered: "vcb-digibanks.top", rest: "/xac-nhan", hit: "vcb",
           punycode: "", isIp: false, brand: "Vietcombank", official: "vietcombank.com.vn" },
@@ -91,7 +91,7 @@
     en: {
       lock_s: 8,
       view: {
-        lang: "en", level: "HIGH", levelLabel: "Hold on! Dangerous link", headline: "Pretends to be Vietcombank and rushes you",
+        lang: "en", level: "HIGH", score: 87, levelLabel: "Hold on! Dangerous link", headline: "Pretends to be Vietcombank and rushes you",
         reasonShort: "Don't sign in or type any OTP code on this page.",
         domain: { userinfo: "", prefix: "", decoyPrefix: false, registered: "vcb-digibanks.top", rest: "/xac-nhan", hit: "vcb",
           punycode: "", isIp: false, brand: "Vietcombank", official: "vietcombank.com.vn" },

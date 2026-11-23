@@ -7,9 +7,15 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="shield.css">
 <style>
-.shell { height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
-.scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; display: flex; justify-content: center; }
-.scroll .sh { width: 100%; max-width: 600px; margin: auto 0; user-select: text; }
+/* Bảng màu pastel giống app.html: oải hương + cam đào, chữ tím đậm. Ghi đè nhánh sáng của shield.css. */
+:root { color-scheme: light; --bg: #fbf6f1; --ink: #3a2547; --muted: #675a69; --line: rgba(58, 37, 71, .09); --line-strong: rgba(58, 37, 71, .22); --accent: #f28a3a; --accent-hi: #f69a52; --accent-ink: #2b1400; }
+body { background: #fbf6f1; color: #3a2547; }
+.shell { height: 100vh; display: flex; flex-direction: column;
+  background: radial-gradient(120% 55% at 100% 0%, #ffe3cf 0%, transparent 60%), radial-gradient(110% 50% at 0% 0%, #ebe3fb 0%, transparent 62%), #fbf6f1; }
+.tb { color: #3a2547; }
+.tb .ctl svg { stroke: #3a2547; }
+.tb .ctl:hover { background: rgba(58, 37, 71, .07); }
+.sh[data-theme="light"] { --bg: transparent; }          /* để lộ nền gradient của cửa sổ */
 </style>
 </head>
 <body>

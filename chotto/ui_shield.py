@@ -41,7 +41,7 @@ class _Pill(tk.Label):
                          highlightthickness=1 if border else 0, highlightbackground=border or bg, highlightcolor=border or bg)
         self._command = command
         self._enabled = True
-        self.bind("<ButtonRelease-1>", lambda _e: self._enabled and command())
+        self.bind("<ButtonRelease-1>", lambda _e: command() if self._enabled else None)
 
     def set_enabled(self, enabled: bool, text: str | None = None, fg: str | None = None) -> None:
         self._enabled = enabled

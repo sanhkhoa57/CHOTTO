@@ -529,7 +529,9 @@ def is_default_handler() -> bool | None:
     """CHOTTO có đang là trình xử lý link https mặc định không; ``None`` nếu không xác định được."""
     try:
         if sys.platform == "win32":
-            return _user_choice_progid("https") == PROGID
+            # Gỡ đăng ký chỉ xóa khóa ChottoURL; lựa chọn người dùng (UserChoice) vẫn trỏ tới nó cho tới khi họ chọn
+            # trình duyệt khác. Không còn lệnh mở thì CHOTTO không còn là trình xử lý, dù UserChoice còn ghi tên.
+            return _user_choice_progid("https") == PROGID and bool(_progid_command(PROGID))
         if sys.platform == "darwin":
             path = Path.home() / "Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist"
             handlers = plistlib.loads(path.read_bytes()).get("LSHandlers", [])

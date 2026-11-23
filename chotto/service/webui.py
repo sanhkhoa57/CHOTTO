@@ -75,6 +75,7 @@ class WebUI:
         self._ids = itertools.count(1)
         self._failures = 0
         self._settings_open = False
+        self.on_config_changed: Callable[[], None] | None = None   # cửa sổ ứng dụng vừa lưu cấu hình (gọi từ luồng đọc)
 
     # ---- vòng đời tiến trình ----
     def start(self) -> bool:
@@ -154,6 +155,13 @@ class WebUI:
                 waiter.event.set()
         elif op == "settings_closed":
             self._settings_open = False
+        elif op == "config_changed":
+            callback = self.on_config_changed
+            if callback is not None:
+                try:
+                    callback()
+                except Exception:  # noqa: BLE001 - người nghe lỗi không được làm đứt kênh với host
+                    _LOG.exception("Xử lý config_changed lỗi")
 
     def _send(self, message: dict[str, Any]) -> None:
         stream = self._stdin

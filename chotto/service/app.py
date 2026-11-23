@@ -32,6 +32,7 @@ from .webui import WebUI, WebUIError
 if TYPE_CHECKING:
     import tkinter as tk
 
+    from ..mascot import TaskbarMascot
     from ..ui import SettingsActions
 
 __all__ = ["AutoUpdater", "build_handler", "run_once", "run_resident"]
@@ -44,6 +45,7 @@ _AUTO_UPDATE_FIRST_MS: Final[int] = 2 * 60 * 1000       # để máy khởi đ�
 _AUTO_UPDATE_EVERY_MS: Final[int] = 15 * 60 * 1000
 _SETTINGS_KEYS: Final[tuple[str, ...]] = (
     "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
+    "mascot_enabled", "mascot_colors", "mascot_pinned", "mascot_pos",
 )
 
 
@@ -118,7 +120,8 @@ def make_webui() -> WebUI | None:
     return WebUI() if webui_mod.enabled() else None
 
 
-def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None) -> LinkHandler:
+def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None,
+                  notify: Callable[[str, str], None] | None = None) -> LinkHandler:
     """Dựng ``LinkHandler``: giao diện HTML nếu có, không được thì Tk, cuối cùng là hộp thoại hệ thống."""
     from .. import ui
 
@@ -129,7 +132,8 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None) -> 
 
         if not rules:
             rules.update(load_rules())
-        return shield_view(result, checking, rules, cfg["ui_language"])
+        # Điểm rủi ro chỉ hiện ở Desktop (to, nhìn là hiểu); view dùng chung với tiện ích không có khóa này.
+        return {**shield_view(result, checking, rules, cfg["ui_language"]), "score": max(0, min(100, int(result.score)))}
 
     def present(result: Result, seconds_for: SecondsFor, pending: Future[Result] | None) -> tuple[bool, int, Result]:
         if web is not None:
@@ -148,6 +152,7 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None) -> 
         open_url=lambda target: platform_setup.open_in_real_browser(target, cfg),
         alert=lambda message: ui.native_alert("CHOTTO", message),
         record=_record_desktop(cfg),
+        notify=notify,
     )
 
 
@@ -321,10 +326,12 @@ class AutoUpdater:
 class _HandlerCache:
     """Giữ ``LinkHandler`` (và engine trong RAM); dựng lại khi ``config.json`` thay đổi."""
 
-    def __init__(self, root: tk.Tk, web: WebUI | None = None) -> None:
-        """Tạo bộ đệm cho cửa sổ gốc ``root`` (và giao diện HTML ``web`` nếu có)."""
+    def __init__(self, root: tk.Tk, web: WebUI | None = None,
+                 notify: Callable[[str, str], None] | None = None) -> None:
+        """Tạo bộ đệm cho cửa sổ gốc ``root`` (giao diện HTML ``web`` và người nghe ``notify`` nếu có)."""
         self._root = root
         self._web = web
+        self._notify = notify
         self._stamp: tuple[int, int] | None = None
         self._handler: LinkHandler | None = None
 
@@ -344,13 +351,28 @@ class _HandlerCache:
             if self._handler is not None:
                 _LOG.info("config.json thay đổi, nạp lại cấu hình")
             self._stamp = stamp
-            self._handler = build_handler(load_config(), self._root, self._web)
+            self._handler = build_handler(load_config(), self._root, self._web, self._notify)
         return self._handler
 
     @property
     def cfg(self) -> Config:
         """Cấu hình hiện hành."""
         return self.get().cfg
+
+
+def _start_mascot(root: tk.Tk, open_app: Callable[[], None], web: WebUI | None) -> TaskbarMascot | None:
+    """Nhân vật taskbar (tự ẩn/hiện theo ``mascot_enabled``); lỗi bất kỳ chỉ ghi log, agent chạy tiếp."""
+    try:
+        from ..mascot import TaskbarMascot
+
+        mascot = TaskbarMascot(root, open_app)
+        if web is not None:
+            web.on_config_changed = mascot.request_reload
+        mascot.start()
+        return mascot
+    except Exception:  # noqa: BLE001 - phần trang trí không được làm chết agent
+        _LOG.exception("Không khởi động được nhân vật taskbar")
+        return None
 
 
 def run_resident(open_settings_after_ms: int | None = None, show_settings_now: bool = False) -> int:
@@ -390,8 +412,9 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
     web = make_webui()
     if web is not None:
         web.start()                    # giữ sẵn: màn hình đệm sau hiện trong khoảng 0,2 giây
-    handlers = _HandlerCache(window, web)
     state: dict[str, Any] = {"busy": False, "handled": False, "settings": None}
+    mascot = _start_mascot(window, lambda: open_settings(), web)
+    handlers = _HandlerCache(window, web, mascot.notify if mascot is not None else None)
 
     def drain() -> None:
         if core.quit_requested.is_set() and not state["busy"]:
@@ -412,6 +435,8 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
             window.after(_POLL_MS, drain)
 
     def shutdown() -> None:
+        if mascot is not None:
+            mascot.stop()
         if server is not None:
             server.stop()
         if window.winfo_exists():

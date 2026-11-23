@@ -63,8 +63,8 @@ class MainActivity : ComponentActivity() {
         Thread { BlacklistUpdater.schedule(this, settings.autoUpdate) }.start()
         if (handle(intent)) return
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(AndroidColor.TRANSPARENT),
+            statusBarStyle = SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
         )
         setContent {
             CHOTTOTheme {

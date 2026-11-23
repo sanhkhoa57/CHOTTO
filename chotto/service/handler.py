@@ -34,6 +34,7 @@ FrictionPresenter = Callable[[Result, SecondsFor, "Future[Result] | None"], tupl
 Opener = Callable[[str], bool]
 Alert = Callable[[str], None]
 Recorder = Callable[[Result, str, int], bool]
+Notifier = Callable[[str, str], None]       # (sự kiện, mức rủi ro): warning_open | warning_closed
 
 
 def host_for_log(url: str) -> str:
@@ -65,6 +66,7 @@ class LinkHandler:
     open_url: Opener
     alert: Alert
     record: Recorder
+    notify: Notifier | None = None           # báo cho nhân vật taskbar; lỗi ở đây không bao giờ ảnh hưởng quyết định
     _engine: Engine | None = field(default=None, init=False, repr=False)
 
     def _get_engine(self) -> Engine:
@@ -111,6 +113,15 @@ class LinkHandler:
             self.record(result, decision, dwell_ms)
         except Exception:  # noqa: BLE001 - nhật ký không bao giờ được ảnh hưởng quyết định
             _LOG.exception("Ghi nhật ký lỗi (bỏ qua)")
+
+    def _safe_notify(self, event: str, level: str) -> None:
+        """Báo sự kiện màn hình cảnh báo cho người nghe (nhân vật taskbar); tuyệt đối không ném lỗi."""
+        if self.notify is None:
+            return
+        try:
+            self.notify(event, level)
+        except Exception:  # noqa: BLE001 - phần trang trí không được chạm vào luồng chặn link
+            _LOG.debug("Báo sự kiện cho nhân vật lỗi (bỏ qua)", exc_info=True)
 
     def _open(self, url: str) -> bool:
         """Mở bằng trình duyệt thật; thất bại thì báo người dùng."""
@@ -168,9 +179,11 @@ class LinkHandler:
             self._safe_record(result, "auto_open", 0)
             return "auto_open"
 
+        self._safe_notify("warning_open", result.level)
         try:
             proceed, dwell_ms, shown = self.present(result, self.seconds_for, pending)
         except Exception:  # noqa: BLE001 - giao diện hỏng: áp dụng chính sách fail-safe ở dưới
+            self._safe_notify("warning_closed", result.level)
             _LOG.exception("Không hiển thị được màn hình đệm")
             if result.tier_reached == 0:
                 self._safe_record(result, "ui_failed_open", 0)
@@ -181,6 +194,7 @@ class LinkHandler:
             self.alert(f"CHOTTO đã giữ lại một liên kết nguy hiểm ({domain}). Không mở liên kết này.")
             return "ui_failed_blocked"
 
+        self._safe_notify("warning_closed", shown.level)
         _LOG.info("NGUOI DUNG chọn %s sau %sms (mức %s)", "MỞ" if proceed else "ĐÓNG", dwell_ms, shown.level)
         self._safe_record(shown, "proceed" if proceed else "cancel", dwell_ms)
         if not proceed:

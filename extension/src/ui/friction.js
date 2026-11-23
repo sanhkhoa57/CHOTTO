@@ -98,7 +98,7 @@
     const GuardianUI = /** @type {any} */ (globalThis).ChottoGuardianUI;
     const guarded = Boolean(guardian && GuardianUI);
     const shield = /** @type {any} */ (globalThis).ChottoShield.mount(
-      dialog, guarded ? GuardianUI.blockView(view, guardian?.name) : view, { idPrefix: "chotto" });
+      dialog, guarded ? GuardianUI.blockView(view, guardian?.name) : view, { idPrefix: "chotto", theme: "light" });
     dialog.setAttribute("aria-labelledby", shield.headlineId);
     /** @type {HTMLButtonElement} */
     const back = shield.back;

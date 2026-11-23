@@ -150,7 +150,14 @@
     tile.setAttribute("aria-hidden", "true");
     const chip = el("span", "sh-chip");
     const head = el("div", "sh-head");
-    head.append(tile, chip);
+    // Điểm rủi ro to (chỉ có khi view có "score": Desktop). Thanh đầy theo điểm, màu theo mức.
+    const scoreNum = el("span", "sh-score-num");
+    const scoreOf = el("span", "sh-score-of", "/100");
+    const scoreBar = el("i", "sh-score-bar");
+    const score = el("div", "sh-score");
+    score.setAttribute("role", "img");
+    score.append(scoreNum, scoreOf, scoreBar);
+    head.append(tile, chip, score);
     const headline = el("h1", "sh-headline");
     headline.id = `${prefix}-title`;
     const sub = el("p", "sh-sub");
@@ -286,6 +293,13 @@
       root.dataset.level = level;
       tile.replaceChildren(icon(level === "BLOCKED" ? "blocked" : level === "HIGH" ? "high" : "warn"));
       chip.textContent = clean(next.levelLabel);
+      const points = Number(/** @type {any} */ (next).score);
+      score.hidden = !Number.isFinite(points);
+      if (!score.hidden) {
+        scoreNum.textContent = String(Math.round(points));
+        scoreBar.style.setProperty("--fill", `${Math.max(0, Math.min(100, points))}%`);
+        score.setAttribute("aria-label", `${Math.round(points)}/100`);
+      }
       if (next.checking) headline.dataset.reserve = "";     // Tầng 3 còn chạy: câu kết luận có thể đổi, giữ chỗ 2 dòng để bố cục không nhảy
       headline.textContent = clean(next.headline);
       sub.textContent = clean(next.reasonShort);

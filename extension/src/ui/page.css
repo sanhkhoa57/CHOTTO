@@ -1,32 +1,32 @@
-/* CHOTTO – trang cài đặt và trang cảnh báo của tiện ích: cùng phong cách "luxury" với bản Desktop
-   (nền đen ấm, vàng đồng, chữ serif Newsreader + Onest, có bộ tiếng Việt). */
+/* CHOTTO – trang cài đặt và trang cảnh báo của tiện ích: cùng phong cách pastel với bản Desktop
+   (nền kem, oải hương + cam đào, chữ tím đậm, Onest có bộ tiếng Việt). */
 @import url("fonts/fonts.css");
 
 :root {
-  color-scheme: dark;
-  --bg: #0c0a08; --surface: #161310; --surface2: #1f1b16; --ink: #f4efe7; --muted: #a89f92; --faint: #6f675d;
-  --line: rgba(244, 239, 231, .1); --line-strong: rgba(244, 239, 231, .2);
-  --accent: #c9a45a; --accent-ink: #17110a; --accent-hi: #d8b874; --accent-soft: rgba(201, 164, 90, .12);
-  --danger: #e5484d; --danger-ink: #ff9c8f; --danger-chip: rgba(229, 72, 77, .16);
-  --warn: #e0a84a; --warn-ink: #f0c47a; --warn-chip: rgba(224, 168, 74, .16);
-  --ok: #7fc8a0; --ok-chip: rgba(127, 200, 160, .14);
-  --serif: "Newsreader", Georgia, serif;
+  color-scheme: light;
+  --bg: #fbf6f1; --surface: #ffffff; --surface2: #f5ece6; --ink: #3a2547; --muted: #675a69; --faint: #8e8190;
+  --line: rgba(58, 37, 71, .09); --line-strong: rgba(58, 37, 71, .22);
+  --accent: #f28a3a; --accent-ink: #2b1400; --accent-hi: #f69a52; --accent-soft: #fde6d3;
+  --danger: #c92b32; --danger-ink: #9c1d23; --danger-chip: #fde3e1;
+  --warn: #e69a1e; --warn-ink: #8a5300; --warn-chip: #ffeccb;
+  --ok: #1d7a4b; --ok-chip: #dff3e8;
+  --serif: "Onest", "Segoe UI", system-ui, sans-serif;
   --sans: "Onest", "Segoe UI", system-ui, sans-serif;
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 * { box-sizing: border-box; }
 body {
-  margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
+  margin: 0; background: radial-gradient(90% 40% at 100% 0%, #ffe3cf, transparent 60%), radial-gradient(80% 40% at 0% 0%, #ebe3fb, transparent 62%), var(--bg); background-attachment: fixed; color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased;
 }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: rgba(244, 239, 231, .14); border-radius: 999px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb { background: rgba(58, 37, 71, .2); border-radius: 999px; border: 3px solid var(--bg); }
 main { max-width: 820px; margin: 0 auto; padding: 44px 24px 72px; }
 .brand { display: flex; align-items: center; gap: 14px; }
 .mark { width: 48px; height: 48px; display: inline-block; flex: none; background: url(icon.png) center / contain no-repeat; }
 .mark i { display: none; }
-h1 { margin: 0; font: 400 40px/1.05 var(--serif); letter-spacing: -.025em; }
-h2 { margin: 40px 0 14px; font: 400 24px/1.2 var(--serif); letter-spacing: -.01em; }
+h1 { margin: 0; font: 800 36px/1.08 var(--sans); letter-spacing: -.03em; }
+h2 { margin: 36px 0 14px; font: 700 20px/1.2 var(--sans); letter-spacing: -.01em; }
 p { margin: 8px 0; text-wrap: pretty; }
 .muted { color: var(--muted); }
 .lead { margin: 12px 0 0; font-size: 17px; color: var(--muted); }

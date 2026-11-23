@@ -1,5 +1,5 @@
 // Cửa sổ ứng dụng (Tổng quan, Kiểm tra link, Nhật ký, Cài đặt). Cầu nối Python: chotto/webhost.AppApi.
-//   api.state()  api.save(values)  api.check(url)  api.action(name)  api.window(op)
+//   api.state()  api.save(values)  api.check(url)  api.action(name)  api.window(op)  api.mascot()
 // Ngôn ngữ: settings.ui_language ("en" mặc định | "vi"), chữ lấy từ i18n.js.
 // Mở bằng trình duyệt thường với ?demo để xem với dữ liệu mẫu (?demo&vi để xem tiếng Việt).
 "use strict";
@@ -54,10 +54,33 @@
     $("#credit").innerHTML = esc(t("footer")).replace("AECCUS", "<b>AECCUS</b>");
     $$("[data-lang-switch] button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === I18N.lang));
     $$("#seconds button").forEach((b) => { b.textContent = t("sec", { n: b.dataset.s }); });
+    buddyRows();
     if (state) renderState(state);
     lastCheck = null;                                    // kết quả cũ viết bằng ngôn ngữ trước: kiểm tra lại
     $("#checkResult").hidden = true;
   }
+
+  const ICO = {
+    ok: '<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.3 8-8 9-4.7-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>',
+    warn: '<svg viewBox="0 0 24 24"><path d="M12 3.5 22 20.5H2z"/><path d="M12 10v4.5M12 17.4h.01"/></svg>',
+    high: '<svg viewBox="0 0 24 24"><path d="M8.2 3h7.6L21 8.2v7.6L15.8 21H8.2L3 15.8V8.2z"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>',
+  };
+  // Tem tròn có viền lượn sóng (như nhãn "Get your mental health in order" ở ảnh mẫu).
+  const BURST = (() => {
+    let d = "";
+    for (let i = 0; i <= 120; i++) {
+      const a = (i / 120) * Math.PI * 2, r = 45 + 3.6 * Math.cos(a * 12);
+      d += `${i ? "L" : "M"}${(50 + r * Math.cos(a)).toFixed(1)} ${(50 + r * Math.sin(a)).toFixed(1)}`;
+    }
+    return `<svg viewBox="0 0 100 100"><path class="burst" d="${d}Z"/></svg>`;
+  })();
+  const GLYPH = {
+    ok: '<svg class="glyph" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    warn: '<svg class="glyph" viewBox="0 0 24 24"><path d="M12 5v9M12 18.5h.01"/></svg>',
+  };
+  const verdictHTML = (tone, title, sub, score) => `<div class="verdict verdict--${tone} in">${ICO[tone === "ok" ? "ok" : tone]}`
+    + `<div class="verdict-t">${esc(title)}<small>${esc(sub)}</small></div>`
+    + `<div class="verdict-s" role="img" aria-label="${score}/100">${score}<small>/100</small></div></div>`;
 
   // ---------- hiển thị trạng thái ----------
   function renderState(s) {
@@ -73,6 +96,7 @@
     $("#guardTitle").textContent = t(protectedNow ? "guard.on" : "guard.off");
     $("#guardText").textContent = protectedNow ? s.blacklist_text : t("guard.offText");
     $("#guardInstall").hidden = protectedNow;
+    $("#guardIco").innerHTML = BURST + (protectedNow ? GLYPH.ok : GLYPH.warn);
     // Đã là trình mở link mặc định: báo thành công (giống bản Android) thay cho nút cài.
     $("#guardBadge").hidden = s.default_handler !== true;
     const setInstall = $("#setInstall");
@@ -85,6 +109,8 @@
       sw.setAttribute("aria-checked", k === "unknown_caller_policy" ? s.settings[k] === "inspect" : !!s.settings[k]);
     });
     $$("#seconds button").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.s) === s.settings.friction_seconds));
+    buddySync(s);
+    buddyPlaceUI();
   }
   async function refresh() {
     if (!api) return;
@@ -99,6 +125,7 @@
     $$("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== name));
     if (name === "check") setTimeout(() => $("#checkInput").focus(), 30);
     if (name === "home" || name === "log") refresh();
+    if (name === "settings") buddyLoad();
   }
   $$("[data-tab]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); tab(a.dataset.tab); }));
   $$("[data-win]").forEach((b) => b.addEventListener("click", () => api && api.window(b.dataset.win)));
@@ -144,7 +171,8 @@
     const on = sw.getAttribute("aria-checked") !== "true";
     sw.setAttribute("aria-checked", on);
     const k = sw.dataset.key;
-    save({ [k]: k === "unknown_caller_policy" ? (on ? "inspect" : "forward") : on }, () => sw.setAttribute("aria-checked", !on));
+    buddyPlaceUI();
+    save({ [k]: k === "unknown_caller_policy" ? (on ? "inspect" : "forward") : on }, () => { sw.setAttribute("aria-checked", !on); buddyPlaceUI(); });
   }));
   $$("#seconds button").forEach((b) => b.addEventListener("click", () => {
     const before = $("#seconds [aria-pressed=true]");
@@ -158,10 +186,163 @@
     save({ ui_language: b.dataset.lang }, () => applyLanguage(before));
   }));
 
+  // ---------- nhân vật taskbar: xem trước + tô màu (chotto/web/mascot.js), lưu vào mascot_colors ----------
+  // Agent nhận tín hiệu config_changed nên nhân vật trên taskbar đổi màu/ẩn hiện ngay, không cần khởi động lại.
+  const BUDDY = { P: null, px: [], cvs: [], cur: null, timer: 0, loading: false };
+  const validColors = (c) => Array.isArray(c) && c.length === 6 && c.every((x) => /^#[0-9a-f]{6}$/i.test(x));
+  function buddyRender() {
+    if (!BUDDY.P || !BUDDY.cur) return;
+    BUDDY.px.forEach((p, n) => {
+      const cv = BUDDY.cvs[n], ctx = cv.getContext("2d"), out = ctx.createImageData(p.w, p.h);
+      window.CHOTTO_MASCOT.recolor(p.a.data, p.m.data, out.data, BUDDY.cur, BUDDY.P);
+      ctx.putImageData(out, 0, 0);
+    });
+  }
+  function buddyMark() {
+    if (!BUDDY.cur) return;
+    $$("#buddyRows .buddy-sw").forEach((w) => {
+      const c = BUDDY.cur[Number(w.dataset.g)].toLowerCase();
+      let hit = false;
+      $$("button", w).forEach((b) => { const on = b.dataset.c === c; hit = hit || on; b.setAttribute("aria-pressed", on); });
+      const lab = $("label", w);
+      lab.classList.toggle("on", !hit);
+      $("input", w).value = c;
+      if (!hit) lab.style.background = c; else lab.style.removeProperty("background");
+    });
+  }
+  function buddyRows() {
+    const box = $("#buddyRows");
+    if (!BUDDY.P) { box.innerHTML = ""; return; }
+    box.innerHTML = BUDDY.P.default.map((def, g) => {
+      const name = esc(t(`buddy.g${g}`));
+      const sw = [def].concat(BUDDY.P.swatches[g]).map((c, i) =>
+        `<button style="background:${esc(c)}" data-c="${esc(c.toLowerCase())}" aria-pressed="false" title="${i ? esc(c) : esc(t("buddy.default"))}"
+          aria-label="${name}: ${i ? esc(c) : esc(t("buddy.default"))}"></button>`).join("");
+      return `<div class="buddy-row"><span>${name}</span><div class="buddy-sw" data-g="${g}">${sw}`
+        + `<label title="${esc(t("buddy.pick"))}"><input type="color" aria-label="${name}: ${esc(t("buddy.pick"))}"></label></div></div>`;
+    }).join("");
+    $$("#buddyRows .buddy-sw").forEach((w) => {
+      const g = Number(w.dataset.g);
+      $$("button", w).forEach((b) => b.addEventListener("click", () => buddySet(g, b.dataset.c)));
+      $("input", w).addEventListener("input", (e) => buddySet(g, e.target.value.toLowerCase()));
+    });
+    $$("#buddyStage figcaption").forEach((f, n) => { f.textContent = t(`buddy.p${n}`); });
+    buddyMark();
+  }
+  function buddySave() {
+    clearTimeout(BUDDY.timer);
+    BUDDY.timer = setTimeout(() => {
+      BUDDY.timer = 0;
+      const before = state && state.settings.mascot_colors;
+      save({ mascot_colors: BUDDY.cur.slice() }, () => { if (validColors(before)) { BUDDY.cur = before.slice(); buddyRender(); buddyMark(); } });
+    }, 350);
+  }
+  function buddySet(g, c) {
+    if (!BUDDY.cur) return;
+    BUDDY.cur[g] = c;
+    buddyRender(); buddyMark(); buddySave();
+  }
+  function buddySync(s) {
+    $("#buddyNote").hidden = s.mascot_supported !== false;
+    if (BUDDY.timer) return;                                 // đang chờ lưu: giữ màu người dùng vừa chọn
+    const colors = validColors(s.settings.mascot_colors) ? s.settings.mascot_colors : (BUDDY.P && BUDDY.P.default);
+    if (!colors) return;
+    BUDDY.cur = colors.map((c) => c.toLowerCase());
+    buddyRender(); buddyMark();
+  }
+  const loadImg = (src) => new Promise((ok, fail) => { const i = new Image(); i.onload = () => ok(i); i.onerror = fail; i.src = src; });
+  function pixels(img) {
+    const c = document.createElement("canvas");
+    c.width = img.width; c.height = img.height;
+    const x = c.getContext("2d");
+    x.drawImage(img, 0, 0);
+    return x.getImageData(0, 0, img.width, img.height);
+  }
+  async function buddyLoad() {
+    if (BUDDY.P || BUDDY.loading) return;
+    BUDDY.loading = true;
+    try {
+      let data;
+      if (api && api.mascot) data = await api.mascot();
+      else {                                                 // ?demo: đọc thẳng file (cần máy chủ http cục bộ để đọc được điểm ảnh)
+        const palette = await (await fetch("../mascot_assets/palette.json")).json();
+        data = { ok: true, palette, poses: [0, 1, 2, 3].map((n) => ({ img: `../mascot_assets/pose_${n}.png`, mask: `../mascot_assets/mask_${n}.png` })) };
+      }
+      if (!data || !data.ok) throw new Error("no assets");
+      const pairs = await Promise.all(data.poses.map((p) => Promise.all([loadImg(p.img), loadImg(p.mask)])));
+      const stage = $("#buddyStage");
+      stage.innerHTML = "";
+      BUDDY.px = pairs.map(([img, mask]) => ({ a: pixels(img), m: pixels(mask), w: img.width, h: img.height }));
+      BUDDY.cvs = pairs.map(([img], n) => {
+        const fig = document.createElement("figure"), cv = document.createElement("canvas");
+        cv.width = img.width; cv.height = img.height;
+        cv.setAttribute("aria-hidden", "true");
+        fig.append(cv, document.createElement("figcaption"));
+        stage.append(fig);
+        return cv;
+      });
+      BUDDY.P = data.palette;
+      if (state) state.mascot_supported = data.supported !== false;
+      buddyRows();
+      if (state) buddySync(state);
+    } catch (err) {
+      $("#buddyStage").hidden = true;                        // không có asset: vẫn bật/tắt được, chỉ thiếu phần xem trước
+    } finally {
+      BUDDY.loading = false;
+    }
+  }
+  function buddyRandom() {
+    if (!BUDDY.P) return;
+    BUDDY.cur = BUDDY.P.default.map((def, g) => { const l = [def].concat(BUDDY.P.swatches[g]); return l[Math.floor(Math.random() * l.length)]; });
+    buddyRender(); buddyMark(); buddySave();
+  }
+  function buddyReset() {
+    if (!BUDDY.P) return;
+    BUDDY.cur = BUDDY.P.default.slice();
+    buddyRender(); buddyMark(); buddySave();
+  }
+  // "Chọn vị trí": agent cho kéo nhân vật bằng chuột; chỉ dùng được khi nhân vật đang hiện và đã bật "cố định".
+  let placing = false;
+  const switchOn = (key) => { const sw = $(`.switch[data-key="${key}"]`); return !!sw && sw.getAttribute("aria-checked") === "true"; };
+  function buddyPlaceUI() {
+    const ok = switchOn("mascot_enabled") && switchOn("mascot_pinned") && (!state || state.mascot_supported !== false);
+    if (!ok && placing) { placing = false; if (api && api.mascot_place) api.mascot_place(false); }
+    const btn = $("#buddyPlace");
+    btn.disabled = !ok;
+    btn.setAttribute("aria-pressed", placing);
+    btn.textContent = t(placing ? "buddy.placeDone" : "buddy.placeBtn");
+    $("#buddyPlaceHint").classList.toggle("on", placing);
+  }
+  $("#buddyPlace").addEventListener("click", () => {
+    placing = !placing;
+    if (api && api.mascot_place) api.mascot_place(placing);
+    buddyPlaceUI();
+  });
+  $("#buddyRandom").addEventListener("click", buddyRandom);
+  $("#buddyReset").addEventListener("click", buddyReset);
+
+  // Hộp xác nhận tự vẽ: mặc định focus vào "Giữ lại"; Esc hoặc bấm ra ngoài = hủy.
+  function ask() {
+    const box = $("#sheet"), yes = $("#sheetYes"), no = $("#sheetNo");
+    return new Promise((resolve) => {
+      const done = (value) => {
+        box.removeAttribute("data-open");
+        document.removeEventListener("keydown", onKey, true);
+        resolve(value);
+      };
+      const onKey = (e) => { if (e.key === "Escape") { e.preventDefault(); done(false); } };
+      yes.onclick = () => done(true);
+      no.onclick = () => done(false);
+      box.onclick = (e) => { if (e.target === box) done(false); };
+      document.addEventListener("keydown", onKey, true);
+      box.setAttribute("data-open", "");
+      no.focus();
+    });
+  }
   // ---------- tác vụ ----------
   async function runAction(name, button) {
     if (!api) return;
-    if (name === "uninstall" && !confirm(t("confirm.uninstall"))) return;
+    if (name === "uninstall" && !(await ask())) return;
     const label = button ? button.textContent : "";
     if (button) { button.disabled = true; button.textContent = t("act.busy"); }
     try {
@@ -182,12 +363,12 @@
     if (!r.ok) {
       out.innerHTML = `<div class="top"><span class="chip warn">${esc(t("check.fail"))}</span><b>${esc(r.error || t("check.error"))}</b></div>`;
     } else if (r.level === "SAFE") {
-      out.innerHTML = `<div class="top"><span class="chip ok">${esc(t("check.safe"))}</span><b>${esc(r.domain)}</b><span class="sc">${r.score}/100</span></div>
+      out.innerHTML = `${verdictHTML("ok", t("check.safe"), r.domain, r.score)}
         <div class="compare" style="margin-top:0;padding-top:0;border:0">${okIcon}<span>${esc(t("check.safeText"))}</span></div>`;
     } else {
       const v = r.view;
       const warn = v.level === "WARN";
-      out.innerHTML = `<div class="top"><span class="chip ${warn ? "warn" : "high"}">${esc(t(warn ? "check.suspicious" : "check.danger"))}</span><b>${esc(v.title)}</b><span class="sc">${v.score}/100</span></div>
+      out.innerHTML = `${verdictHTML(warn ? "warn" : "high", t(warn ? "check.suspicious" : "check.danger"), v.title, v.score)}
         <div class="parts">${partsHTML(v.parts)}</div>${officialHTML(v)}
         ${v.reasons.length ? `<ul>${v.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}`;
     }
@@ -213,9 +394,10 @@
   // ---------- khởi động ----------
   const now = Date.now() / 1000;
   const DEMO = {
-    default_handler: true, blacklist_text: "Scam list updated at 07:42 today",
+    default_handler: !location.search.includes("off"), blacklist_text: "Scam list updated at 07:42 today",
     settings: { tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
-      ui_language: location.search.includes("vi") ? "vi" : "en" },
+      ui_language: location.search.includes("vi") ? "vi" : "en",
+      mascot_enabled: true, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"] },
     summary: { total: 128, safe: 121, warned: 7, closed: 6, blocked: 2 },
     recent: [
       { ts: now - 3600, host: "xacthuc-tk.top", level: "BLOCKED", decision: "cancel" },

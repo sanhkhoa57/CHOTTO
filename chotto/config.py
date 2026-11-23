@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 import tempfile
 from collections.abc import Mapping
@@ -16,6 +17,7 @@ from typing import Any, Final, Literal, TypedDict, cast
 
 __all__ = [
     "DEFAULTS",
+    "MASCOT_DEFAULT_COLORS",
     "Config",
     "RulesError",
     "atomic_write_text",
@@ -34,6 +36,10 @@ _LOG = logging.getLogger(__name__)
 UnknownCallerPolicy = Literal["inspect", "forward"]
 UILanguage = Literal["en", "vi"]
 UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
+# Màu mặc định của 6 nhóm nhân vật taskbar (Tóc, Mắt, Da, Áo choàng, Váy, Giày/phụ kiện): khớp ``D.def`` của
+# design/chotto_mascot_customizer.html và ``chotto/mascot_assets/palette.json`` (có test kiểm tra).
+MASCOT_DEFAULT_COLORS: Final[tuple[str, ...]] = ("#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f")
+_HEX_COLOR: Final[re.Pattern[str]] = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 class Config(TypedDict):
@@ -55,6 +61,10 @@ class Config(TypedDict):
     agent_enabled: bool
     auto_update: bool
     ui_language: UILanguage
+    mascot_enabled: bool
+    mascot_colors: list[str]
+    mascot_pinned: bool
+    mascot_pos: float
 
 
 DEFAULTS: Final[Config] = {
@@ -74,11 +84,17 @@ DEFAULTS: Final[Config] = {
     "agent_enabled": True,          # Chạy nền thường trú (mở link nhanh); tắt = mỗi link một tiến trình như bản 1.0
     "auto_update": True,            # Agent tự cập nhật danh sách đen mỗi ngày (tải tăng dần theo ETag)
     "ui_language": "en",            # Ngôn ngữ giao diện HTML: "en" | "vi" (giao diện Tk dự phòng luôn tiếng Việt)
+    "mascot_enabled": False,        # Nhân vật đồng hành trên thanh taskbar (Windows); người dùng tự bật
+    "mascot_colors": list(MASCOT_DEFAULT_COLORS),
+    "mascot_pinned": False,         # Cố định nhân vật tại một chỗ (không chạy qua lại)
+    "mascot_pos": 0.85,             # Vị trí cố định: tỉ lệ 0 (trái) .. 1 (phải) trên chiều ngang màn hình
 }
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
 _INT_RANGES: Final[dict[str, tuple[int, int]]] = {"friction_seconds": (3, 15), "log_retention_days": (1, 3650)}
-_FLOAT_RANGES: Final[dict[str, tuple[float, float]]] = {"tier3_timeout": (0.5, 3.0), "cache_ttl_hours": (24.0, 72.0)}
+_FLOAT_RANGES: Final[dict[str, tuple[float, float]]] = {
+    "tier3_timeout": (0.5, 3.0), "cache_ttl_hours": (24.0, 72.0), "mascot_pos": (0.0, 1.0),
+}
 _EXTRA_FRICTION: Final[dict[str, int]] = {"WARN": 0, "HIGH": 3, "BLOCKED": 5}
 
 _REQUIRED_RULE_KEYS: Final[dict[str, type]] = {
@@ -163,6 +179,14 @@ def _as_str_list(value: Any) -> list[str] | None:
     return None
 
 
+def _as_mascot_colors(value: Any) -> list[str] | None:
+    """Đúng 6 mã ``#rrggbb`` (viết thường) hoặc ``None``."""
+    if isinstance(value, list) and len(value) == len(MASCOT_DEFAULT_COLORS) and all(
+            isinstance(v, str) and _HEX_COLOR.match(v) for v in value):
+        return [v.lower() for v in value]
+    return None
+
+
 def validate_config(raw: Mapping[str, Any]) -> Config:
     """Kiểm tra từng khóa cấu hình; khóa sai kiểu hoặc ngoài miền giá trị được thay bằng mặc định.
 
@@ -189,6 +213,8 @@ def validate_config(raw: Mapping[str, Any]) -> Config:
             if isinstance(value, (int, float)) and not isinstance(value, bool):
                 low_f, high_f = _FLOAT_RANGES[key]
                 accepted = min(max(float(value), low_f), high_f)
+        elif key == "mascot_colors":
+            accepted = _as_mascot_colors(value)
         elif isinstance(default, list):
             accepted = _as_str_list(value)
         elif key == "unknown_caller_policy":
