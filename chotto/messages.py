@@ -22,6 +22,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "updated": "Added {count} entries to the scam list.",
         "unchanged": "No new data; the current scam list is kept.",
         "exported": "Exported {count} rows to {path}.",
+        "cleared": "Activity log cleared.",
         "failed": "Couldn't finish: {error}", "unknown": "Unknown action",
         "friction_title": "Chotto · Hold on!",
     },
@@ -35,6 +36,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "unchanged": ("Không có dữ liệu mới (các nguồn không đổi hoặc không tải được); danh sách hiện tại vẫn được giữ. "
                       "Xem chotto.log để biết chi tiết."),
         "exported": "Đã xuất {count} dòng ra {path}.",
+        "cleared": "Đã xóa nhật ký.",
         "failed": "Không thực hiện được: {error}", "unknown": "Tác vụ không hợp lệ",
         "friction_title": "Chotto · Khoan đã!",
     },

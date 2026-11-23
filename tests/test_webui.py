@@ -354,6 +354,22 @@ class LogSummaryTests(unittest.TestCase):
         self.assertEqual(rows[0]["decision"], "cancel")
         self.assertGreaterEqual(float(rows[0]["ts"]), float(rows[1]["ts"]))  # type: ignore[arg-type]
 
+    def test_clear_removes_every_row(self) -> None:
+        high = inspect("https://vcb-digibanks.top/x")
+        logdb.record(high, "cancel", 900, "desktop")
+        logdb.record(high, "proceed", 9000, "extension")
+        self.assertEqual(logdb.clear(), 2)
+        self.assertEqual(logdb.recent(), [])
+        self.assertEqual(logdb.clear(), 0)
+
+    def test_clear_action_replies_in_the_ui_language(self) -> None:
+        from chotto.service import app as service
+
+        logdb.record(inspect("https://vcb-digibanks.top/x"), "cancel", 900, "desktop")
+        self.assertEqual(service.clear_log_action("vi"), "Đã xóa nhật ký.")
+        self.assertEqual(service.clear_log_action("en"), "Activity log cleared.")
+        self.assertEqual(logdb.recent(), [])
+
     def test_broken_database_gives_empty_values(self) -> None:
         with patch("chotto.logdb._connect", side_effect=sqlite3.OperationalError("locked")):
             self.assertEqual(logdb.summary()["total"], 0)

@@ -281,7 +281,7 @@ class AppApi:
                 "view": friction_view(result, False, rules, lang)}
 
     def action(self, name: str) -> dict[str, Any]:
-        """Chạy tác vụ: ``install`` | ``uninstall`` | ``update`` | ``export`` (câu trả lời theo ``ui_language``)."""
+        """Chạy tác vụ: ``install`` | ``uninstall`` | ``update`` | ``export`` | ``clear_log`` (câu trả lời theo ``ui_language``)."""
         from .service import app as service
 
         lang = load_config()["ui_language"]
@@ -292,6 +292,8 @@ class AppApi:
                 return {"ok": True, "message": service.uninstall_action(lang)}
             if name == "update":
                 return {"ok": True, "message": service.update_action(lang)}
+            if name == "clear_log":
+                return {"ok": True, "message": service.clear_log_action(lang)}
             if name == "export":
                 path = self._host.ask_save_path("chotto_log.csv")
                 return {"ok": True, "message": service.export_action(path, lang) if path else ""}
@@ -416,7 +418,7 @@ class Host:
         _when_shown(window, lambda: osw.center_on_screen(window, _APP_W, _APP_H))
         _when_shown(window, lambda: osw.activate(window))
         window.events.shown += lambda: osw.enable_snap(window)
-        window.events.shown += lambda: osw.set_icon(window, str(web_root().parent.parent / "packaging" / "chotto.ico"))
+        window.events.shown += lambda: osw.set_icon(window, str(web_root().parent.parent / "platforms" / "PC" / "windows" / "chotto.ico"))
         opened = threading.Event()
 
         def reveal() -> None:

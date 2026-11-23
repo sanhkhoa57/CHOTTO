@@ -3,12 +3,12 @@
 Ảnh gốc là sticker nền trắng. Công cụ tách nền (loang từ mép ảnh qua vùng gần trắng, dừng ở đường viền xám của sticker),
 cắt vuông rồi sinh:
 
-- ``packaging/chotto.ico``      biểu tượng Windows (exe, bộ cài, shortcut Desktop)
-- ``packaging/chotto.icns``     biểu tượng macOS (py2app)
+- ``platforms/PC/windows/chotto.ico``      biểu tượng Windows (exe, bộ cài, shortcut Desktop)
+- ``platforms/PC/macos/chotto.icns``     biểu tượng macOS (py2app)
 - ``chotto/web/icon.png``       logo trong giao diện HTML của bản Desktop (và icon cửa sổ)
-- ``extension/icons/icon*.png`` biểu tượng tiện ích trình duyệt (16/32/48/128)
-- ``extension/src/ui/icon.png`` logo trong trang cài đặt / cảnh báo của tiện ích
-- ``extension/src/ui/icon-data.js`` cùng logo dạng data URI cho hộp thoại trên trang Zalo (không lộ URL tài nguyên)
+- ``platforms/extension/icons/icon*.png`` biểu tượng tiện ích trình duyệt (16/32/48/128)
+- ``platforms/extension/src/ui/icon.png`` logo trong trang cài đặt / cảnh báo của tiện ích
+- ``platforms/extension/src/ui/icon-data.js`` cùng logo dạng data URI cho hộp thoại trên trang Zalo (không lộ URL tài nguyên)
 
 Cần Pillow (chỉ khi chạy công cụ này, không cần khi chạy CHOTTO): pip install pillow
 Dùng: python tools/make_icon.py
@@ -77,11 +77,11 @@ def main() -> None:
     big = sized(base, 1024)
     targets: list[Path] = []
 
-    ico = ROOT / "packaging" / "chotto.ico"
+    ico = ROOT / "platforms" / "PC" / "windows" / "chotto.ico"
     big.save(ico, format="ICO", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
     targets.append(ico)
 
-    icns = ROOT / "packaging" / "chotto.icns"
+    icns = ROOT / "platforms" / "PC" / "macos" / "chotto.icns"
     big.save(icns, format="ICNS")
     targets.append(icns)
 
@@ -90,16 +90,16 @@ def main() -> None:
     targets.append(web)
 
     for size in (16, 32, 48, 128):
-        path = ROOT / "extension" / "icons" / f"icon{size}.png"
+        path = ROOT / "platforms" / "extension" / "icons" / f"icon{size}.png"
         path.write_bytes(png_bytes(sized(base, size)))
         targets.append(path)
 
-    page = ROOT / "extension" / "src" / "ui" / "icon.png"
+    page = ROOT / "platforms" / "extension" / "src" / "ui" / "icon.png"
     page.write_bytes(png_bytes(sized(base, 128)))
     targets.append(page)
 
     data = base64.b64encode(png_bytes(sized(base, 96))).decode("ascii")
-    js = ROOT / "extension" / "src" / "ui" / "icon-data.js"
+    js = ROOT / "platforms" / "extension" / "src" / "ui" / "icon-data.js"
     js.write_text(
         "// Sinh bởi tools/make_icon.py, đừng sửa tay. Logo dạng data URI để hộp thoại trên trang Zalo\n"
         "// không phải tải tài nguyên của tiện ích (tránh để lộ URL của tiện ích cho trang).\n"

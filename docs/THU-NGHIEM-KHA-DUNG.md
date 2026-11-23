@@ -15,7 +15,7 @@ Kiểm tra xem bản làm lại (hai màn hình, lời nhắn tự chép, một 
 | Ký hiệu | Phiên bản | Cách dựng |
 |---------|-----------|-----------|
 | **A (cũ)** | commit `d07e28f` (trước lần làm lại UX): màn hình chặn nhiều lựa chọn, mã thử thách dạng `WIUJ-GXRR` + QR, 6 ô nhập | `git worktree add ../chotto-ban-cu d07e28f`, nạp `../chotto-ban-cu/extension` (Load unpacked). Người giám hộ dùng `python tools\guardian.py code <tên miền> <mã thử thách>` (hoặc `guardian.html`) |
-| **B (mới)** | nhánh `guardian-mode` hiện tại | nạp thư mục `extension/` của kho này. Người giám hộ dùng trang `guardian/index.html` (đã cài bí mật thử) trên điện thoại |
+| **B (mới)** | nhánh `guardian-mode` hiện tại | nạp thư mục `platforms/extension/` của kho này. Người giám hộ dùng trang `guardian/index.html` (đã cài bí mật thử) trên điện thoại |
 
 Cả hai bản dùng **cùng ID tiện ích** (khóa ghim trong manifest) nên chỉ nạp **một bản mỗi lần**: gỡ bản này rồi nạp bản kia giữa hai phiên. Cả hai cần managed storage để Guardian bật (xem `docs/GUARDIAN-MODE.md` mục 7): dùng **máy thử riêng** hoặc hồ sơ trình duyệt riêng, tạo `.reg` bằng khóa/bí mật **thử** (thư mục `--dir` riêng, không phải khóa thật của bạn), và gỡ bằng file `-remove.reg` sau thử nghiệm. Với bản B cần host hoặc chạy trang `guardian/` (ví dụ `python -m http.server` trong thư mục gốc kho) và `make-reg --page-url http://localhost:PORT/guardian/` (cho phép `http://localhost` để thử).
 

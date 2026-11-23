@@ -1,8 +1,8 @@
 // @ts-check
 /**
  * Dựng màn hình cảnh báo "Khoan đã!" (hiển thị lũy tiến) từ view model dùng chung (``chotto/shield.py`` /
- * ``extension/src/view.js``). MỘT nguồn cho cả Desktop và tiện ích: ``tools/sync_extension_data.py`` chép file này
- * sang ``extension/src/ui/shield.js``.
+ * ``platforms/extension/src/view.js``). MỘT nguồn cho cả Desktop và tiện ích: ``tools/sync_extension_data.py`` chép file này
+ * sang ``platforms/extension/src/ui/shield.js``.
  *
  * Mặc định chỉ có: (a) một câu kết luận, (b) tên miền thật làm nổi bật, (c) hành động. Mọi thứ khác nằm trong "Xem vì sao".
  * File là script thường (content script không nạp được ES module), gắn ``globalThis.ChottoShield``.

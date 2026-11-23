@@ -2,11 +2,11 @@
 """Tạo các gói để đặt trên trang tải (thư mục ``downloads/``), mỗi gói kèm ``README.txt`` (hướng dẫn cài/dùng) và
 ``BEFORE-UNINSTALL.txt`` (lưu ý trước khi gỡ), cả hai song ngữ Anh/Việt.
 
-- ``downloads/CHOTTO-Windows.zip``: ``CHOTTO-Setup.exe`` + 2 file hướng dẫn (cần chạy ``packaging\\build_windows.bat`` trước).
+- ``downloads/CHOTTO-Windows.zip``: ``CHOTTO-Setup.exe`` + 2 file hướng dẫn (cần chạy ``platforms\\PC\\windows\\build_windows.bat`` trước).
 - ``downloads/CHOTTO-macOS.zip``: ``CHOTTO-macOS.dmg`` + 2 file hướng dẫn (cần build ``dist/CHOTTO.app`` trên Mac trước;
-  xem ``packaging/macos_setup.py``).
+  xem ``platforms/PC/macos/macos_setup.py``).
 - ``downloads/chotto-extension-chrome.zip``: các file tiện ích (``manifest.json`` ở gốc) + 2 file hướng dẫn.
-- ``downloads/CHOTTO-Android.zip``: ``CHOTTO-Android-beta.apk`` + 2 file hướng dẫn (cần build trước trong ``android/``:
+- ``downloads/CHOTTO-Android.zip``: ``CHOTTO-Android-beta.apk`` + 2 file hướng dẫn (cần build trước trong ``platforms/android/``:
   ``gradlew assembleRelease``; APK ký bằng khóa debug, cài thẳng được, chưa lên Google Play).
 
 Nội dung hướng dẫn nằm ở ``packaging/guides/*.txt``.
@@ -49,7 +49,7 @@ def build_windows() -> None:
     """Gói Windows: bộ cài + hướng dẫn."""
     setup = ROOT / "dist" / "CHOTTO-Setup.exe"
     if not setup.exists():
-        raise SystemExit("Chưa có dist\\CHOTTO-Setup.exe. Chạy packaging\\build_windows.bat trước.")
+        raise SystemExit("Chưa có dist\\CHOTTO-Setup.exe. Chạy platforms\\PC\\windows\\build_windows.bat trước.")
     _write(DOWNLOADS / "CHOTTO-Windows.zip", {
         "CHOTTO-Setup.exe": setup.read_bytes(),
         "README.txt": _guide("windows.txt"),
@@ -66,7 +66,7 @@ def build_macos() -> None:
     if sys.platform != "darwin":
         raise SystemExit("Gói macOS cần chạy trên Mac (dùng hdiutil).")
     if not app.is_dir():
-        raise SystemExit("Chưa có dist/CHOTTO.app. Build bằng packaging/macos_setup.py py2app và ký trước.")
+        raise SystemExit("Chưa có dist/CHOTTO.app. Build bằng platforms/PC/macos/macos_setup.py py2app và ký trước.")
     with tempfile.TemporaryDirectory() as tmp:
         stage = Path(tmp) / "stage"
         stage.mkdir()
@@ -97,7 +97,7 @@ def build_extension() -> None:
 
 def build_android() -> None:
     """Gói Android (beta): APK release + hướng dẫn."""
-    apk = ROOT / "android" / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk"
+    apk = ROOT / "platforms" / "android" / "app" / "build" / "outputs" / "apk" / "release" / "app-release.apk"
     if not apk.exists():
         raise SystemExit("Chưa có app-release.apk. Trong thư mục android/ chạy: gradlew assembleRelease")
     _write(DOWNLOADS / "CHOTTO-Android.zip", {

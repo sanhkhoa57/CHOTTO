@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Đóng gói tiện ích trình duyệt CHOTTO thành file .zip cho Chrome/Edge và Firefox.
 
-- Kiểm tra dữ liệu ``extension/data`` khớp ``chotto/data`` (không khớp thì dừng, tránh hai bản chấm khác nhau).
+- Kiểm tra dữ liệu ``platforms/extension/data`` khớp ``chotto/data`` (không khớp thì dừng, tránh hai bản chấm khác nhau).
 - Kiểm tra phiên bản trong ``manifest.json`` trùng ``chotto.__version__``.
 - Bản Chrome/Edge: nguyên ``manifest.json`` (service worker MV3).
 - Bản Firefox (≥ 128): ``background.scripts`` thay cho ``service_worker``, thêm ``browser_specific_settings``.
@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from chotto import __version__  # noqa: E402
 import sync_extension_data  # noqa: E402
 
-EXTENSION: Final[Path] = ROOT / "extension"
+EXTENSION: Final[Path] = ROOT / "platforms" / "extension"
 PACKAGED_DIRS: Final[tuple[str, ...]] = ("src", "data", "icons")
 GECKO_ID: Final[str] = "chotto@tranadam999.github.io"
 FIREFOX_MIN_VERSION: Final[str] = "128.0"
@@ -40,7 +40,7 @@ class BuildError(RuntimeError):
 
 
 def load_manifest() -> dict[str, Any]:
-    """Đọc ``extension/manifest.json`` và kiểm tra phiên bản.
+    """Đọc ``platforms/extension/manifest.json`` và kiểm tra phiên bản.
 
     Raises:
         BuildError: Không đọc được hoặc phiên bản khác ``chotto.__version__``.

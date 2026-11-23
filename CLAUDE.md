@@ -7,7 +7,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Bản hiện tại **v1.5.0**, nhánh `main` trên https://github.com/sanhkhoa57/CHOTTO (repo công khai, trang tải chạy bằng GitHub Pages từ `index.html`).
 - v1.5.0 = giao diện HTML mới (phong cách "luxury": nền đen ấm, vàng đồng, chữ serif) thay giao diện Tk cũ, song ngữ EN/VI. Icon chính: `assets/anime.png`
   (sinh `.ico/.icns/PNG` bằng `tools/make_icon.py`, cần Pillow).
-- **Windows: xong và đã thử.** Bộ cài Inno Setup (`packaging/chotto.iss`, build bằng `packaginguild_windows.bat`, giao diện bộ cài tiếng Anh). Gói tải nằm trong `downloads/`:
+- **Windows: xong và đã thử.** Bộ cài Inno Setup (`platforms/PC/windows/chotto.iss`, build bằng `platforms/PC/windows/build_windows.bat`, giao diện bộ cài tiếng Anh). Gói tải nằm trong `downloads/`:
   `CHOTTO-Windows.zip` (Setup + README.txt) và `chotto-extension-chrome.zip` (extension + README.txt); tạo bằng `tools/build_downloads.py`,
   nội dung hướng dẫn ở `packaging/guides/*.txt`. Đừng chạy `unins000.exe` khi thử: nó gỡ đăng ký handler đang dùng.
 - **macOS: xong và đã thử (máy M-series, macOS 26).** Chạy đủ vòng: bấm link trong Zalo → cảnh báo HTML → gỡ thì trả về trình duyệt cũ.
@@ -15,7 +15,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   Đã thử vai người dùng mới (gắn nhãn quarantine): Gatekeeper báo "không thể xác minh" (KHÔNG phải "bị hỏng"), mở qua Quyền riêng tư & Bảo mật > "Vẫn mở".
   Bản build chỉ chạy chip Apple (Python của uv là aarch64).
 - **Build `.app` trên Mac** (dùng Python 3.15 của uv, không cần cài Python khác):
-  `mv pyproject.toml pyproject.toml.bak && .venv/bin/python packaging/macos_setup.py py2app; mv pyproject.toml.bak pyproject.toml`
+  `mv pyproject.toml pyproject.toml.bak && .venv/bin/python platforms/PC/macos/macos_setup.py py2app; mv pyproject.toml.bak pyproject.toml`
   rồi `codesign --force --deep --sign - dist/CHOTTO.app`. Cài thử: chép vào `~/Applications` + `lsregister -f`. `macos_setup.py` tự vá hai lỗi của Python dựng sẵn:
   `zlib` không có `__file__` (py2app sập) và thiếu Tcl/Tk 9 (`_bundle_tcl_tk`, app chết ngay khi mở).
 - **Điều không hiển nhiên trên Mac:**
@@ -31,7 +31,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   Người dùng không cho xóa/tạo lại tag; tải file qua `downloads/` thay vì Release.
 - Chưa làm: ký số (Windows SmartScreen; Mac cần Apple Developer 99 USD/năm để công chứng; gợi ý SignPath cho Windows, cần file LICENSE).
 
-## Android (`android/`, Kotlin + Compose, chưa commit, chưa ký số)
+## Android (`platforms/android/`, Kotlin + Compose, chưa commit, chưa ký số)
 - Logic port từ Python: `Url.kt` (WHATWG), `LinkInspector.kt` (Tầng 2), `Blacklist*.kt` (Tầng 1 + cập nhật bằng WorkManager),
   `AgeLookup.kt` (Tầng 3), `Shield.kt`/`Tiers` (điều phối). Dữ liệu là BẢN CHÉP trong `app/src/main/assets/` (rules.json,
   popular_vn.txt, public_suffix_list.dat, blacklist.seed.txt): sửa `chotto/data` thì chép lại.
@@ -54,6 +54,10 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Ngôn ngữ: khóa cấu hình `ui_language` (`en` mặc định | `vi`). Engine và tiện ích trình duyệt luôn viết lý do bằng tiếng Việt;
   bản tiếng Anh dựng lại từ **mã dấu hiệu** trong `viewmodel._REASONS_EN` và `advisor.TIPS_EN/COMBOS_EN`. Thêm mã dấu hiệu mới thì phải thêm bản dịch (có test kiểm tra).
 - Font Newsreader + Onest nằm cục bộ trong `chotto/web/fonts` (giấy phép OFL kèm theo), có bộ chữ tiếng Việt.
+
+## Bố cục thư mục theo nền tảng (2026-11-23)
+- `platforms/PC/{windows,macos}` = build/bộ cài desktop; `platforms/android`; `platforms/extension`. `chotto/platforms/` (không liên quan) là code Python phụ thuộc hệ điều hành. `packaging/guides/` = file hướng dẫn trong gói tải.
+- Trang cài đặt của extension (`src/ui/options.*`) dùng y giao diện app Windows (khung điện thoại, 4 mục, thanh điều hướng nổi). `app.css` do `tools/sync_extension_data.py` sinh từ `chotto/web/style.css` + `app.html` (đừng sửa tay; phần riêng ở `options.css`): sửa CSS app Windows thì chạy lại tool đó.
 
 ## Cấu trúc `chotto/` (sắp xếp lại 2026-11-23)
 - Mọi code phụ thuộc hệ điều hành nằm trong `chotto/platforms/` (`windows.py`, `macos.py`, `linux.py` + `common.py`; thủ thuật
@@ -83,7 +87,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 .venv\Scripts\python.exe main.py --force <url>              # xem màn hình cảnh báo thật
 .venv\Scripts\python.exe main.py                            # mở cửa sổ ứng dụng
 ```
-- Sửa `chotto/data/*` thì chạy `python tools/sync_extension_data.py` (đồng bộ `extension/data`) và chép sang `android/app/src/main/assets/`.
+- Sửa `chotto/data/*` thì chạy `python tools/sync_extension_data.py` (đồng bộ `platforms/extension/data`) và chép sang `platforms/android/app/src/main/assets/`.
 - Chụp màn hình giao diện để tự xem: dùng `shoot.mjs` của skill `design-taste-frontend` (đường dẫn `~/.claude/skills/design-taste-frontend/scripts/`).
 
 ## Quy ước làm việc với người dùng
@@ -92,12 +96,12 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Các file `.html` trong `chotto/web` có hook `impeccable` quét thiết kế; cảnh báo `nested-cards` đã được đánh dấu bỏ qua cho `app.html` (báo nhầm).
 
 ## Guardian mode (nhánh `guardian-mode`, tách từ `ui-redesign`, chưa merge)
-- Tài liệu đầy đủ: `docs/GUARDIAN-MODE.md` (mô hình đe dọa, cài demo). Lõi: `extension/src/guardian/*`, công cụ: `tools/guardian.py` (+ `guardian.html`), vector chung `tests/data/guardian_vectors.json` (sinh bằng `tools/gen_guardian_vectors.py`).
+- Tài liệu đầy đủ: `docs/GUARDIAN-MODE.md` (mô hình đe dọa, cài demo). Lõi: `platforms/extension/src/guardian/*`, công cụ: `tools/guardian.py` (+ `guardian.html`), vector chung `tests/data/guardian_vectors.json` (sinh bằng `tools/gen_guardian_vectors.py`).
 - Cờ bật/khóa/secret chỉ đọc từ `chrome.storage.managed` (registry HKLM). ID tiện ích ghim bằng `key` trong manifest; khóa bí mật ngoài repo, `*.pem` trong `.gitignore`.
 - E2E Guardian giả lập managed bằng cách ghi đè `chrome.storage.managed.get` trong service worker; cần Chromium của Playwright (`npx playwright install chromium`, đặt `CHROMIUM_PATH` nếu bản không khớp). Không bao giờ ghi registry từ test.
 - Heredoc bash có dấu nháy đơn trong nội dung dễ vỡ ở công cụ Bash: ghi script bằng công cụ Write rồi chạy.
 - **Guardian UX (làm lại cho người lớn tuổi, 2026-11-21):** màn hình chặn chỉ 2 nút + "Thêm lựa chọn"; bước xin phép tự chép lời nhắn có liên kết tới trang người giám hộ `guardian/index.html` (tĩnh, một file, dữ liệu ở `#fragment`, CSP chặn mạng). Tài liệu: `docs/GUARDIAN-MODE.md` mục 10–12, kịch bản thử nghiệm `docs/THU-NGHIEM-KHA-DUNG.md`.
-  - Sửa `guardian/src/*` hoặc mã dùng chung (engine, `view.js`, `guardian/codec.js`, `share.js`, `extension/data`) thì chạy `python tools/build_guardian_page.py` (test Python kiểm tra file dựng khớp nguồn; `.gitattributes` ghim LF vì CSP ghim băm).
+  - Sửa `guardian/src/*` hoặc mã dùng chung (engine, `view.js`, `guardian/codec.js`, `share.js`, `platforms/extension/data`) thì chạy `python tools/build_guardian_page.py` (test Python kiểm tra file dựng khớp nguồn; `.gitattributes` ghim LF vì CSP ghim băm).
   - Nonce giờ là 12 ký tự bộ chữ 31 ký tự (không I L O 0 1); đổi thì chạy lại `python tools/gen_guardian_vectors.py` (vector chung Python ↔ JS). Managed thêm `guardian_name`, `guardian_page_url` (đổi thì phải chạy lại `make-reg` + Merge `.reg`).
   - E2E trên máy này: `CHROMIUM_PATH=<chrome.exe của ms-playwright/chromium-1248>` và `PYTHONUTF8=1`; ảnh "sau" sinh vào `docs/guardian/ux/after/`.
   - Bẫy công cụ: heredoc Python/bash có tiếng Việt + dấu `\` hoặc nháy đơn dễ hỏng escape; ghi file bằng công cụ Write/Edit.

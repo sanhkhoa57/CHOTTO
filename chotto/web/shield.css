@@ -1,5 +1,5 @@
 /* CHOTTO – màn hình cảnh báo "Khoan đã!" (hiển thị lũy tiến). MỘT nguồn cho cả Desktop (chotto/web/friction.html) và
-   tiện ích trình duyệt (tools/sync_extension_data.py nhúng file này vào extension/src/ui/shield-css.js).
+   tiện ích trình duyệt (tools/sync_extension_data.py nhúng file này vào platforms/extension/src/ui/shield-css.js).
    Cấu trúc DOM do shield.js dựng. Sáng/tối theo hệ thống; đặt data-theme="dark" | "light" trên .sh để ép một chế độ. */
 
 .sh {

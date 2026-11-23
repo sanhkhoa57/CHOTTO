@@ -7,8 +7,8 @@ Hai việc:
   - ``details``: tối đa 3 gạch đầu dòng ngắn, mỗi dòng một ý và một biểu tượng, nằm trong mục "Xem vì sao".
 
 Không dùng thuật ngữ (tầng, heuristic, điểm, signal, combosquat, TLD, RDAP...). Chỉ là dữ liệu chữ: không đổi
-điểm số hay luật. ``tools/sync_extension_data.py`` xuất bản tiếng Việt sang ``extension/data/plain.json`` và
-``extension/src/view.js`` đọc đúng bảng đó, nên hai nền tảng hiển thị CÙNG chữ (có test khớp từng ký tự).
+điểm số hay luật. ``tools/sync_extension_data.py`` xuất bản tiếng Việt sang ``platforms/extension/data/plain.json`` và
+``platforms/extension/src/view.js`` đọc đúng bảng đó, nên hai nền tảng hiển thị CÙNG chữ (có test khớp từng ký tự).
 
 Chi tiết động (từ khóa, đuôi tên miền, số ngày, cổng) lấy từ câu lý do tiếng Việt của engine bằng ``pattern``
 (cú pháp dùng được ở cả Python ``re`` lẫn JavaScript ``RegExp``).

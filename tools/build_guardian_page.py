@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Dựng ``guardian/index.html``: trang người giám hộ TĨNH, một file, không gọi mạng.
 
-Trang gộp engine chấm điểm JS của tiện ích (``extension/src/engine/*``, ``view.js``) + mã mật mã/liên kết của Guardian
-(``extension/src/guardian/codec.js``, ``share.js``) + dữ liệu (``extension/data/*``) + giao diện (``guardian/src/page.*``) vào MỘT
+Trang gộp engine chấm điểm JS của tiện ích (``platforms/extension/src/engine/*``, ``view.js``) + mã mật mã/liên kết của Guardian
+(``platforms/extension/src/guardian/codec.js``, ``share.js``) + dữ liệu (``platforms/extension/data/*``) + giao diện (``guardian/src/page.*``) vào MỘT
 file HTML. Lý do một file: mở được trực tiếp từ đĩa (module ES bị chặn trên ``file://``), host tĩnh ở đâu cũng được, và có thể ghim
 bằng băm SHA-256 trong CSP (``script-src 'sha256-…'``; không cần ``unsafe-inline``). CSP còn đặt ``connect-src 'none'``: trang không
 gọi được mạng dù có lỗi.
@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Final
 
 ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-EXT: Final[Path] = ROOT / "extension"
+EXT: Final[Path] = ROOT / "platforms" / "extension"
 SRC: Final[Path] = ROOT / "guardian" / "src"
 OUT_HTML: Final[Path] = ROOT / "guardian" / "index.html"
 OUT_SW: Final[Path] = ROOT / "guardian" / "sw.js"

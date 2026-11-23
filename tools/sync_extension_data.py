@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Đồng bộ dữ liệu dùng chung từ ``chotto/data`` sang ``extension/data`` để Desktop và tiện ích cho cùng kết quả.
+"""Đồng bộ dữ liệu dùng chung từ ``chotto/data`` sang ``platforms/extension/data`` để Desktop và tiện ích cho cùng kết quả.
 
 Sinh ra:
   - ``rules.json``: bản sao nguyên văn bộ luật (một nguồn sự thật cho cả hai nền tảng);
@@ -13,7 +13,7 @@ Sinh ra:
   - ``sync.json``: SHA-256 của từng file nguồn, để ``--check`` (và CI) phát hiện dữ liệu tiện ích bị lệch.
 
 Ví dụ:
-  python tools/sync_extension_data.py           # ghi lại extension/data
+  python tools/sync_extension_data.py           # ghi lại platforms/extension/data
   python tools/sync_extension_data.py --check   # chỉ kiểm tra, mã thoát 1 nếu lệch
 """
 from __future__ import annotations
@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Final
@@ -39,7 +40,7 @@ SOURCES: Final[tuple[str, ...]] = (
     "confusables_ascii.json",
     "blacklist.seed.txt",
 )
-DEFAULT_OUT: Final[Path] = ROOT / "extension" / "data"
+DEFAULT_OUT: Final[Path] = ROOT / "platforms" / "extension" / "data"
 
 
 def _sha256(path: Path) -> str:
@@ -67,7 +68,7 @@ def advice_data() -> dict[str, Any]:
 
 
 def ui_outputs() -> dict[str, str]:
-    """File giao diện dùng chung với Desktop, ghi vào ``extension/src/ui`` (nội dung đã chuẩn hóa về xuống dòng LF).
+    """File giao diện dùng chung với Desktop, ghi vào ``platforms/extension/src/ui`` (nội dung đã chuẩn hóa về xuống dòng LF).
 
     Returns:
         ``{tên file: nội dung UTF-8}``: ``shield.js`` (bản chép) và ``shield-css.js`` (CSS nhúng thành chuỗi JavaScript,
@@ -81,7 +82,32 @@ def ui_outputs() -> dict[str, str]:
     css = _read_lf(web / "shield.css")
     header = "// Sinh bởi tools/sync_extension_data.py từ chotto/web/shield.css. Đừng sửa tay.\n"
     css_js = f"globalThis.CHOTTO_SHIELD_CSS = {json.dumps(css, ensure_ascii=False)};\n"
-    return {"shield.js": script, "shield-css.js": header + css_js}
+    return {"shield.js": script, "shield-css.js": header + css_js, "app.css": app_css()}
+
+
+def app_css() -> str:
+    """CSS của cửa sổ ứng dụng Desktop (``style.css`` + khối ``<style>`` của ``app.html``) cho trang cài đặt của tiện ích.
+
+    Bỏ phần chỉ Desktop có: mép kéo giãn cửa sổ (``.rz``), tùy chỉnh nhân vật taskbar (``.buddy*``, ``.fold``) và cỡ riêng
+    của cửa sổ rộng. Phần riêng của tiện ích (khung điện thoại, Guardian) nằm ở ``options.css`` viết tay.
+
+    Raises:
+        OSError: Thiếu file nguồn.
+        ValueError: ``app.html`` không còn khối ``<style>``.
+    """
+    web = ROOT / "chotto" / "web"
+    base = _read_lf(web / "style.css")
+    match = re.search(r"<style>\n(.*?)</style>", _read_lf(web / "app.html"), re.S)
+    if match is None:
+        raise ValueError("app.html thiếu khối <style>")
+    block = re.sub(r"@media \(prefers-reduced-motion: no-preference\) \{\n  \.fold.*?\n\}\n", "", match.group(1), flags=re.S)
+    # Luật Desktop-only có thể trải nhiều dòng: xóa cả khối {...}, không xóa theo từng dòng (dòng lẻ làm hỏng luật kế tiếp).
+    block = re.sub(r"^(?:\.rz|\.buddy|#buddyPlaceRow|\.fold)[^{\n]*\{[^}]*\}\n?", "", block, flags=re.M)
+    block = re.sub(r" ?\.rz[^{\n]*\{[^}]*\}", "", block)         # các luật .rz còn lại nằm chung một dòng
+    block = "\n".join(line for line in block.split("\n")
+                      if not re.match(r"@media \(min-width: 560px\)|@media \(prefers-reduced-motion: no-preference\) \{ \.buddy", line))
+    header = "/* Sinh bởi tools/sync_extension_data.py từ chotto/web/style.css + app.html. Đừng sửa tay (sửa options.css). */\n"
+    return header + base + "\n" + block
 
 
 def _read_lf(path: Path) -> str:

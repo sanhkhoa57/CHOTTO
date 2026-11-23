@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sinh bộ test dùng chung ``tests/data/view_vectors.json``: URL → cấu trúc hiển thị của màn hình cảnh báo (tiếng Việt).
 
-``tests/test_shield.py`` (Python) và ``extension/tests/view.test.mjs`` (JavaScript) cùng phải tái tạo đúng từng ký tự
+``tests/test_shield.py`` (Python) và ``platforms/extension/tests/view.test.mjs`` (JavaScript) cùng phải tái tạo đúng từng ký tự
 cấu trúc ``{headline, domain{registered, rest, ...}, reasonShort, details[], actions}`` này, để Desktop và tiện ích
 hiển thị CÙNG chữ, CÙNG thông điệp. URL lấy từ ``engine_vectors.json`` (đã được hai engine khớp nhau), chỉ giữ các
 ca không an toàn vì màn hình cảnh báo chỉ hiện cho chúng. Nhãn tĩnh (nút, chú thích) và ``actions`` ngoài

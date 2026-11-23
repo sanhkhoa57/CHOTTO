@@ -142,8 +142,8 @@ Các ca còn lại của Tk: `ui/after/tk-warn.png`, `tk-blocked.png`, `tk-idn.p
 **"Báo cho người gửi" soạn sẵn câu nhắn, không gửi gì.** Chỉ chép vào clipboard: "Link này có vẻ lừa đảo, bạn đừng bấm nhé: vcb-digibanks[.]top". Tên miền được viết dạng `[.]` để Zalo không biến nó thành link bấm được. Nút "Sao chép địa chỉ" chép địa chỉ đầy đủ (với tên miền Unicode là dạng punycode an toàn).
 
 **Một nguồn cho cả ba nơi.**
-- `chotto/shield.py` (Python) và `extension/src/view.js` (JS) cùng sinh cấu trúc `{headline, domain{registered, rest, ...}, reasonShort, details[], actions}`. `tools/gen_view_vectors.py` sinh `tests/data/view_vectors.json` (524 URL không an toàn); cả `tests/test_shield.py` lẫn `extension/tests/view.test.mjs` phải tái tạo đúng từng ký tự.
-- Bảng chữ nằm ở `chotto/plain.py`; `tools/sync_extension_data.py` xuất sang `extension/data/plain.json` và `--check` phát hiện lệch.
+- `chotto/shield.py` (Python) và `platforms/extension/src/view.js` (JS) cùng sinh cấu trúc `{headline, domain{registered, rest, ...}, reasonShort, details[], actions}`. `tools/gen_view_vectors.py` sinh `tests/data/view_vectors.json` (524 URL không an toàn); cả `tests/test_shield.py` lẫn `platforms/extension/tests/view.test.mjs` phải tái tạo đúng từng ký tự.
+- Bảng chữ nằm ở `chotto/plain.py`; `tools/sync_extension_data.py` xuất sang `platforms/extension/data/plain.json` và `--check` phát hiện lệch.
 - `chotto/web/shield.css` + `shield.js` là giao diện duy nhất. Desktop nạp trực tiếp, tiện ích nhận bản chép (`shield.js`) và CSS nhúng thành chuỗi (`shield-css.js`) từ cùng tool đồng bộ, vì content script không được lộ URL tài nguyên cho trang Zalo.
 - Đường lùi Tk (`chotto/ui_shield.py`) đọc cùng `shield_view`, nên cùng chữ.
 

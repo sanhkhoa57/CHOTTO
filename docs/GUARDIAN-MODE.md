@@ -54,12 +54,12 @@ Thành phần:
 
 | Tệp | Vai trò |
 |-----|---------|
-| `extension/src/guardian/codec.js` | HMAC-SHA256, SHA-256, Ed25519 verify, sinh nonce (đều của WebCrypto); bộ chữ nonce không gây nhầm, base64url, cắt bớt kiểu HOTP, so sánh thời gian hằng, chuẩn hóa ô nhập mã |
-| `extension/src/guardian/share.js` | Lời nhắn soạn sẵn, liên kết trang người giám hộ (dữ liệu ở `#fragment`), lọc `guardian_name` và `guardian_page_url`. Module thuần, dùng chung với trang người giám hộ |
-| `extension/src/guardian/guardian.js` | Cấu hình (managed + chính sách ký), thử thách, khóa, hết hạn, chống chỉnh giờ. Mọi phụ thuộc được tiêm vào nên kiểm thử bằng Node |
-| `extension/src/guardian/managed_schema.json` | Lược đồ `chrome.storage.managed` (6 khóa: `guardian_enabled`, `guardian_public_key`, `guardian_secret`, `min_policy_version`, và tùy chọn `guardian_name`, `guardian_page_url`) |
-| `extension/src/background.js` | Ráp vào luồng cấp vé: thông điệp `guardian-request` (trả lời kèm lời nhắn + liên kết), `guardian-submit`, `guardian-import`; vé Guardian không bao giờ nhận `decide: proceed` |
-| `extension/src/ui/guardian-ui.js`, `guardian-css.js` | Hai màn hình cho người lớn tuổi (chặn 2 nút; đã nhờ một chạm + một ô nhập số); hình vuông quét dùng thư viện `qrcode-generator` (MIT, `src/vendor/`) |
+| `platforms/extension/src/guardian/codec.js` | HMAC-SHA256, SHA-256, Ed25519 verify, sinh nonce (đều của WebCrypto); bộ chữ nonce không gây nhầm, base64url, cắt bớt kiểu HOTP, so sánh thời gian hằng, chuẩn hóa ô nhập mã |
+| `platforms/extension/src/guardian/share.js` | Lời nhắn soạn sẵn, liên kết trang người giám hộ (dữ liệu ở `#fragment`), lọc `guardian_name` và `guardian_page_url`. Module thuần, dùng chung với trang người giám hộ |
+| `platforms/extension/src/guardian/guardian.js` | Cấu hình (managed + chính sách ký), thử thách, khóa, hết hạn, chống chỉnh giờ. Mọi phụ thuộc được tiêm vào nên kiểm thử bằng Node |
+| `platforms/extension/src/guardian/managed_schema.json` | Lược đồ `chrome.storage.managed` (6 khóa: `guardian_enabled`, `guardian_public_key`, `guardian_secret`, `min_policy_version`, và tùy chọn `guardian_name`, `guardian_page_url`) |
+| `platforms/extension/src/background.js` | Ráp vào luồng cấp vé: thông điệp `guardian-request` (trả lời kèm lời nhắn + liên kết), `guardian-submit`, `guardian-import`; vé Guardian không bao giờ nhận `decide: proceed` |
+| `platforms/extension/src/ui/guardian-ui.js`, `guardian-css.js` | Hai màn hình cho người lớn tuổi (chặn 2 nút; đã nhờ một chạm + một ô nhập số); hình vuông quét dùng thư viện `qrcode-generator` (MIT, `src/vendor/`) |
 | `guardian/index.html` (+ `sw.js`, nguồn ở `guardian/src/`) | **Trang người giám hộ** tĩnh, một file, không gọi mạng (mục 11). Sinh bằng `tools/build_guardian_page.py` |
 | `tools/guardian.py` | Công cụ người giám hộ: `init`, `sign-policy`, `make-reg` (`--name`, `--page-url`), `code` (nhận cả liên kết), `export-guardian`, `make-html` |
 | `tools/guardian.html` | Trang offline cũ cùng chức năng `code` (có nhúng bí mật; vẫn dùng được, nhận cả liên kết) |
@@ -169,7 +169,7 @@ python tools\guardian.py init
 
 Tạo `%APPDATA%\CHOTTO-Guardian\keys.json` (khóa Ed25519 + bí mật HMAC; ngoài repo, chỉ chủ sở hữu đọc được). Công cụ từ chối ghi vào trong repo; `*.pem`, `*.key`, `CHOTTO-Guardian/` nằm trong `.gitignore`. **Sao lưu thư mục này**.
 
-ID tiện ích đã ghim sẵn bằng trường `key` trong `extension/manifest.json` (khóa bí mật của cặp khóa này nằm ngoài repo, `tools/gen_extension_key.py`): **`khbkfclofacncmkcgjndadchgohkaflg`**, nên registry trỏ đúng tiện ích khi load unpacked.
+ID tiện ích đã ghim sẵn bằng trường `key` trong `platforms/extension/manifest.json` (khóa bí mật của cặp khóa này nằm ngoài repo, `tools/gen_extension_key.py`): **`khbkfclofacncmkcgjndadchgohkaflg`**, nên registry trỏ đúng tiện ích khi load unpacked.
 
 ### 7.2 (Tùy chọn) Chính sách ký
 
@@ -226,7 +226,7 @@ Demo **không** cần `ExtensionInstallForcelist`: load unpacked + managed stora
 
 ### 7.6 Load unpacked
 
-`chrome://extensions` → bật *Developer mode* → *Load unpacked* → chọn thư mục `extension/`. Kiểm tra ID bằng `khbkfclofacncmkcgjndadchgohkaflg`. Mở trang Cài đặt của tiện ích (bấm biểu tượng): mục **Chế độ người giám hộ** phải ghi *"Đang bật bởi chính sách quản lý (managed storage)"*. Nếu ghi "Đang tắt", managed storage chưa được publish (xem lại 7.3).
+`chrome://extensions` → bật *Developer mode* → *Load unpacked* → chọn thư mục `platforms/extension/`. Kiểm tra ID bằng `khbkfclofacncmkcgjndadchgohkaflg`. Mở trang Cài đặt của tiện ích (bấm biểu tượng): mục **Chế độ người giám hộ** phải ghi *"Đang bật bởi chính sách quản lý (managed storage)"*. Nếu ghi "Đang tắt", managed storage chưa được publish (xem lại 7.3).
 
 ### 7.7 Thử
 
@@ -251,13 +251,13 @@ Không gọi mạng thật (trang người giám hộ chỉ nói chuyện với 
 
 | Nhóm | Lệnh | Nội dung chính |
 |------|------|----------------|
-| Node (`extension/tests/guardian.test.mjs`) | `cd extension && npm test` | mã đúng mở đúng link; mã đúng của tên miền khác bị từ chối; dùng lại mã bị từ chối; quá 5 lần sai → hủy + khóa 30 s/2 phút/10 phút; hết hạn; lùi giờ → hủy; khởi động lại/xóa kho → mất thử thách; chính sách sai chữ ký/thiếu/hỏng/version thấp hơn min → fail-closed; managed thiếu → hành vi cũ; vector HMAC/nonce/tên/địa chỉ trang/liên kết/Ed25519 khớp Python; bộ chữ nonce không có I L O 0 1, entropy ≥ 40 bit, phân bố đều |
-| Node (`extension/tests/guardian-share.test.mjs`) | như trên | lời nhắn có liên kết `#fragment` đúng định dạng (không query, tên miền viết `abc[.]top`, không xưng hô theo vai); ô nhập chấp nhận "123 456" và "123-456"; `guardian_name` được lọc (điều khiển, đảo chiều, 30 ký tự) và chỉ đọc từ managed; `guardian_page_url` chỉ nhận https |
-| Node (`extension/tests/guardian-contrast.test.mjs`) | như trên | tương phản WCAG AA đo từ CSS thật (mục 10.5) |
+| Node (`platforms/extension/tests/guardian.test.mjs`) | `cd extension && npm test` | mã đúng mở đúng link; mã đúng của tên miền khác bị từ chối; dùng lại mã bị từ chối; quá 5 lần sai → hủy + khóa 30 s/2 phút/10 phút; hết hạn; lùi giờ → hủy; khởi động lại/xóa kho → mất thử thách; chính sách sai chữ ký/thiếu/hỏng/version thấp hơn min → fail-closed; managed thiếu → hành vi cũ; vector HMAC/nonce/tên/địa chỉ trang/liên kết/Ed25519 khớp Python; bộ chữ nonce không có I L O 0 1, entropy ≥ 40 bit, phân bố đều |
+| Node (`platforms/extension/tests/guardian-share.test.mjs`) | như trên | lời nhắn có liên kết `#fragment` đúng định dạng (không query, tên miền viết `abc[.]top`, không xưng hô theo vai); ô nhập chấp nhận "123 456" và "123-456"; `guardian_name` được lọc (điều khiển, đảo chiều, 30 ký tự) và chỉ đọc từ managed; `guardian_page_url` chỉ nhận https |
+| Node (`platforms/extension/tests/guardian-contrast.test.mjs`) | như trên | tương phản WCAG AA đo từ CSS thật (mục 10.5) |
 | Python (`tests/test_guardian.py`) | `python -m unittest discover -s tests` | mã khớp vector chung và RFC 4226; bộ chữ nonce; ký/xác minh/rollback; xuất `.reg` (đường dẫn Chrome/Edge, DWORD, UTF-16, `guardian_name`/`guardian_page_url`, không chứa bí mật ở file gỡ/làm cứng); từ chối ghi trong repo; chấm lại bằng engine; xác nhận tương tác; `export-guardian`; `code` nhận liên kết |
 | Python (`tests/test_guardian_page.py`) | như trên | `guardian/index.html` khớp mã nguồn (bộ dựng), băm CSP đúng, CSP chặn mạng, không có API mạng/`innerHTML`/`eval`, trang không chứa bí mật |
-| E2E (`extension/e2e/guardian.test.mjs`) | `cd extension && npm run e2e` | Chromium thật + managed storage **giả lập** (ghi đè `chrome.storage.managed.get` trong service worker, không đụng registry); màn hình 1 chỉ có 2 nút chính; lỗi trạng thái cũ không còn; clipboard có lời nhắn đúng định dạng; mã tính bằng `tools/guardian.py` thật; **luồng đầy đủ** Zalo giả → clipboard → trang người giám hộ (nạp bí mật thử) → Cho mở → mã → nhập → link mở; luồng **Không cho mở**; `guardian_name`; sai 5 lần bị khóa; WARN/Guardian tắt giữ hành vi cũ; trang cài đặt chỉ đọc + nhận chính sách ký. Cần Chromium của Playwright (`npx playwright install chromium`; đặt `CHROMIUM_PATH` nếu phiên bản không khớp) |
-| E2E (`extension/e2e/guardian-page.test.mjs`) | như trên | trang người giám hộ: cài đặt (dán chuỗi / liên kết `#setup=`), mã đúng theo vector chung cho mọi ca, mức rủi ro khớp engine Node, cảnh báo đỏ HIGH/BLOCKED, hai nút, hỏi lại một lần, chép câu trả lời, không gọi mạng (CSP + theo dõi mọi yêu cầu), chạy offline (service worker), xóa khỏi thiết bị, đường lỗi, mở từ `file://` |
+| E2E (`platforms/extension/e2e/guardian.test.mjs`) | `cd extension && npm run e2e` | Chromium thật + managed storage **giả lập** (ghi đè `chrome.storage.managed.get` trong service worker, không đụng registry); màn hình 1 chỉ có 2 nút chính; lỗi trạng thái cũ không còn; clipboard có lời nhắn đúng định dạng; mã tính bằng `tools/guardian.py` thật; **luồng đầy đủ** Zalo giả → clipboard → trang người giám hộ (nạp bí mật thử) → Cho mở → mã → nhập → link mở; luồng **Không cho mở**; `guardian_name`; sai 5 lần bị khóa; WARN/Guardian tắt giữ hành vi cũ; trang cài đặt chỉ đọc + nhận chính sách ký. Cần Chromium của Playwright (`npx playwright install chromium`; đặt `CHROMIUM_PATH` nếu phiên bản không khớp) |
+| E2E (`platforms/extension/e2e/guardian-page.test.mjs`) | như trên | trang người giám hộ: cài đặt (dán chuỗi / liên kết `#setup=`), mã đúng theo vector chung cho mọi ca, mức rủi ro khớp engine Node, cảnh báo đỏ HIGH/BLOCKED, hai nút, hỏi lại một lần, chép câu trả lời, không gọi mạng (CSP + theo dõi mọi yêu cầu), chạy offline (service worker), xóa khỏi thiết bị, đường lỗi, mở từ `file://` |
 
 ## 9. Hướng phát triển
 
@@ -322,7 +322,7 @@ Dòng trạng thái thừa: bước 2 gọi `setStep(2)`, xóa dòng trạng th�
 
 - Chữ thân ≥ 18px (màn hình trong tiện ích và trang người giám hộ; e2e đo `getComputedStyle`), tiêu đề ≥ 24px, vùng bấm ≥ 48px (e2e đo `boundingBox` trên trang người giám hộ; CSS tiện ích đặt `min-height` 48–58px). Không dựa riêng vào màu: mỗi trạng thái đều có chữ ("Mã chưa đúng", "Đây có thể là lừa đảo…").
 - Bàn phím đầy đủ (Tab, Enter gửi mã, `Esc` đóng); `aria-live`/`role="status"` cho lỗi và trạng thái; nút có nhãn truy cập; ô nhập có `<label>`/`aria-label`; tôn trọng `prefers-reduced-motion` (giao diện mới không có hoạt ảnh).
-- Tương phản đo bằng `extension/tests/guardian-contrast.test.mjs` từ **CSS thật** (`chotto/web/shield.css`, `guardian/src/page.css`); test đỏ nếu đổi màu làm tụt dưới ngưỡng (chữ thường ≥ 4,5:1; chữ lớn và viền ô nhập ≥ 3:1). Kết quả lần chạy cuối (`PRINT_CONTRAST=1 node --test tests/guardian-contrast.test.mjs`):
+- Tương phản đo bằng `platforms/extension/tests/guardian-contrast.test.mjs` từ **CSS thật** (`chotto/web/shield.css`, `guardian/src/page.css`); test đỏ nếu đổi màu làm tụt dưới ngưỡng (chữ thường ≥ 4,5:1; chữ lớn và viền ô nhập ≥ 3:1). Kết quả lần chạy cuối (`PRINT_CONTRAST=1 node --test tests/guardian-contrast.test.mjs`):
 
 | Cặp màu | Chủ đề | Chữ / nền | Đo được | Cần | Kết quả |
 |---|---|---|---|---|---|
@@ -411,7 +411,7 @@ Trang là một thư mục tĩnh `guardian/` (`index.html`, `sw.js`). Cách đơ
 
 ### 11.6 Dựng lại
 
-Sửa nguồn ở `guardian/src/` (`page.html`, `page.css`, `page.js`) hoặc mã dùng chung (`extension/src/engine`, `view.js`, `guardian/codec.js`, `share.js`, `extension/data`) rồi chạy `python tools/build_guardian_page.py`. Test Python kiểm tra file dựng sẵn luôn khớp nguồn. Bộ dựng tự viết (không thêm thư viện): chuyển module ES thành hàm tự gọi, nhúng dữ liệu, tính băm CSP.
+Sửa nguồn ở `guardian/src/` (`page.html`, `page.css`, `page.js`) hoặc mã dùng chung (`platforms/extension/src/engine`, `view.js`, `guardian/codec.js`, `share.js`, `platforms/extension/data`) rồi chạy `python tools/build_guardian_page.py`. Test Python kiểm tra file dựng sẵn luôn khớp nguồn. Bộ dựng tự viết (không thêm thư viện): chuyển module ES thành hàm tự gọi, nhúng dữ liệu, tính băm CSP.
 
 ## 12. Quyết định kỹ thuật (làm khác hoặc thêm so với yêu cầu)
 
@@ -439,5 +439,5 @@ Sửa nguồn ở `guardian/src/` (`page.html`, `page.css`, `page.js`) hoặc m�
 - **Service worker cho offline**: chỉ để trang mở được khi mất mạng; trang không gọi mạng (CSP), service worker thì có (để làm mới bản lưu). Tuyên bố "không gọi mạng" nói về trang. Bạn có thể bỏ `sw.js` và `worker-src` nếu muốn tuyệt đối không có yêu cầu mạng nào sau lần tải đầu (lúc đó offline dựa vào bộ nhớ đệm trình duyệt hoặc lưu file).
 - **Chuỗi cài đặt/liên kết `#setup=`**: QR của `export-guardian --html` mở liên kết cài đặt để dùng camera điện thoại thông thường (không cần ứng dụng quét trong trang); đổi lại bí mật đi qua một liên kết (lịch sử camera). Đã nêu ở 11.3; có thể dán chuỗi thay vì quét.
 - **Giữ nguyên tool cũ** (`guardian.html`, `make-html`): chỉ sửa bộ chữ nonce và nhận liên kết.
-- **Không sửa engine chấm điểm và `chotto/data/rules.json`** (đúng yêu cầu); trang người giám hộ dùng nguyên `extension/src/engine`.
+- **Không sửa engine chấm điểm và `chotto/data/rules.json`** (đúng yêu cầu); trang người giám hộ dùng nguyên `platforms/extension/src/engine`.
 - **Bỏ ảnh cũ** `docs/guardian/01..05-*.png` (giao diện đã đổi); ảnh mới ở `docs/guardian/ux/` (giữ `04-settings.png` vì trang cài đặt không đổi).

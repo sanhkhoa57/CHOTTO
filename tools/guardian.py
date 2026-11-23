@@ -37,11 +37,11 @@ from typing import Any, Final
 from urllib.parse import parse_qs, quote, urlsplit
 
 ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-EXTENSION_MANIFEST: Final[Path] = ROOT / "extension" / "manifest.json"
+EXTENSION_MANIFEST: Final[Path] = ROOT / "platforms" / "extension" / "manifest.json"
 HTML_TEMPLATE: Final[Path] = Path(__file__).resolve().parent / "guardian.html"
 
 CODE_CONTEXT: Final[str] = "CHOTTO-GUARDIAN-v1"
-# Bộ chữ nonce: 31 ký tự, BỎ I, L, O, 0, 1 (dễ nhầm khi đọc/gõ). Khớp ``extension/src/guardian/codec.js``.
+# Bộ chữ nonce: 31 ký tự, BỎ I, L, O, 0, 1 (dễ nhầm khi đọc/gõ). Khớp ``platforms/extension/src/guardian/codec.js``.
 NONCE_ALPHABET: Final[str] = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 NONCE_LENGTH: Final[int] = 12   # 12 × log2(31) ≈ 59,4 bit (yêu cầu ≥ 40 bit)
 NONCE_GROUP: Final[int] = 4
@@ -223,7 +223,7 @@ def extension_id_from_key(key_b64: str) -> str:
 
 
 def manifest_extension_id() -> str:
-    """ID tiện ích đã ghim trong ``extension/manifest.json``.
+    """ID tiện ích đã ghim trong ``platforms/extension/manifest.json``.
 
     Raises:
         GuardianError: Manifest chưa có ``key`` (chạy ``tools/gen_extension_key.py``).
@@ -593,7 +593,7 @@ def make_html(directory: Path, out: Path | None = None) -> Path:
 # ---------------------------------------------------------------- cài đặt cho trang người giám hộ
 
 
-QR_LIBRARY: Final[Path] = ROOT / "extension" / "src" / "vendor" / "qrcode-generator.js"
+QR_LIBRARY: Final[Path] = ROOT / "platforms" / "extension" / "src" / "vendor" / "qrcode-generator.js"
 _SETUP_HTML: Final[str] = """<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Cài đặt trang người giám hộ</title>
@@ -660,7 +660,7 @@ def build_parser() -> argparse.ArgumentParser:
     sign.add_argument("--out", type=Path, default=None)
     reg = sub.add_parser("make-reg", help="xuất file .reg (chỉ tạo, không áp dụng)")
     reg.add_argument("--browser", choices=sorted(BROWSERS), required=True)
-    reg.add_argument("--extension-id", default=None, help="mặc định: ID ghim trong extension/manifest.json")
+    reg.add_argument("--extension-id", default=None, help="mặc định: ID ghim trong platforms/extension/manifest.json")
     reg.add_argument("--min-policy-version", type=int, default=None, help="mặc định: version chính sách đã ký gần nhất")
     reg.add_argument("--out", type=Path, default=None)
     reg.add_argument("--name", default=None, help="tên người giám hộ hiện trên màn hình ('Nhờ <tên> xem giúp'), tối đa 30 ký tự")

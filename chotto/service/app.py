@@ -96,6 +96,12 @@ def export_action(path: str, lang: str = "vi") -> str:
     return msg(lang, "exported", count=logdb.export_csv(path), path=path)
 
 
+def clear_log_action(lang: str = "vi") -> str:
+    """Tác vụ xóa toàn bộ nhật ký quyết định."""
+    logdb.clear()
+    return msg(lang, "cleared")
+
+
 def _pump(root: tk.Tk | None) -> Callable[[], None]:
     """Hàm cho vòng lặp Tk xử lý sự kiện trong lúc chờ giao diện HTML (không có Tk: không làm gì)."""
     def pump() -> None:

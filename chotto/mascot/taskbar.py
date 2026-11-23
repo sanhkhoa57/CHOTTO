@@ -20,7 +20,7 @@ from ..config import MASCOT_DEFAULT_COLORS, config_stamp, data_dir, load_config
 from ..platforms import win32_window as w32
 from ..platforms import window as osw
 from ..util import clamp as _clamp
-from .brain import WARNING_LEVELS, Frame, MascotBrain
+from .brain import POSE_INDEX, WARNING_LEVELS, Frame, MascotBrain
 from .recolor import normalize_colors, recolored_poses, source_poses
 
 if TYPE_CHECKING:
@@ -46,7 +46,8 @@ def supported() -> bool:
 
 _KEY: Final[str] = "#ff00fe"                  # màu trong suốt (-transparentcolor): không có trong sprite
 _KEY_RGB: Final[tuple[int, int, int]] = (255, 0, 254)
-_BASE_SCALE: Final[float] = 0.15              # 488 px gốc → ~73 px ở 100% scale
+_BASE_SCALE: Final[float] = 0.30              # 488 px gốc → ~146 px ở 100% scale (gấp đôi bản đầu: 0.15)
+_STOP_MUL: Final[float] = 2.0                 # tư thế "Khoan đã!" to gấp đôi cỡ thường (= gấp 4 bản đầu)
 _DESIGN_SCALE: Final[float] = 0.31            # tỉ lệ sprite trong khung hoạt ảnh của bản thiết kế
 _FAST_MS: Final[int] = 33
 _SLOW_MS: Final[int] = 120
@@ -267,7 +268,6 @@ class TaskbarMascot:
             self._canvas.delete("hint")
             if on:
                 width, height = self._size
-                self._canvas.create_text(width / 2, 9, text="\u25c0  \u25b6", fill="#d4a24a", font=("Segoe UI", 9, "bold"), tags="hint")
                 self._canvas.create_line(4, height - 1, width - 4, height - 1, fill="#d4a24a", width=2, dash=(4, 3), tags="hint")
         self._sync_pin()
         self._schedule(0)
@@ -313,8 +313,9 @@ class TaskbarMascot:
         dpi = w32.system_dpi_scale()
         self._scale = _BASE_SCALE * dpi
         self._unit = self._scale / _DESIGN_SCALE
-        width = int(259 * self._scale * 1.12 + 60 * self._unit)
-        height = int(488 * self._scale * 1.03 + 30 * self._unit + 4)
+        big = self._scale * _STOP_MUL            # khung phải chứa được tư thế to nhất
+        width = int(259 * big * 1.12 + 60 * self._unit)
+        height = int(488 * big * 1.03 + 30 * self._unit + 4)
         window = tk.Toplevel(self._root)
         window.withdraw()
         window.overrideredirect(True)
@@ -414,8 +415,9 @@ class TaskbarMascot:
 
         assert self._poses is not None
         src = self._poses[frame.pose]
-        w = max(1, round(src.width * self._scale * key[2] / 100))
-        h = max(1, round(src.height * self._scale * key[3] / 100))
+        scale = self._scale * (_STOP_MUL if frame.pose == POSE_INDEX["stop"] else 1.0)
+        w = max(1, round(src.width * scale * key[2] / 100))
+        h = max(1, round(src.height * scale * key[3] / 100))
         img = src.resize((w, h), PILImage.Resampling.LANCZOS)
         if key[4]:
             img = img.rotate(math.degrees(key[4] / 100), resample=PILImage.Resampling.BICUBIC, expand=True)

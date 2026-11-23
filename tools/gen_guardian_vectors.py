@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Sinh ``tests/data/guardian_vectors.json``: vector kiểm thử DÙNG CHUNG giữa ``tools/guardian.py`` (Python)
-và ``extension/src/guardian/*`` (JavaScript).
+và ``platforms/extension/src/guardian/*`` (JavaScript).
 
 Toàn bộ khóa/bí mật trong file này là KHÓA THỬ NGHIỆM cố định, công khai, không dùng cho thật.
 Ed25519 là tất định nên chữ ký tái tạo được từng byte.

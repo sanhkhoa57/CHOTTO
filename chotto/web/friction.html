@@ -12,6 +12,8 @@
 body { background: #fbf6f1; color: #3a2547; }
 .shell { height: 100vh; display: flex; flex-direction: column;
   background: radial-gradient(120% 55% at 100% 0%, #ffe3cf 0%, transparent 60%), radial-gradient(110% 50% at 0% 0%, #ebe3fb 0%, transparent 62%), #fbf6f1; }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(58, 37, 71, .28) transparent; }
+.scroll .sh { box-sizing: border-box; min-height: 100%; padding-bottom: 32px; }
 .tb { color: #3a2547; }
 .tb .ctl svg { stroke: #3a2547; }
 .tb .ctl:hover { background: rgba(58, 37, 71, .07); }

@@ -244,7 +244,7 @@ class RegTests(unittest.TestCase):
     def test_manifest_extension_id_is_pinned_and_stable(self) -> None:
         ext = guardian.manifest_extension_id()
         self.assertRegex(ext, r"^[a-p]{32}$")
-        key = json.loads((ROOT / "extension" / "manifest.json").read_text("utf-8"))["key"]
+        key = json.loads((ROOT / "platforms" / "extension" / "manifest.json").read_text("utf-8"))["key"]
         self.assertEqual(gen_extension_key.extension_id_from_key(key), ext)
 
     def test_cli_make_reg_writes_three_files_without_touching_registry(self) -> None:

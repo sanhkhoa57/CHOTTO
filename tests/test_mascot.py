@@ -491,7 +491,7 @@ class WiringTest(unittest.TestCase):
             self.assertIn(f'"{key}":', vi, key)
 
     def test_packaging_includes_assets(self) -> None:
-        bat = (ROOT / "packaging/build_windows.bat").read_bytes()
+        bat = (ROOT / "platforms/PC/windows/build_windows.bat").read_bytes()
         self.assertIn(b"chotto\\mascot\\assets;chotto\\mascot\\assets", bat)
         self.assertNotIn(b"\x08", bat)
         for n in range(4):

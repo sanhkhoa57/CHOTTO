@@ -39,7 +39,7 @@ body { background: var(--bg); font-family: var(--sans); }
 .tb .ctl svg { stroke: var(--ink); }
 .mark { width: 24px; height: 24px; }
 
-.main { overflow-y: auto; padding: 6px 22px 118px; min-width: 0; scroll-behavior: smooth; }
+.main { overflow-y: auto; padding: 6px 22px 112px; min-width: 0; scroll-behavior: smooth; }
 .page-h { margin: 0; font: 800 30px/1.1 var(--sans); letter-spacing: -.025em; color: var(--ink); }
 .page-sub { margin: 6px 0 22px; color: var(--muted); font-size: 15px; }
 .h2 { font: 700 18px/1.2 var(--sans); letter-spacing: -.01em; margin: 0 0 14px; }
@@ -90,13 +90,13 @@ body { background: var(--bg); font-family: var(--sans); }
 .row .chip { grid-area: c; }
 .empty { padding: 22px 0; color: var(--muted); }
 /* Nhật ký: khung cố định, danh sách cuộn BÊN TRONG khung (trang không kéo dài xuống). */
-.main:has(> [data-pane="log"]:not([hidden])) { overflow: hidden; }
+.main:has(> [data-pane="log"]:not([hidden])) { overflow: hidden; padding-bottom: 78px; }
 [data-pane="log"]:not([hidden]) { height: 100%; display: flex; flex-direction: column; }
 [data-pane="log"] .page-sub { margin-bottom: 16px; }
-[data-pane="log"] .list { flex: 1; min-height: 0; margin-top: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(58, 37, 71, .28) transparent; }
+[data-pane="log"] .list { flex: 0 1 auto; min-height: 0; max-height: 540px; width: calc(100% - 16px); margin: 32px auto 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(58, 37, 71, .28) transparent; }
 [data-pane="log"] .list::-webkit-scrollbar { width: 8px; }
 [data-pane="log"] .list::-webkit-scrollbar-thumb { background: rgba(58, 37, 71, .25); border-radius: 99px; border: 2px solid var(--surface); }
-[data-pane="log"] .btn-row { flex: none; margin-top: 12px !important; }
+[data-pane="log"] .btn-row { flex: none; margin: auto 0 !important; padding: 12px 0; }   /* nút CSV nằm giữa đáy khung danh sách và đỉnh thanh điều hướng */
 
 /* ---- nút & nhãn ---- */
 .btn { height: 54px; border-radius: 999px; font-weight: 700; }
@@ -115,7 +115,7 @@ body { background: var(--bg); font-family: var(--sans); }
 .toast.err { background: #c92b32; color: #fff; }
 
 /* ---- kiểm tra link ---- */
-.checker { padding: 20px; }
+.checker { padding: 20px; margin-top: 32px; }
 .field { display: flex; flex-direction: column; gap: 12px; }
 .field input { height: 58px; padding: 0 22px; border-radius: 999px; border: 0; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-strong); font-size: 16px; color: var(--ink); user-select: text; min-width: 0; }
 .field input::placeholder { color: var(--faint); }
@@ -176,6 +176,16 @@ body { background: var(--bg); font-family: var(--sans); }
 .buddy-place { flex: none; width: auto; height: 44px; padding: 0 18px; }
 .buddy-place[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 #buddyPlaceRow small:not(.on) { display: none; }
+.fold { display: grid; grid-template-rows: 0fr; }
+.fold[data-open="true"] { grid-template-rows: 1fr; }
+.fold-in { overflow: hidden; min-height: 0; opacity: 0; }
+.fold-in > .opt:first-child { border-top: 1px solid var(--line); }   /* thắng ".group .opt:first-of-type" */
+.fold[data-open="true"] .fold-in { opacity: 1; overflow: visible; }
+@media (prefers-reduced-motion: no-preference) {
+  .fold { transition: grid-template-rows .3s var(--ease); }
+  .fold-in { transition: opacity .25s var(--ease); }
+  .fold[data-open="true"] .fold-in { transition-delay: .08s; }
+}
 .buddy-note { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
 @media (prefers-reduced-motion: no-preference) { .buddy-sw button, .buddy-sw label { transition: transform .15s var(--ease); } .buddy-sw button:active, .buddy-sw label:active { transform: scale(.9); } }
 
@@ -211,17 +221,27 @@ body { background: var(--bg); font-family: var(--sans); }
 .btn--danger:hover { background: #b3262d; }
 
 /* ---- thanh điều hướng nổi ở đáy ---- */
-.side { position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 10; }
-.nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px; border-radius: 999px; background: rgba(255, 255, 255, .88); backdrop-filter: blur(14px);
+.side { position: absolute; left: 50%; bottom: 16px; z-index: 10; width: min(340px, calc(100% - 32px)); transform: translateX(-50%); }
+.nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px; border-radius: 999px; background: rgba(255, 255, 255, .88); backdrop-filter: blur(14px);
   box-shadow: 0 18px 40px -16px rgba(90, 50, 80, .45), 0 0 0 1px rgba(58, 37, 71, .06); }
-.nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 4px 8px; border-radius: 999px; text-decoration: none; color: var(--muted); font-size: 11.5px; font-weight: 700; transition: color .2s, background .2s, transform .15s var(--ease); }
+.nav a { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 4px 6px; border-radius: 999px; text-decoration: none; color: var(--muted); font-size: 11px; font-weight: 700; transition: color .2s, background .2s, transform .15s var(--ease); }
 .nav a:active { transform: scale(.96); }
 .nav a:hover { color: var(--ink); }
-.nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); box-shadow: 0 10px 20px -10px rgba(242, 138, 58, .9); }
-.nav svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.nav { position: relative; --i: 0; isolation: isolate; }
+.nav::before { content: ""; position: absolute; z-index: -1; top: 6px; bottom: 6px; left: 6px; width: calc((100% - 12px - 12px) / 4); border-radius: 999px;
+  background: var(--accent); box-shadow: 0 10px 20px -10px rgba(242, 138, 58, .9); transform: translateX(calc(var(--i) * (100% + 4px))); }
+.nav a[aria-current="page"] { color: var(--accent-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .nav::before { transition: transform .38s cubic-bezier(.34, 1.4, .5, 1); }       /* trượt sang tab mới, nhún nhẹ khi tới nơi */
+  .nav a[aria-current="page"] svg { animation: tabPop .38s var(--ease); }
+  [data-pane]:not([hidden]) { animation: paneIn .3s var(--ease); }
+  @keyframes paneIn { from { opacity: 0; transform: translateY(10px); } }
+  @keyframes tabPop { 40% { transform: translateY(-3px) scale(1.12); } }
+}
+.nav svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.9; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
 @media (max-height: 700px) { .guard { padding-top: 150px; } .mascot { width: 48%; } .guard-ico { width: 68px; height: 68px; top: 22px; } .guard-ico .glyph { inset: 18px; width: 32px; height: 32px; } }
-@media (min-width: 560px) { .main { padding-left: 15%; padding-right: 15%; } .side { left: 15%; right: 15%; } }
+@media (min-width: 560px) { .main { padding-left: 15%; padding-right: 15%; } }
 </style>
 </head>
 <body>
@@ -281,8 +301,8 @@ body { background: var(--bg); font-family: var(--sans); }
 
     <section data-pane="log" hidden>
       <h1 class="page-h"><span data-i18n="log.h">Activity</span><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.log">i</span></h1>
-      <div class="list card" style="margin-top:0"><div id="recentFull"></div></div>
-      <div class="btn-row" style="margin-top:14px"><button class="btn btn--secondary" data-action="export" data-i18n="log.export">Export to CSV</button></div>
+      <div class="list card"><div id="recentFull"></div></div>
+      <div class="btn-row" style="margin-top:14px"><button class="btn btn--secondary" data-action="export" data-i18n="log.export">Export to CSV</button><button class="link-danger" data-action="clear_log" data-i18n="log.clear">Clear activity log</button></div>
     </section>
 
     <section data-pane="settings" hidden>
@@ -311,8 +331,10 @@ body { background: var(--bg); font-family: var(--sans); }
       <div class="group card" id="buddy">
         <h2 class="h2" data-i18n="set.buddy">Taskbar character</h2>
         <div class="opt"><div><strong data-i18n="set.buddyOn">Show on the taskbar</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddy">i</span></div><button class="switch" role="switch" data-key="mascot_enabled" aria-checked="false" data-i18n-attr="aria-label:set.buddyOn" aria-label="Show on the taskbar"></button></div>
+        <div class="fold" id="buddyFold"><div class="fold-in">
         <div class="opt"><div><strong data-i18n="set.buddyPin">Keep it in one place</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyPin">i</span></div><button class="switch" role="switch" data-key="mascot_pinned" aria-checked="false" data-i18n-attr="aria-label:set.buddyPin" aria-label="Keep it in one place"></button></div>
         <div class="opt" id="buddyPlaceRow"><div><strong data-i18n="buddy.place">Position</strong><small id="buddyPlaceHint" data-i18n="buddy.placeHint">Drag the character left or right on the taskbar, then press Done.</small></div><button class="btn btn--secondary buddy-place" id="buddyPlace" data-i18n="buddy.placeBtn">Choose position</button></div>
+        </div></div>
         <p class="buddy-note" id="buddyNote" data-i18n="buddy.unsupported" hidden>The taskbar character is only available on Windows.</p>
         <h3 class="h2" data-i18n="buddy.custom" style="font-size:15px">Customize character</h3>
         <div class="buddy-stage" id="buddyStage" role="group" data-i18n-attr="aria-label:buddy.preview" aria-label="Character preview"></div>

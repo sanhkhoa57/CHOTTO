@@ -121,7 +121,11 @@
 
   // ---------- điều hướng ----------
   function tab(name) {
-    $$("[data-tab]").forEach((a) => (a.dataset.tab === name ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current")));
+    $$("[data-tab]").forEach((a, i) => {
+      if (a.dataset.tab !== name) return a.removeAttribute("aria-current");
+      a.setAttribute("aria-current", "page");
+      a.closest(".nav").style.setProperty("--i", i);          // viên cam trượt tới tab này
+    });
     $$("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== name));
     if (name === "check") setTimeout(() => $("#checkInput").focus(), 30);
     if (name === "home" || name === "log") refresh();
@@ -307,6 +311,10 @@
   function buddyPlaceUI() {
     const ok = switchOn("mascot_enabled") && switchOn("mascot_pinned") && (!state || state.mascot_supported !== false);
     if (!ok && placing) { placing = false; if (api && api.mascot_place) api.mascot_place(false); }
+    const open = switchOn("mascot_enabled") && (!state || state.mascot_supported !== false);
+    const fold = $("#buddyFold");
+    fold.dataset.open = open;
+    fold.inert = !open;                      // thu lại thì không focus/bấm được các nút bên trong
     const btn = $("#buddyPlace");
     btn.disabled = !ok;
     btn.setAttribute("aria-pressed", placing);
@@ -322,8 +330,11 @@
   $("#buddyReset").addEventListener("click", buddyReset);
 
   // Hộp xác nhận tự vẽ: mặc định focus vào "Giữ lại"; Esc hoặc bấm ra ngoài = hủy.
-  function ask() {
+  function ask(kind = "confirm") {
     const box = $("#sheet"), yes = $("#sheetYes"), no = $("#sheetNo");
+    $("#sheetT").textContent = t(`${kind}.title`);
+    $("#sheetP").textContent = t(`${kind}.body`);
+    yes.textContent = t(`${kind}.yes`);
     return new Promise((resolve) => {
       const done = (value) => {
         box.removeAttribute("data-open");
@@ -342,7 +353,8 @@
   // ---------- tác vụ ----------
   async function runAction(name, button) {
     if (!api) return;
-    if (name === "uninstall" && !(await ask())) return;
+    if (name === "uninstall" && !(await ask("confirm"))) return;
+    if (name === "clear_log" && !(await ask("clear"))) return;
     const label = button ? button.textContent : "";
     if (button) { button.disabled = true; button.textContent = t("act.busy"); }
     try {

@@ -15,7 +15,7 @@ thẳng nhà đăng ký, lời khuyên theo tổ hợp dấu hiệu, và Tầng 
 mỗi ngày.
 
 Bản 1.4 thêm **tiện ích trình duyệt (Manifest V3) cho Zalo Web** (`chat.zalo.me`) trên Chrome, Edge và
-Firefox, trong thư mục [`extension/`](extension/README.md). Tiện ích dùng **chung bộ luật và dữ liệu** với
+Firefox, trong thư mục [`platforms/extension/`](platforms/extension/README.md). Tiện ích dùng **chung bộ luật và dữ liệu** với
 bản Desktop; một bộ 2.521 URL dùng chung (`tests/data/engine_vectors.json`) bảo đảm hai bản cho cùng điểm,
 cùng mức, cùng lý do và cùng lời khuyên.
 
@@ -69,7 +69,11 @@ CHOTTO/
 │       ├── public_suffix_list.dat   Public Suffix List (MPL-2.0, publicsuffix.org)
 │       ├── confusables_ascii.json   bảng ký tự đồng hình rút từ Unicode TR39
 │       └── blacklist.seed.txt   danh sách đen khởi tạo
-├── extension/                tiện ích trình duyệt cho Zalo Web (xem extension/README.md)
+├── platforms/
+│   ├── android/              ứng dụng Android (Kotlin + Compose)
+│   ├── PC/windows/           build_windows.bat (PyInstaller), chotto.iss (bộ cài Inno Setup), chotto.ico
+│   ├── PC/macos/             macos_setup.py (py2app → CHOTTO.app), chotto.icns
+│   └── extension/            tiện ích trình duyệt cho Zalo Web (xem platforms/extension/README.md)
 │   ├── manifest.json         Manifest V3 (Chrome/Edge; bản Firefox sinh lúc đóng gói)
 │   ├── src/engine/           engine 3 tầng viết lại bằng JavaScript, khớp 1-1 với bản Python
 │   ├── src/                  service worker, content script, main-world script, kho IndexedDB, cập nhật
@@ -77,15 +81,13 @@ CHOTTO/
 │   ├── data/                 dữ liệu sinh từ chotto/data bằng tools/sync_extension_data.py
 │   ├── tests/                test Node (engine, IndexedDB, cập nhật, khớp với Python)
 │   └── e2e/                  test end-to-end bằng Chromium thật trên trang Zalo giả lập
-├── packaging/
-│   ├── build_windows.bat     đóng gói CHOTTO (PyInstaller, chế độ onedir)
-│   └── macos_setup.py        đóng gói CHOTTO.app (py2app)
+├── packaging/guides/               file hướng dẫn trong gói tải (windows/macos/android/extension)
 ├── docs/BAO-CAO-DO-CHINH-XAC.md   báo cáo đo độ chính xác v1.2 → v1.3
 ├── tools/
 │   ├── eval_accuracy.py      đo báo nhầm / tỷ lệ bắt được trên dữ liệu thật (CrUX + Phishing.Database)
 │   ├── calibrate_weights.py  hồi quy logistic để hiệu chỉnh trọng số, kiểm chứng trên tập giữ riêng
 │   ├── build_popular.py      sinh lại chotto/data/popular_vn.txt
-│   ├── sync_extension_data.py   đồng bộ chotto/data → extension/data (--check để kiểm tra lệch)
+│   ├── sync_extension_data.py   đồng bộ chotto/data → platforms/extension/data (--check để kiểm tra lệch)
 │   ├── gen_engine_vectors.py    sinh bộ URL dùng chung cho test khớp Python ↔ JavaScript
 │   └── build_extension.py    đóng gói dist/chotto-extension-{chrome,firefox}-<phiên bản>.zip
 └── tests/                    151 test: engine + ca tấn công trong audit, URL, PSL, Tầng 1/3, cấu hình,
@@ -118,17 +120,17 @@ Sau đó vào **Cài đặt ▸ Ứng dụng mặc định** và chọn **CHOTTO
 Đóng gói:
 ```bash
 pip install -r requirements.txt
-packaging\build_windows.bat        # ra thư mục dist\CHOTTO\
+platforms\PC\windows\build_windows.bat        # ra thư mục dist\CHOTTO\
 ```
 Chép cả thư mục `dist\CHOTTO` tới chỗ cố định (ví dụ `%LOCALAPPDATA%\Programs\CHOTTO`) rồi chạy `CHOTTO.exe install`.
 Bản 1.1 dùng `--onedir` thay vì `--onefile` để mỗi lần bấm link không phải giải nén lại ra `%TEMP%`.
 Lệnh `install` ghi nhớ trình duyệt mặc định hiện tại (Chrome, Edge, Firefox, Cốc Cốc, Brave...) để chuyển tiếp link sang đó.
 
 ### macOS
-Chạy **từ thư mục gốc dự án** (không phải `packaging/`):
+Chạy **từ thư mục gốc dự án** (không phải `platforms/PC/macos/`):
 ```bash
 pip install -r requirements.txt
-python packaging/macos_setup.py py2app
+python platforms/PC/macos/macos_setup.py py2app
 ```
 Chép `dist/CHOTTO.app` vào `/Applications`, rồi vào **Cài đặt hệ thống ▸ Máy tính để bàn & Dock ▸ Trình duyệt web mặc định** và chọn CHOTTO.
 Mở CHOTTO.app một lần và bấm **Cài làm trình duyệt mặc định** trong cửa sổ cài đặt: CHOTTO ghi nhớ trình duyệt thật và tạo LaunchAgent để tự chạy nền khi đăng nhập.

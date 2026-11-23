@@ -1,8 +1,8 @@
 """Kiểm thử Giai đoạn 3: bản Desktop và tiện ích trình duyệt dùng chung dữ liệu và cho cùng kết quả.
 
-- ``extension/data`` phải khớp ``chotto/data`` (``tools/sync_extension_data.py --check``).
+- ``platforms/extension/data`` phải khớp ``chotto/data`` (``tools/sync_extension_data.py --check``).
 - Engine Python phải tái tạo đúng ``tests/data/engine_vectors.json``; engine JavaScript được kiểm tra
-  trên CÙNG file bởi ``extension/tests/parity.test.mjs``. Hai phía cùng đúng ⇒ hai bản cho cùng kết quả.
+  trên CÙNG file bởi ``platforms/extension/tests/parity.test.mjs``. Hai phía cùng đúng ⇒ hai bản cho cùng kết quả.
 """
 import json
 import logging
@@ -36,7 +36,7 @@ def tearDownModule() -> None:
 class ExtensionDataSyncTest(unittest.TestCase):
     def test_extension_data_matches_desktop_data(self) -> None:
         outputs = sync_extension_data.build_outputs()
-        out_dir = ROOT / "extension" / "data"
+        out_dir = ROOT / "platforms" / "extension" / "data"
         for name, content in outputs.items():
             with self.subTest(file=name):
                 self.assertEqual((out_dir / name).read_text("utf-8"), content,

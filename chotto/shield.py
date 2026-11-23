@@ -11,7 +11,7 @@ Cấu trúc trả về của ``shield_view``::
      actions: {back, proceed, copy, report, copied, reported, hint, copyText, reportText},
      labels: {caption, why, checking, proceedWait, decoy, ip}}
 
-Cùng cấu trúc và cùng chữ với ``extension/src/view.js`` (bản tiếng Việt). ``tests/data/view_vectors.json`` do
+Cùng cấu trúc và cùng chữ với ``platforms/extension/src/view.js`` (bản tiếng Việt). ``tests/data/view_vectors.json`` do
 ``tools/gen_view_vectors.py`` sinh, cả Python lẫn JavaScript phải tái tạo đúng từng ký tự. Chữ nằm ở ``chotto/plain.py``.
 """
 from __future__ import annotations

@@ -1,4 +1,4 @@
-/* Trang người giám hộ CHOTTO. Chữ thân >= 18px, tiêu đề >= 24px, vùng bấm >= 48px; tương phản đo ở extension/tests/guardian-contrast.test.mjs. */
+/* Trang người giám hộ CHOTTO. Chữ thân >= 18px, tiêu đề >= 24px, vùng bấm >= 48px; tương phản đo ở platforms/extension/tests/guardian-contrast.test.mjs. */
 :root {
   --bg: #fbf7f0; --surface: #ffffff; --surface2: #f2ece1; --ink: #1d1a16; --muted: #5a5248; --line: #8a8174;
   --accent: #c9a45a; --accent-ink: #17110a; --focus: #7a5a12;

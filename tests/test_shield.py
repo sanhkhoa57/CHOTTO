@@ -79,13 +79,13 @@ class PlainTablesTest(unittest.TestCase):
                 self.assertIsNone(re.search(VIETNAMESE_ONLY, text), text)
 
     def test_exported_plain_data_is_what_the_extension_ships(self) -> None:
-        shipped = json.loads((ROOT / "extension" / "data" / "plain.json").read_text("utf-8"))
+        shipped = json.loads((ROOT / "platforms" / "extension" / "data" / "plain.json").read_text("utf-8"))
         self.assertEqual(shipped, json.loads(json.dumps(plain.plain_data("vi"), ensure_ascii=False)))
         self.assertEqual(shipped["max_details"], 3)
 
     def test_ui_files_shipped_to_the_extension_are_in_sync(self) -> None:
         for name, content in sync_extension_data.ui_outputs().items():
-            self.assertEqual((ROOT / "extension" / "src" / "ui" / name).read_text("utf-8"), content,
+            self.assertEqual((ROOT / "platforms" / "extension" / "src" / "ui" / name).read_text("utf-8"), content,
                              "Chạy: python tools/sync_extension_data.py")
 
 

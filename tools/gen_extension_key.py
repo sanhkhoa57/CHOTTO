@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sinh (một lần) cặp khóa RSA để GHIM ID của tiện ích khi nạp "load unpacked".
 
-- Khóa công khai (DER base64) ghi vào trường ``key`` của ``extension/manifest.json``; ID tiện ích = 128 bit đầu của SHA-256
+- Khóa công khai (DER base64) ghi vào trường ``key`` của ``platforms/extension/manifest.json``; ID tiện ích = 128 bit đầu của SHA-256
   khóa đó, đổi sang bảng chữ a-p (đúng cách Chrome tính). Nhờ vậy registry policy trỏ đúng tiện ích dù nạp từ thư mục nào.
 - Khóa BÍ MẬT lưu ở NGOÀI repo (mặc định ``~/.chotto-dev/extension-key.pem``, quyền chỉ chủ sở hữu trên POSIX) và
   ``*.pem`` nằm trong ``.gitignore``. Demo không cần nó (chỉ cần để đóng gói .crx về sau).
@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Final
 
 ROOT: Final[Path] = Path(__file__).resolve().parent.parent
-MANIFEST: Final[Path] = ROOT / "extension" / "manifest.json"
+MANIFEST: Final[Path] = ROOT / "platforms" / "extension" / "manifest.json"
 DEFAULT_PEM: Final[Path] = Path.home() / ".chotto-dev" / "extension-key.pem"
 
 

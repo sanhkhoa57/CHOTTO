@@ -21,7 +21,7 @@ from .config import data_dir
 if TYPE_CHECKING:
     from .engine import Result
 
-__all__ = ["export_csv", "recent", "record", "summary"]
+__all__ = ["clear", "export_csv", "recent", "record", "summary"]
 
 _LOG = logging.getLogger(__name__)
 _SCHEMA_VERSION: Final[int] = 2
@@ -130,6 +130,21 @@ def recent(limit: int = 30) -> list[dict[str, object]]:
         return []
     return [{"ts": float(ts), "host": str(host), "score": int(score), "level": str(level), "decision": str(decision)}
             for ts, host, score, level, decision in rows]
+
+
+def clear() -> int:
+    """Xóa toàn bộ nhật ký quyết định.
+
+    Returns:
+        Số dòng đã xóa.
+
+    Raises:
+        sqlite3.Error: Không xóa được.
+    """
+    with _connect() as con, con:
+        count = int(con.execute("SELECT COUNT(*) FROM decisions").fetchone()[0])
+        con.execute("DELETE FROM decisions")
+    return count
 
 
 def export_csv(path: str | Path) -> int:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Sinh bộ test dùng chung ``tests/data/engine_vectors.json``: URL → kết quả của engine Python.
 
-Bộ test này được chạy bởi cả ``tests/test_parity.py`` (Python) và ``extension/tests/parity.test.mjs``
+Bộ test này được chạy bởi cả ``tests/test_parity.py`` (Python) và ``platforms/extension/tests/parity.test.mjs``
 (JavaScript) để bảo đảm bản Desktop và tiện ích trình duyệt cho CÙNG điểm, cùng mức, cùng dấu hiệu và
 cùng lời khuyên trên mọi URL. Tầng 3 tắt (cần mạng); Tầng 1 dùng danh sách đen khởi tạo đóng gói kèm.
 

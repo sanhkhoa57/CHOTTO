@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHOTTO – Cài đặt</title>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="options.css">
+<script type="module" src="options.js"></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="gOn" cx=".35" cy=".28" r=".85"><stop offset="0" stop-color="#efe9ff"/><stop offset=".5" stop-color="#b9a9f0"/><stop offset="1" stop-color="#8d78d8"/></radialGradient>
+    <radialGradient id="gOff" cx=".35" cy=".28" r=".85"><stop offset="0" stop-color="#fff0e8"/><stop offset=".5" stop-color="#ffab8f"/><stop offset="1" stop-color="#f06a5d"/></radialGradient>
+  </defs>
+</svg>
+<div class="shell">
+  <div class="tb">
+    <div class="drag"><span class="mark" aria-hidden="true"><i></i><i></i></span><span class="tb-brand">Chotto</span></div>
+  </div>
+
+  <main class="main">
+    <section data-pane="home">
+      <div class="guard" id="guard">
+        <svg class="mascot" viewBox="0 0 200 200" aria-hidden="true">
+          <g class="body"><ellipse cx="66" cy="44" rx="17" ry="34" transform="rotate(-12 66 44)"/><ellipse cx="120" cy="40" rx="24" ry="30" transform="rotate(8 120 40)"/>
+            <path d="M24 142C14 92 56 52 100 54c50-2 88 38 74 88-8 34-134 38-150 0z"/></g>
+          <g fill="#43305f"><circle cx="78" cy="112" r="6.5"/><circle cx="128" cy="112" r="6.5"/></g>
+          <g fill="#ff8fa8" opacity=".5"><ellipse cx="60" cy="130" rx="11" ry="7"/><ellipse cx="146" cy="130" rx="11" ry="7"/></g>
+          <path class="smile" d="M92 128q11 11 22 0" fill="none" stroke="#43305f" stroke-width="3.2" stroke-linecap="round"/>
+          <path class="frown" d="M92 138q11-10 22 0" fill="none" stroke="#43305f" stroke-width="3.2" stroke-linecap="round"/>
+        </svg>
+        <span class="guard-ico" id="guardIco" aria-hidden="true"></span>
+        <span class="chip ok guard-badge" id="guardBadge" hidden>Người giám hộ đang bật</span>
+        <h2 id="guardTitle">Zalo Web đang được bảo vệ</h2>
+        <p id="guardText"></p>
+      </div>
+      <h2 class="sec-t">Tuần này</h2>
+      <div class="week"><div><b id="sTotal">0</b><span>Links đã kiểm tra</span></div></div>
+      <div class="tiles">
+        <div class="tile"><b id="sSafe">0</b><span><i>An toàn</i><span class="tip" tabindex="0" role="note" data-tip="Link an toàn mở ngay. Bạn không cần làm gì.">i</span></span></div>
+        <div class="tile"><b id="sWarned">0</b><span><i>Cảnh báo</i><span class="tip" tabindex="0" role="note" data-tip="Số lần Chotto cảnh báo bạn.">i</span></span><small id="sClosed"></small></div>
+        <div class="tile"><b id="sBlocked">0</b><span><i>Lừa đảo</i><span class="tip" tabindex="0" role="note" data-tip="Link có trong danh sách lừa đảo đã biết.">i</span></span></div>
+      </div>
+      <div class="list card"><h2 class="h2">Gần đây</h2><div id="recentShort"></div></div>
+    </section>
+
+    <section data-pane="check" hidden>
+      <h1 class="page-h"><span>Kiểm tra link</span><span class="tip" tabindex="0" role="note" data-tip="Dán link ai đó gửi bạn. Chotto kiểm tra mà không mở trang.">i</span></h1>
+      <div class="checker card">
+        <form class="field" id="checkForm">
+          <input id="checkInput" type="text" inputmode="url" autocomplete="off" spellcheck="false" aria-label="Link cần kiểm tra" placeholder="Dán link vào đây">
+          <button class="btn btn--primary" type="submit" id="checkBtn">Kiểm tra</button>
+        </form>
+        <div class="result" id="checkResult" hidden aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section data-pane="log" hidden>
+      <h1 class="page-h"><span>Nhật ký</span><span class="tip" tabindex="0" role="note" data-tip="Chỉ lưu tên miền trên máy bạn, không lưu đường dẫn hay nội dung.">i</span></h1>
+      <div class="list card"><div id="recentFull"></div></div>
+      <div class="btn-row"><button class="btn btn--secondary" id="logClear" type="button">Xóa nhật ký</button></div>
+    </section>
+
+    <section data-pane="settings" hidden>
+      <h1 class="page-h"><span>Cài đặt</span><span class="tip" tabindex="0" role="note" data-tip="Thay đổi được lưu ngay.">i</span></h1>
+      <div class="group card">
+        <h2 class="h2">Quyền riêng tư</h2>
+        <div class="opt"><div><strong>Tra tuổi tên miền</strong><span class="tip" tabindex="0" role="note" data-tip="Tắt đi thì Chotto chạy hoàn toàn ngoại tuyến.">i</span></div><button class="switch" role="switch" data-key="tier3Enabled" aria-checked="false" aria-label="Tra tuổi tên miền"></button></div>
+        <div class="opt"><div><strong>Ghi nhật ký</strong><span class="tip" tabindex="0" role="note" data-tip="Chỉ lưu tên miền để bạn xem lại.">i</span></div><button class="switch" role="switch" data-key="logDecisions" aria-checked="false" aria-label="Ghi nhật ký"></button></div>
+        <div class="opt"><div><strong>Giữ nhật ký</strong><small>số ngày</small></div><input class="num" type="number" data-key="logRetentionDays" min="1" max="3650" step="1" aria-label="Số ngày giữ nhật ký"></div>
+      </div>
+      <div class="group card">
+        <h2 class="h2">Link đáng ngờ</h2>
+        <div class="opt"><div><strong>Hiện lời khuyên</strong><span class="tip" tabindex="0" role="note" data-tip="Gợi ý việc nên làm, tạo ngay trên máy bạn.">i</span></div><button class="switch" role="switch" data-key="aiAdvice" aria-checked="false" aria-label="Hiện lời khuyên"></button></div>
+        <div class="opt"><div><strong>Thời gian chờ mở</strong><span class="tip" tabindex="0" role="note" data-tip="Để bạn kịp nghĩ lại. Link nguy hiểm chờ thêm 3 đến 5 giây.">i</span></div>
+          <div class="seg" role="group" id="seconds" aria-label="Thời gian chờ">
+            <button data-s="3" aria-pressed="false">3 giây</button><button data-s="5" aria-pressed="false">5 giây</button><button data-s="8" aria-pressed="false">8 giây</button><button data-s="15" aria-pressed="false">15 giây</button>
+          </div></div>
+      </div>
+      <div class="group card">
+        <h2 class="h2">Danh sách lừa đảo</h2>
+        <div class="opt"><div><strong>Tự cập nhật mỗi ngày</strong></div><button class="switch" role="switch" data-key="autoUpdate" aria-checked="false" aria-label="Tự cập nhật mỗi ngày"></button></div>
+        <p class="note" id="blacklist">…</p>
+        <p class="note" id="update"></p>
+        <button class="btn btn--secondary" id="updateNow" type="button">Cập nhật danh sách</button>
+      </div>
+      <div class="group card" id="guardian">
+        <h2 class="h2">Chế độ người giám hộ</h2>
+        <p class="gstate" id="guardian-state" role="status">Đang đọc…</p>
+        <dl class="kv" id="guardian-details" hidden></dl>
+        <ul class="warnings" id="guardian-warnings" hidden></ul>
+        <p class="note" id="guardian-note">Chỉ đọc: bật/tắt, khóa công khai, bí mật và phiên bản tối thiểu do chính sách quản lý của máy (registry, chỉ Administrator ghi) đặt; trang này không thể đổi chúng.</p>
+        <form class="gimport" id="guardian-import" hidden>
+          <label for="guardian-policy">Nhập chính sách đã ký của người giám hộ (JSON từ <code>guardian.py sign-policy</code>)</label>
+          <textarea id="guardian-policy" rows="4" spellcheck="false" autocomplete="off"></textarea>
+          <button class="btn btn--secondary" type="submit">Nhập chính sách</button>
+          <p class="note" id="guardian-import-status" role="status"></p>
+        </form>
+      </div>
+      <div class="credit" id="credit">Phiên bản <span id="version">…</span> · Được phát triển bởi <b>AECCUS</b></div>
+    </section>
+  </main>
+
+  <aside class="side">
+    <nav class="nav" aria-label="Mục chính">
+      <a href="#home" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.3 8-8 9-4.7-1-8-4.5-8-9V6z"/></svg><span>Tổng quan</span></a>
+      <a href="#check" data-tab="check"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Kiểm tra link</span></a>
+      <a href="#log" data-tab="log"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Nhật ký</span></a>
+      <a href="#settings" data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9a7 7 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.5-2-1.5c0-.4.1-.8.1-1.2z"/></svg><span>Cài đặt</span></a>
+    </nav>
+  </aside>
+</div>
+<div class="sheet" id="sheet" role="alertdialog" aria-modal="true" aria-labelledby="sheetT" aria-describedby="sheetP">
+  <div class="sheet-card">
+    <h2 id="sheetT">Xóa nhật ký?</h2>
+    <p id="sheetP">Toàn bộ nhật ký quyết định trên máy này sẽ bị xóa.</p>
+    <div class="sheet-btns">
+      <button class="btn btn--secondary" id="sheetNo" type="button">Giữ lại</button>
+      <button class="btn btn--danger" id="sheetYes" type="button">Xóa</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+</body>
+</html>

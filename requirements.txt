@@ -6,7 +6,7 @@
 # Cài:  pip install -r requirements.txt
 
 pywebview>=6.0                                   # giao diện HTML (Windows: WebView2 qua pythonnet; macOS: WKWebView)
-setuptools>=70                                   # dùng bởi packaging/macos_setup.py
+setuptools>=70                                   # dùng bởi platforms/PC/macos/macos_setup.py
 py2app>=0.28;   sys_platform == "darwin"        # đóng gói CHOTTO.app trên macOS
 pyinstaller>=6.10;   sys_platform == "win32"    # đóng gói CHOTTO (thư mục onedir) trên Windows
 mypy==2.4.0                                     # kiểm tra kiểu: mypy --strict main.py chotto
