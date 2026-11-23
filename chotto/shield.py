@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 from . import plain
 from .core.url import URLParseError, domain_to_unicode, parse_url
-from .util import sanitize_for_display
+from .util import levenshtein, sanitize_for_display
 from .viewmodel import _truncate, brand_of, official_domain
 
 if TYPE_CHECKING:
@@ -37,17 +37,6 @@ _IMPERSONATION: Final[frozenset[str]] = frozenset({"combosquat", "homoglyph", "t
 _MAX_EDIT: Final[int] = 2
 _MIN_KEYWORD: Final[int] = 4
 _LEVELS: Final[tuple[str, ...]] = ("WARN", "HIGH", "BLOCKED")
-
-
-def _levenshtein(a: str, b: str) -> int:
-    """Khoảng cách Levenshtein (thêm/xóa/thay một ký tự)."""
-    previous = list(range(len(b) + 1))
-    for i, ca in enumerate(a, 1):
-        row = [i]
-        for j, cb in enumerate(b, 1):
-            row.append(min(previous[j] + 1, row[j - 1] + 1, previous[j - 1] + (ca != cb)))
-        previous = row
-    return previous[-1]
 
 
 def brand_hit(registered: str, brand: str, rules: Mapping[str, Any]) -> str:
@@ -80,7 +69,7 @@ def brand_hit(registered: str, brand: str, rules: Mapping[str, Any]) -> str:
             continue
         for size in (len(keyword), len(keyword) - 1, len(keyword) + 1):
             for start in range(0, len(lowered) - size + 1):
-                distance = _levenshtein(lowered[start:start + size], keyword)
+                distance = levenshtein(lowered[start:start + size], keyword)
                 if distance < best_distance:
                     best, best_distance = registered[start:start + size], distance
     return best

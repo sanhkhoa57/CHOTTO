@@ -18,9 +18,10 @@ from collections.abc import Callable
 from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any, Final
 
-from .. import logdb, platform_setup
-from ..caller import Caller, detect_caller
-from ..config import Config, data_dir, load_config, load_rules, save_config
+from .. import logdb, platforms
+from ..config import SETTINGS_KEYS, Config, config_stamp, load_config, load_rules, save_config
+from ..messages import msg
+from ..platforms import Caller, detect_caller
 from ..engine import Engine, Result
 from ..tier1 import BlacklistError, update_due, update_from_sources
 from . import agent as agent_mod
@@ -43,10 +44,6 @@ _MAC_EVENT_WAIT_MS: Final[int] = 2500
 _POLL_MS: Final[int] = 50
 _AUTO_UPDATE_FIRST_MS: Final[int] = 2 * 60 * 1000       # để máy khởi động xong rồi mới tải
 _AUTO_UPDATE_EVERY_MS: Final[int] = 15 * 60 * 1000
-_SETTINGS_KEYS: Final[tuple[str, ...]] = (
-    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
-    "mascot_enabled", "mascot_colors", "mascot_pinned", "mascot_pos",
-)
 
 
 def _record_desktop(cfg: Config) -> Callable[[Result, str, int], bool]:
@@ -64,42 +61,39 @@ def save_settings(values: dict[str, Any]) -> None:
         OSError: Không ghi được ``config.json``.
     """
     current: dict[str, Any] = dict(load_config())
-    current.update({key: values[key] for key in _SETTINGS_KEYS if key in values})
+    current.update({key: values[key] for key in SETTINGS_KEYS if key in values})
     save_config(current)
 
 
-def install_action() -> str:
-    """Tác vụ cài đặt từ cửa sổ cài đặt.
+def install_action(lang: str = "vi") -> str:
+    """Tác vụ cài đặt. Tiếng Việt trả câu hướng dẫn chi tiết theo hệ điều hành, tiếng Anh trả câu ngắn.
 
     Raises:
         PlatformSetupError: Không đăng ký được.
         OSError: Không lưu được cấu hình.
     """
     cfg: dict[str, Any] = dict(load_config())
-    message = platform_setup.install(cfg)
+    detail = platforms.install(cfg)
     save_config(cfg)
-    return message
+    return detail if lang == "vi" else msg(lang, "installed")
 
 
-def uninstall_action() -> str:
+def uninstall_action(lang: str = "vi") -> str:
     """Tác vụ gỡ đăng ký: gỡ handler, tắt tự khởi động và tắt agent đang chạy."""
-    message = platform_setup.uninstall(load_config())
+    detail = platforms.uninstall(load_config())
     agent_mod.stop_agent()
-    return message
+    return detail if lang == "vi" else msg(lang, "uninstalled")
 
 
-def update_action() -> str:
-    """Tác vụ cập nhật danh sách đen từ cửa sổ cài đặt."""
+def update_action(lang: str = "vi") -> str:
+    """Tác vụ cập nhật danh sách đen."""
     count = update_from_sources(load_rules(), log=lambda line: _LOG.info("%s", line))
-    if count == 0:
-        return ("Không có dữ liệu mới (các nguồn không đổi hoặc không tải được); danh sách hiện tại vẫn được giữ. "
-                "Xem chotto.log để biết chi tiết.")
-    return f"Đã nạp {count} mục vào danh sách đen."
+    return msg(lang, "updated", count=count) if count else msg(lang, "unchanged")
 
 
-def export_action(path: str) -> str:
-    """Tác vụ xuất nhật ký từ cửa sổ cài đặt."""
-    return f"Đã xuất {logdb.export_csv(path)} dòng ra {path}."
+def export_action(path: str, lang: str = "vi") -> str:
+    """Tác vụ xuất nhật ký ra ``path``."""
+    return msg(lang, "exported", count=logdb.export_csv(path), path=path)
 
 
 def _pump(root: tk.Tk | None) -> Callable[[], None]:
@@ -149,7 +143,7 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None,
         cfg=cfg,
         engine_factory=lambda: Engine(cfg),
         present=present,
-        open_url=lambda target: platform_setup.open_in_real_browser(target, cfg),
+        open_url=lambda target: platforms.open_in_real_browser(target, cfg),
         alert=lambda message: ui.native_alert("CHOTTO", message),
         record=_record_desktop(cfg),
         notify=notify,
@@ -335,18 +329,9 @@ class _HandlerCache:
         self._stamp: tuple[int, int] | None = None
         self._handler: LinkHandler | None = None
 
-    @staticmethod
-    def _config_stamp() -> tuple[int, int] | None:
-        """(mtime_ns, kích thước) của ``config.json`` hoặc ``None`` nếu chưa có."""
-        try:
-            info = os.stat(data_dir() / "config.json")
-        except OSError:
-            return None
-        return info.st_mtime_ns, info.st_size
-
     def get(self) -> LinkHandler:
         """Handler hiện hành (nạp lại cấu hình nếu file đã đổi)."""
-        stamp = self._config_stamp()
+        stamp = config_stamp()
         if self._handler is None or stamp != self._stamp:
             if self._handler is not None:
                 _LOG.info("config.json thay đổi, nạp lại cấu hình")

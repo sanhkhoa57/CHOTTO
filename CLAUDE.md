@@ -24,7 +24,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   - Cửa sổ tạo sau `webview.start` ra đen trên Cocoa → `_reload_on_show` tải lại trang khi `shown`.
   - Danh sách "Trình duyệt web mặc định" của Cài đặt KHÔNG liệt kê CHOTTO (không khai báo kiểu tài liệu HTML, cố ý). Nút trong app gọi
     `LSSetDefaultHandlerForURLScheme` qua `osascript -l JavaScript` → macOS tự hỏi xác nhận. Gỡ cũng dùng cách này để trả về trình duyệt cũ.
-  - macOS đưa CHOTTO lên trước khi giao link nên `lsappinfo front` luôn là CHOTTO; `caller.py` lấy app đầu tiên không phải CHOTTO trong `visibleProcessList`.
+  - macOS đưa CHOTTO lên trước khi giao link nên `lsappinfo front` luôn là CHOTTO; `platforms/macos.py` lấy app đầu tiên không phải CHOTTO trong `visibleProcessList`.
   - Log `NHAN link host=redirect.zalo.me` là host TRƯỚC khi bóc lớp bọc; host thật xem trong `decisions.db`.
 - CI: `.github/workflows/release.yml` chạy khi đẩy tag `v*` (Windows OK, extension đã sửa, macOS lỗi ở bước py2app, chưa rõ nguyên nhân: CI dùng Python 3.13 của
   setup-python nên KHÔNG phải lỗi zlib; máy người dùng chưa có `gh` để xem log). Tag `v1.5.0` đã đẩy nhưng CHƯA có Release.
@@ -55,9 +55,18 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   bản tiếng Anh dựng lại từ **mã dấu hiệu** trong `viewmodel._REASONS_EN` và `advisor.TIPS_EN/COMBOS_EN`. Thêm mã dấu hiệu mới thì phải thêm bản dịch (có test kiểm tra).
 - Font Newsreader + Onest nằm cục bộ trong `chotto/web/fonts` (giấy phép OFL kèm theo), có bộ chữ tiếng Việt.
 
-## Nhân vật taskbar (`chotto/mascot.py`, chưa commit)
-- Asset `chotto/mascot_assets/` (pose/mask PNG + `palette.json`) trích từ `design/chotto_mascot_customizer.html` bằng `python tools/extract_mascot.py`.
-  Thuật toán tô màu có HAI bản phải khớp từng điểm ảnh: Python `recolor_pixels` (taskbar) và `chotto/web/mascot.js` (xem trước trong app); test so bằng Node.
+## Cấu trúc `chotto/` (sắp xếp lại 2026-11-23)
+- Mọi code phụ thuộc hệ điều hành nằm trong `chotto/platforms/` (`windows.py`, `macos.py`, `linux.py` + `common.py`; thủ thuật
+  cửa sổ ở `win32_window.py`/`cocoa_window.py`, chọn qua `window.py`). Đăng ký/mở trình duyệt/tự khởi động/nhận diện Zalo/
+  thủ thuật cửa sổ chỉ gọi qua `chotto.platforms.*`. Thêm hàm cho một hệ điều hành thì thêm vào cả `_Backend` trong
+  `platforms/__init__.py`. Còn rẽ nhánh `sys.platform` tại chỗ (chưa dời, cố ý): `config.data_dir`, khóa file trong `tier1`,
+  `service/ipc.py` (Named Pipe / Unix socket), Apple Event trong `service/app.py`, giao diện Tk dự phòng `ui.py`.
+- Dùng chung một chỗ: `config.SETTINGS_KEYS` (khóa cửa sổ cài đặt được sửa), `config.config_stamp()`, `messages.msg()`
+  (câu EN/VI của tác vụ; cài/gỡ tiếng Việt dùng câu chi tiết do `platforms` trả về), `util.clamp`/`util.levenshtein`.
+
+## Nhân vật taskbar (`chotto/mascot/`)
+- Asset `chotto/mascot/assets/` (pose/mask PNG + `palette.json`) trích từ `design/chotto_mascot_customizer.html` bằng `python tools/extract_mascot.py`.
+  Thuật toán tô màu có HAI bản phải khớp từng điểm ảnh: Python `mascot/recolor.py` (taskbar) và `chotto/web/mascot.js` (xem trước trong app); test so bằng Node.
 - Chạy trên luồng Tk của agent (`_start_mascot` trong `service/app.py`), chỉ Windows. `LinkHandler.notify` báo `warning_open`/`warning_closed`;
   app lưu cài đặt thì host gửi `config_changed` → `WebUI.on_config_changed` (ngoài ra agent tự stat `config.json` mỗi 1,5 giây).
 - Bẫy: Tk `deiconify` luôn kích hoạt cửa sổ dù có `WS_EX_NOACTIVATE` → `_give_back_focus` trả focus sau 30/250/600 ms (lấy cửa sổ trước đó TRƯỚC khi dựng cửa sổ).

@@ -176,6 +176,11 @@ def skeleton(text: str) -> str:
     return "".join(_ASCII_HOMOGLYPHS.get(ch, ch) for ch in mapped)
 
 
+def clamp(value: float, low: float = 0.0, high: float = 1.0) -> float:
+    """Kẹp ``value`` vào đoạn [``low``, ``high``]."""
+    return low if value < low else high if value > high else value
+
+
 def levenshtein(a: str, b: str) -> int:
     """Khoảng cách Levenshtein (chèn, xóa, thay thế)."""
     if a == b:

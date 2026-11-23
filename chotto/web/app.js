@@ -265,8 +265,8 @@
       let data;
       if (api && api.mascot) data = await api.mascot();
       else {                                                 // ?demo: đọc thẳng file (cần máy chủ http cục bộ để đọc được điểm ảnh)
-        const palette = await (await fetch("../mascot_assets/palette.json")).json();
-        data = { ok: true, palette, poses: [0, 1, 2, 3].map((n) => ({ img: `../mascot_assets/pose_${n}.png`, mask: `../mascot_assets/mask_${n}.png` })) };
+        const palette = await (await fetch("../mascot/assets/palette.json")).json();
+        data = { ok: true, palette, poses: [0, 1, 2, 3].map((n) => ({ img: `../mascot/assets/pose_${n}.png`, mask: `../mascot/assets/mask_${n}.png` })) };
       }
       if (!data || !data.ok) throw new Error("no assets");
       const pairs = await Promise.all(data.poses.map((p) => Promise.all([loadImg(p.img), loadImg(p.mask)])));

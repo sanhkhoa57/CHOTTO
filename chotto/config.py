@@ -18,9 +18,11 @@ from typing import Any, Final, Literal, TypedDict, cast
 __all__ = [
     "DEFAULTS",
     "MASCOT_DEFAULT_COLORS",
+    "SETTINGS_KEYS",
     "Config",
     "RulesError",
     "atomic_write_text",
+    "config_stamp",
     "data_dir",
     "friction_seconds_for",
     "load_config",
@@ -37,7 +39,7 @@ UnknownCallerPolicy = Literal["inspect", "forward"]
 UILanguage = Literal["en", "vi"]
 UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
 # Màu mặc định của 6 nhóm nhân vật taskbar (Tóc, Mắt, Da, Áo choàng, Váy, Giày/phụ kiện): khớp ``D.def`` của
-# design/chotto_mascot_customizer.html và ``chotto/mascot_assets/palette.json`` (có test kiểm tra).
+# design/chotto_mascot_customizer.html và ``chotto/mascot/assets/palette.json`` (có test kiểm tra).
 MASCOT_DEFAULT_COLORS: Final[tuple[str, ...]] = ("#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f")
 _HEX_COLOR: Final[re.Pattern[str]] = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -89,6 +91,12 @@ DEFAULTS: Final[Config] = {
     "mascot_pinned": False,         # Cố định nhân vật tại một chỗ (không chạy qua lại)
     "mascot_pos": 0.85,             # Vị trí cố định: tỉ lệ 0 (trái) .. 1 (phải) trên chiều ngang màn hình
 }
+
+# Các khóa người dùng được xem và sửa từ cửa sổ ứng dụng / cài đặt (các khóa khác như trình duyệt đã lưu thì không).
+SETTINGS_KEYS: Final[tuple[str, ...]] = (
+    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
+    "mascot_enabled", "mascot_colors", "mascot_pinned", "mascot_pos",
+)
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
 _INT_RANGES: Final[dict[str, tuple[int, int]]] = {"friction_seconds": (3, 15), "log_retention_days": (1, 3650)}
@@ -244,6 +252,15 @@ def load_config() -> Config:
         _LOG.error("%s không phải JSON object, dùng cấu hình mặc định", path)
         return validate_config({})
     return validate_config(raw)
+
+
+def config_stamp() -> tuple[int, int] | None:
+    """(mtime_ns, kích thước) của ``config.json``, ``None`` nếu chưa có: so hai lần đọc để biết file đã đổi chưa."""
+    try:
+        info = os.stat(data_dir() / "config.json")
+    except OSError:
+        return None
+    return info.st_mtime_ns, info.st_size
 
 
 def save_config(cfg: Mapping[str, Any]) -> None:

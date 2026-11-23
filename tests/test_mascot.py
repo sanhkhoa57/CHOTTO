@@ -272,7 +272,7 @@ class RecolorTest(unittest.TestCase):
     def test_poses_cached_and_shape_preserved(self) -> None:
         first = mascot.recolored_poses(tuple(OTHER))
         self.assertIs(first, mascot.recolored_poses(tuple(OTHER)))
-        for (src, _), out in zip(mascot._source_poses(), first):
+        for (src, _), out in zip(mascot.recolor.source_poses(), first):
             self.assertEqual(src.size, out.size)
             self.assertEqual(src.getchannel("A").tobytes(), out.getchannel("A").tobytes())
 
@@ -290,7 +290,7 @@ class RecolorTest(unittest.TestCase):
             "ctx.window.CHOTTO_MASCOT.recolor(Uint8ClampedArray.from(d.src),Uint8ClampedArray.from(d.mask),out,d.colors,d.P);"
             "process.stdout.write(JSON.stringify(Array.from(out)));"
         )
-        palette = json.loads((ROOT / "chotto/mascot_assets/palette.json").read_text("utf-8"))
+        palette = json.loads((ROOT / "chotto/mascot/assets/palette.json").read_text("utf-8"))
         payload = json.dumps({"src": list(src), "mask": list(mask), "colors": OTHER, "P": palette})
         done = subprocess.run(["node", "-e", script], input=payload, capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr)
@@ -375,7 +375,7 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
     def test_unsupported_machine_is_skipped_quietly(self) -> None:
         save_config(dict(DEFAULTS, mascot_enabled=True))
         m = mascot.TaskbarMascot(FakeRoot(), lambda: None)  # type: ignore[arg-type]
-        with patch.object(mascot, "supported", return_value=False):
+        with patch.object(mascot.taskbar, "supported", return_value=False):
             m.start()
         self.assertTrue(m._broken)
         self.assertIsNone(m._window)
@@ -383,13 +383,13 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
     def test_window_error_disables_for_session(self) -> None:
         save_config(dict(DEFAULTS, mascot_enabled=True))
         m = mascot.TaskbarMascot(FakeRoot(), lambda: None)  # type: ignore[arg-type]
-        with patch.object(mascot, "supported", return_value=True), \
+        with patch.object(mascot.taskbar, "supported", return_value=True), \
                 patch.object(mascot.TaskbarMascot, "_build", side_effect=RuntimeError("không có màn hình")),                 self.assertLogs("chotto", "ERROR"):
             m.start()                                                # không ném lỗi, chỉ ghi log
         self.assertTrue(m._broken)
 
     def test_headless_has_no_support_off_windows(self) -> None:
-        with patch.object(sys, "platform", "linux"):
+        with patch.object(mascot.taskbar.osw, "OVERLAY_SUPPORTED", False):
             self.assertFalse(mascot.supported())
 
 
@@ -492,11 +492,11 @@ class WiringTest(unittest.TestCase):
 
     def test_packaging_includes_assets(self) -> None:
         bat = (ROOT / "packaging/build_windows.bat").read_bytes()
-        self.assertIn(b"chotto\\mascot_assets;chotto\\mascot_assets", bat)
+        self.assertIn(b"chotto\\mascot\\assets;chotto\\mascot\\assets", bat)
         self.assertNotIn(b"\x08", bat)
         for n in range(4):
-            self.assertTrue((ROOT / f"chotto/mascot_assets/pose_{n}.png").exists())
-            self.assertTrue((ROOT / f"chotto/mascot_assets/mask_{n}.png").exists())
+            self.assertTrue((ROOT / f"chotto/mascot/assets/pose_{n}.png").exists())
+            self.assertTrue((ROOT / f"chotto/mascot/assets/mask_{n}.png").exists())
 
 
 if __name__ == "__main__":

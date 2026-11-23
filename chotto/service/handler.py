@@ -18,7 +18,7 @@ from concurrent.futures import Future
 from dataclasses import dataclass, field, replace
 from typing import Final
 
-from ..caller import Caller
+from ..platforms import Caller
 from ..config import Config, friction_seconds_for
 from ..core.url import SUPPORTED_SCHEMES, URLParseError, get_scheme, parse_url
 from ..engine import Engine, Level, Result, Tier3Job, analysis_failed_result, safe_open_url

@@ -29,8 +29,8 @@ import sys
 import time
 from typing import Any, Final
 
-from chotto import platform_setup
-from chotto.caller import detect_caller
+from chotto import platforms
+from chotto.platforms import detect_caller
 from chotto.config import data_dir, load_config, load_rules, save_config
 from chotto.core.url import SUPPORTED_SCHEMES, URLParseError, get_scheme, parse_url
 
@@ -90,7 +90,7 @@ def launch(url: str, force: bool) -> int:
             _LOG.info("Đã giao link cho agent sau %.0f ms", (time.perf_counter() - started) * 1000)
             return 0
         if not _is_mac_bundle():
-            platform_setup.spawn_agent()                   # cho các link sau; link này tự xử lý ngay
+            platforms.spawn_agent()                   # cho các link sau; link này tự xử lý ngay
     from chotto.service.app import run_once
 
     return run_once(url, force, caller=caller)
@@ -131,12 +131,12 @@ def _run_command(target: str | None, argument: str | None, force: bool, gui: boo
         print(json.dumps(Engine(load_config()).inspect(argument).to_dict(), ensure_ascii=False, indent=2))
     elif target == "install":
         cfg: dict[str, Any] = dict(load_config())
-        print(platform_setup.install(cfg))
+        print(platforms.install(cfg))
         save_config(cfg)
     elif target == "uninstall":
         from chotto.service.agent import stop_agent
 
-        print(platform_setup.uninstall(load_config()))
+        print(platforms.uninstall(load_config()))
         stop_agent()
     elif target == "agent":
         from chotto.service.app import run_resident
@@ -207,7 +207,7 @@ def main(argv: list[str]) -> int:
     except Exception as exc:
         from chotto.tier1 import BlacklistError      # import muộn: launcher không cần nạp Tầng 1
 
-        if not isinstance(exc, (OSError, BlacklistError, platform_setup.PlatformSetupError, ValueError)):
+        if not isinstance(exc, (OSError, BlacklistError, platforms.PlatformSetupError, ValueError)):
             raise
         _LOG.exception("Lệnh '%s' lỗi", target)
         print(f"Lỗi: {exc}", file=sys.stderr)

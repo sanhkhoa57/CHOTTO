@@ -15,9 +15,9 @@ os.environ.setdefault("CHOTTO_DATA_DIR", tempfile.mkdtemp(prefix="chotto-test-")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from chotto import config, logdb, tier3  # noqa: E402
-from chotto.caller import decide_from_evidence  # noqa: E402
+from chotto.platforms import decide_from_evidence  # noqa: E402
 from chotto.engine import Result  # noqa: E402
-from chotto.platform_setup import build_browser_argv, split_windows_command  # noqa: E402
+from chotto.platforms import build_browser_argv, split_windows_command  # noqa: E402
 
 
 class IsolatedDataDir(unittest.TestCase):

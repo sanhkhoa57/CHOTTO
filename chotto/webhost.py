@@ -29,8 +29,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, TextIO
 
-from . import __version__, logdb, platform_setup
-from .config import load_config, resource_path
+from . import __version__, logdb, platforms
+from .config import SETTINGS_KEYS, load_config, resource_path
+from .messages import msg as _msg
+from .platforms import win32_window
+from .platforms import window as osw
 from .core.url import SUPPORTED_SCHEMES, get_scheme
 from .tier1 import last_update_success
 from .viewmodel import friction_view
@@ -47,11 +50,14 @@ _APP_BG: Final[str] = "#fbf6f1"                 # nền sáng của cửa sổ �
 _APP_W: Final[int] = 420                         # cửa sổ ứng dụng theo tỉ lệ điện thoại (~9:19,5)
 _APP_H: Final[int] = 880
 _UNLOCK_SLACK_S: Final[float] = 0.25          # bù độ trễ hiển thị của đồng hồ đếm ngược phía JavaScript
-_SETTINGS_KEYS: Final[tuple[str, ...]] = (
-    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
-    "mascot_enabled", "mascot_colors", "mascot_pinned",
-)
 _MAX_CHECK_URL: Final[int] = 4096
+
+
+def _mascot_supported() -> bool:
+    """Máy này hiện được nhân vật taskbar không (để cửa sổ ứng dụng báo "chỉ có trên Windows")."""
+    from . import mascot
+
+    return mascot.supported()
 
 
 def web_root() -> Path:
@@ -78,166 +84,6 @@ class Wire:
                 _LOG.info("Không gửi được thông điệp cho agent (agent đã thoát?)")
 
 
-def _reload_on_show(window: Any, url: str) -> None:
-    """macOS: cửa sổ tạo sau khi vòng lặp GUI chạy sẽ ra đen nếu chỉ tải trang lúc tạo; tải lại khi cửa sổ đã hiện."""
-    if sys.platform == "darwin":
-        window.events.shown += lambda: window.load_url(url)
-
-
-def _activate(window: Any) -> None:
-    """Cố đưa cửa sổ lên trước và lấy focus (Windows: kích hoạt Form của WinForms); lỗi thì bỏ qua."""
-    if sys.platform == "darwin":
-        try:
-            from AppKit import NSApplication  # type: ignore[import-untyped,unused-ignore]
-            from PyObjCTools import AppHelper  # type: ignore[import-untyped,unused-ignore]
-
-            def front() -> None:
-                NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
-                if window.native is not None:
-                    window.native.makeKeyAndOrderFront_(None)
-
-            AppHelper.callAfter(front)       # AppKit chỉ được gọi từ luồng chính
-        except Exception:  # noqa: BLE001 - chỉ là tiện ích hiển thị
-            _LOG.debug("Không đưa cửa sổ lên trước được (macOS)", exc_info=True)
-        return
-    try:
-        native = window.native
-        if native is None:
-            return
-        from System import Action  # type: ignore[import-not-found]  # pythonnet, chỉ có trên Windows
-
-        def focus() -> None:
-            native.Activate()
-            _force_foreground(int(native.Handle.ToInt64()))
-            for control in native.Controls:                              # vùng WebView2 phải có focus thì Esc mới tới trang
-                control.Focus()
-
-        native.Invoke(Action(focus))
-    except Exception:  # noqa: BLE001 - chỉ là tiện ích hiển thị, không bao giờ được làm hỏng màn hình đệm
-        _LOG.debug("Không kích hoạt được cửa sổ", exc_info=True)
-
-
-def _force_foreground(hwnd: int) -> None:
-    """Windows chặn tiến trình nền tự giành foreground; nhấn-nhả Alt ảo trước thì SetForegroundWindow được chấp nhận."""
-    import ctypes
-
-    user32 = ctypes.windll.user32
-    user32.keybd_event(0x12, 0, 0, 0)                                    # VK_MENU xuống
-    user32.keybd_event(0x12, 0, 2, 0)                                    # VK_MENU lên
-    user32.SetForegroundWindow(hwnd)
-
-
-def _set_window_icon(window: Any) -> None:
-    """Đặt icon cho cửa sổ WinForms (thanh tác vụ, Alt+Tab). Bản đóng gói đã có icon trong exe; chạy từ mã nguồn thì cần cái này."""
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        user32 = ctypes.windll.user32
-        user32.LoadImageW.restype = wintypes.HANDLE
-        user32.LoadImageW.argtypes = (wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT, ctypes.c_int, ctypes.c_int, wintypes.UINT)
-        user32.SendMessageW.argtypes = (wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
-        ico = str(web_root().parent.parent / "packaging" / "chotto.ico")
-        if getattr(sys, "frozen", False) or not os.path.exists(ico):
-            return
-        hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
-        for which, size in ((0, 16), (1, 32)):                          # ICON_SMALL, ICON_BIG
-            handle = user32.LoadImageW(None, ico, 1, size, size, 0x10)  # IMAGE_ICON, LR_LOADFROMFILE
-            if handle:
-                user32.SendMessageW(hwnd, 0x0080, which, handle)        # WM_SETICON
-    except Exception:  # noqa: BLE001 - chỉ là phần hiển thị
-        _LOG.debug("Không đặt được icon cửa sổ", exc_info=True)
-
-
-def _enable_snap(window: Any) -> None:
-    """Cho cửa sổ không viền của WinForms dùng được chia cửa sổ của Windows (Win+←/→/↑, Snap layouts).
-
-    Windows chỉ cho snap cửa sổ có kiểu ``WS_THICKFRAME`` + ``WS_MAXIMIZEBOX``. Ta thêm các kiểu đó rồi chặn
-    ``WM_NCCALCSIZE`` để vùng nội dung vẫn phủ kín cửa sổ (không hiện khung hệ thống). Lỗi thì bỏ qua: cửa sổ
-    vẫn dùng bình thường, chỉ không snap được.
-    """
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        user32 = ctypes.windll.user32
-        hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
-        lresult = ctypes.c_ssize_t
-        wndproc_t = ctypes.WINFUNCTYPE(lresult, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
-        user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
-        user32.GetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int)
-        user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
-        user32.SetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
-        user32.CallWindowProcW.restype = lresult
-        user32.CallWindowProcW.argtypes = (ctypes.c_ssize_t, wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM)
-        user32.GetSystemMetricsForDpi.argtypes = (ctypes.c_int, wintypes.UINT)
-        user32.GetDpiForWindow.argtypes = (wintypes.HWND,)
-        user32.IsZoomed.argtypes = (wintypes.HWND,)
-
-        wm_nccalcsize = 0x0083
-        old_proc = user32.GetWindowLongPtrW(hwnd, -4)           # GWLP_WNDPROC
-
-        def proc(h: Any, msg: int, wparam: int, lparam: int) -> int:
-            if msg == wm_nccalcsize and wparam:
-                if user32.IsZoomed(h):                          # phóng to kiểu hệ thống: thụt vào bằng bề dày khung ẩn
-                    dpi = user32.GetDpiForWindow(h) or 96
-                    frame = user32.GetSystemMetricsForDpi(32, dpi) + user32.GetSystemMetricsForDpi(92, dpi)
-                    rect = ctypes.cast(lparam, ctypes.POINTER(wintypes.RECT)).contents
-                    rect.left += frame
-                    rect.top += frame
-                    rect.right -= frame
-                    rect.bottom -= frame
-                return 0
-            return int(user32.CallWindowProcW(old_proc, h, msg, wparam, lparam))
-
-        callback = wndproc_t(proc)
-        _SNAP_KEEPALIVE.append(callback)                         # giữ tham chiếu, nếu không GC sẽ làm sập tiến trình
-        user32.SetWindowLongPtrW(hwnd, -4, ctypes.cast(callback, ctypes.c_void_p).value or 0)
-        style = user32.GetWindowLongPtrW(hwnd, -16)             # GWL_STYLE
-        style |= 0x00040000 | 0x00010000 | 0x00020000           # THICKFRAME | MAXIMIZEBOX | MINIMIZEBOX
-        user32.SetWindowLongPtrW(hwnd, -16, style)
-        user32.SetWindowPos(hwnd, None, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0004 | 0x0010 | 0x0020)  # NOSIZE|NOMOVE|NOZORDER|NOACTIVATE|FRAMECHANGED
-    except Exception:  # noqa: BLE001 - chỉ là tiện ích, không bao giờ được làm hỏng cửa sổ
-        _LOG.debug("Không bật được snap cửa sổ", exc_info=True)
-
-
-def _fade(window: Any, start: int, end: int, ms: int = 160) -> None:
-    """Làm mờ/hiện dần cả cửa sổ (Windows, độ trong suốt 0-255), chặn luồng gọi trong ``ms`` mili giây.
-
-    Dùng lớp trong suốt của Windows nên không phụ thuộc trang web đã vẽ xong hay chưa. Lỗi thì bỏ qua.
-    Dừng ở ``255`` thì gỡ lớp trong suốt để WebView2 vẽ như thường.
-    """
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        user32 = ctypes.windll.user32
-        hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
-        user32.GetWindowLongPtrW.restype = ctypes.c_ssize_t
-        user32.GetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int)
-        user32.SetWindowLongPtrW.restype = ctypes.c_ssize_t
-        user32.SetWindowLongPtrW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_ssize_t)
-        user32.SetLayeredWindowAttributes.argtypes = (wintypes.HWND, wintypes.DWORD, ctypes.c_ubyte, wintypes.DWORD)
-        ex = user32.GetWindowLongPtrW(hwnd, -20)                       # GWL_EXSTYLE
-        user32.SetWindowLongPtrW(hwnd, -20, ex | 0x00080000)           # WS_EX_LAYERED
-        steps = max(1, ms // 16)
-        for i in range(steps + 1):
-            k = i / steps
-            user32.SetLayeredWindowAttributes(hwnd, 0, round(start + (end - start) * k), 0x2)   # LWA_ALPHA
-            if i < steps:
-                time.sleep(ms / 1000 / steps)
-        if end >= 255:
-            user32.SetWindowLongPtrW(hwnd, -20, ex & ~0x00080000)
-    except Exception:  # noqa: BLE001 - chỉ là hiệu ứng
-        _LOG.debug("Không làm mờ được cửa sổ", exc_info=True)
-
-
 def _when_shown(window: Any, handler: Callable[[], None]) -> None:
     """Gọi ``handler`` khi cửa sổ đã hiện, kể cả khi sự kiện ``shown`` đã phát xong TRƯỚC lúc đăng ký.
 
@@ -248,79 +94,6 @@ def _when_shown(window: Any, handler: Callable[[], None]) -> None:
     is_set = getattr(window.events.shown, "is_set", None)
     if callable(is_set) and is_set():
         threading.Thread(target=handler, name="chotto-shown", daemon=True).start()
-
-
-def _center_on_screen(window: Any, width: int, max_height: int, margin: int = 24) -> None:
-    """Đặt cửa sổ ĐÚNG GIỮA vùng làm việc của màn hình đang chứa con trỏ chuột, mọi cỡ màn hình và tỉ lệ phóng to.
-
-    Vùng làm việc đã trừ thanh taskbar (Windows) hoặc thanh menu và Dock (macOS). ``width``/``max_height`` tính theo
-    điểm logic (96 DPI); cửa sổ được thu nhỏ để luôn lọt trong vùng làm việc, chừa ``margin`` mỗi bên. Mọi phép đo
-    dùng cùng một hệ đơn vị (pixel vật lý trên Windows, point trên macOS), nên không lệch khi màn hình phóng to
-    125%/150%; cách cũ lấy kích thước màn hình chính từ pywebview trộn hai hệ đơn vị và quên taskbar. Lỗi thì bỏ qua.
-    """
-    try:
-        if sys.platform == "win32":
-            import ctypes
-            from ctypes import wintypes
-
-            class MonitorInfo(ctypes.Structure):
-                _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
-                            ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
-
-            # Bản DLL riêng: đặt argtypes lên ``ctypes.windll.user32`` dùng chung sẽ đổi luôn chữ ký hàm mà pywebview
-            # đang gọi (``window.move`` sập vì ArgumentError).
-            user32 = ctypes.WinDLL("user32")
-            hwnd = wintypes.HWND(int(window.native.Handle.ToInt64()))
-            point = wintypes.POINT()
-            user32.GetCursorPos(ctypes.byref(point))
-            user32.MonitorFromPoint.restype = wintypes.HMONITOR
-            user32.MonitorFromPoint.argtypes = (wintypes.POINT, wintypes.DWORD)
-            monitor = user32.MonitorFromPoint(point, 2)                     # MONITOR_DEFAULTTONEAREST
-            info = MonitorInfo()
-            info.cbSize = ctypes.sizeof(MonitorInfo)
-            user32.GetMonitorInfoW.argtypes = (wintypes.HMONITOR, ctypes.POINTER(MonitorInfo))
-            if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
-                return
-            dpi_x, dpi_y = wintypes.UINT(96), wintypes.UINT(96)
-            try:
-                ctypes.WinDLL("shcore").GetDpiForMonitor(monitor, 0, ctypes.byref(dpi_x), ctypes.byref(dpi_y))  # MDT_EFFECTIVE_DPI
-            except (AttributeError, OSError):
-                user32.GetDpiForWindow.argtypes = (wintypes.HWND,)
-                dpi_x.value = user32.GetDpiForWindow(hwnd) or 96
-            scale = (dpi_x.value or 96) / 96
-            work = info.rcWork
-            work_w, work_h = work.right - work.left, work.bottom - work.top
-            gap = round(margin * scale)
-            w = max(1, min(round(width * scale), work_w - 2 * gap))
-            h = max(1, min(round(max_height * scale), work_h - 2 * gap))
-            user32.SetWindowPos.argtypes = (wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
-                                            ctypes.c_int, ctypes.c_int, wintypes.UINT)
-            user32.SetWindowPos(hwnd, None, work.left + (work_w - w) // 2, work.top + (work_h - h) // 2,
-                                w, h, 0x0014)                                # NOZORDER|NOACTIVATE
-        elif sys.platform == "darwin":
-            import AppKit  # type: ignore[import-untyped,import-not-found,unused-ignore]
-            from PyObjCTools import AppHelper  # type: ignore[import-untyped,unused-ignore]
-
-            def place() -> None:
-                ns_window = window.native
-                if ns_window is None:
-                    return
-                mouse = AppKit.NSEvent.mouseLocation()
-                screen = next((s for s in AppKit.NSScreen.screens() if AppKit.NSMouseInRect(mouse, s.frame(), False)),
-                              None) or ns_window.screen() or AppKit.NSScreen.mainScreen()
-                visible = screen.visibleFrame()                              # đã trừ thanh menu và Dock
-                w = min(width, visible.size.width - 2 * margin)
-                h = min(max_height, visible.size.height - 2 * margin)
-                x = visible.origin.x + (visible.size.width - w) / 2
-                y = visible.origin.y + (visible.size.height - h) / 2           # gốc tọa độ macOS ở góc dưới
-                ns_window.setFrame_display_(AppKit.NSMakeRect(x, y, w, h), True)
-
-            AppHelper.callAfter(place)                                         # AppKit chỉ được gọi từ luồng chính
-    except Exception:  # noqa: BLE001 - chỉ là vị trí hiển thị, không được làm hỏng cửa sổ
-        _LOG.debug("Không căn giữa được cửa sổ", exc_info=True)
-
-
-_SNAP_KEEPALIVE: list[Any] = []
 
 
 class FrictionApi:
@@ -397,40 +170,7 @@ class FrictionApi:
 
 def _settings_of(cfg: Mapping[str, Any]) -> dict[str, Any]:
     """Các khóa cài đặt mà cửa sổ ứng dụng được xem và sửa."""
-    return {key: cfg[key] for key in _SETTINGS_KEYS}
-
-
-_MESSAGES: Final[dict[str, dict[str, str]]] = {
-    "en": {
-        "never": "Built-in scam list, not updated online yet",
-        "today": "Scam list updated at {time} today", "yesterday": "Scam list updated at {time} yesterday",
-        "date": "Scam list updated on {date}",
-        "save_failed": "Couldn't save settings: {error}", "empty": "Paste a link first",
-        "check_failed": "Chotto couldn't check this link", "not_link": "This doesn't look like a link",
-        "installed": "Done. Chotto now checks links you open from Zalo.",
-        "uninstalled": "Done. Links now open directly. Pick your default browser again in system settings.",
-        "updated": "Added {count} entries to the scam list.",
-        "unchanged": "No new data; the current scam list is kept.",
-        "exported": "Exported {count} rows to {path}.",
-        "failed": "Couldn't finish: {error}", "unknown": "Unknown action",
-        "friction_title": "Chotto · Hold on!",
-    },
-    "vi": {
-        "never": "Danh sách lừa đảo khởi tạo, chưa cập nhật qua mạng",
-        "today": "Danh sách lừa đảo cập nhật lúc {time} hôm nay",
-        "yesterday": "Danh sách lừa đảo cập nhật lúc {time} hôm qua", "date": "Danh sách lừa đảo cập nhật ngày {date}",
-        "save_failed": "Không lưu được cài đặt: {error}", "empty": "Hãy dán một link",
-        "check_failed": "Chotto không kiểm tra được link này", "not_link": "Đây không giống một link",
-        "failed": "Không thực hiện được: {error}", "unknown": "Tác vụ không hợp lệ",
-        "friction_title": "Chotto · Khoan đã!",
-    },
-}
-
-
-def _msg(lang: str, key: str, **values: object) -> str:
-    """Câu thông báo theo ngôn ngữ (thiếu bản tiếng Việt thì dùng bản tiếng Anh)."""
-    table = _MESSAGES["vi" if lang == "vi" else "en"]
-    return table.get(key, _MESSAGES["en"][key]).format(**values)
+    return {key: cfg[key] for key in SETTINGS_KEYS}
 
 
 def _blacklist_text(stamp: float | None, now: datetime | None = None, lang: str = "en") -> str:
@@ -463,9 +203,9 @@ class AppApi:
             "settings": _settings_of(cfg),
             "summary": logdb.summary(7),
             "recent": logdb.recent(30) if cfg["log_decisions"] else [],
-            "default_handler": platform_setup.is_default_handler(),
+            "default_handler": platforms.is_default_handler(),
             "blacklist_text": _blacklist_text(last_update_success(), lang=cfg["ui_language"]),
-            "mascot_supported": sys.platform == "win32",
+            "mascot_supported": _mascot_supported(),
         }
 
     def save(self, values: dict[str, Any]) -> dict[str, Any]:
@@ -473,7 +213,7 @@ class AppApi:
         from .service.app import save_settings
 
         lang = load_config()["ui_language"]
-        clean = {key: values[key] for key in _SETTINGS_KEYS if isinstance(values, dict) and key in values}
+        clean = {key: values[key] for key in SETTINGS_KEYS if isinstance(values, dict) and key in values}
         try:
             save_settings(clean)
         except OSError as exc:
@@ -499,7 +239,7 @@ class AppApi:
             for n in range(4):
                 pair = {}
                 for key, name in (("img", "pose"), ("mask", "mask")):
-                    raw = resource_path("mascot_assets", f"{name}_{n}.png").read_bytes()
+                    raw = resource_path("mascot", "assets", f"{name}_{n}.png").read_bytes()
                     pair[key] = "data:image/png;base64," + base64.b64encode(raw).decode("ascii")
                 poses.append(pair)
             palette = mascot.load_palette()
@@ -541,39 +281,24 @@ class AppApi:
                 "view": friction_view(result, False, rules, lang)}
 
     def action(self, name: str) -> dict[str, Any]:
-        """Chạy tác vụ: ``install`` | ``uninstall`` | ``update`` | ``export``.
-
-        Tiếng Việt giữ nguyên câu chi tiết của các tác vụ cũ; tiếng Anh dùng câu ngắn tương ứng.
-        """
+        """Chạy tác vụ: ``install`` | ``uninstall`` | ``update`` | ``export`` (câu trả lời theo ``ui_language``)."""
         from .service import app as service
-        from .tier1 import update_from_sources
 
-        english = load_config()["ui_language"] == "en"
+        lang = load_config()["ui_language"]
         try:
             if name == "install":
-                detail = service.install_action()
-                return {"ok": True, "message": _msg("en", "installed") if english else detail}
+                return {"ok": True, "message": service.install_action(lang)}
             if name == "uninstall":
-                detail = service.uninstall_action()
-                return {"ok": True, "message": _msg("en", "uninstalled") if english else detail}
+                return {"ok": True, "message": service.uninstall_action(lang)}
             if name == "update":
-                if not english:
-                    return {"ok": True, "message": service.update_action()}
-                from .config import load_rules
-
-                count = update_from_sources(load_rules(), log=lambda line: _LOG.info("%s", line))
-                return {"ok": True, "message": _msg("en", "updated", count=count) if count else _msg("en", "unchanged")}
+                return {"ok": True, "message": service.update_action(lang)}
             if name == "export":
                 path = self._host.ask_save_path("chotto_log.csv")
-                if not path:
-                    return {"ok": True, "message": ""}
-                if not english:
-                    return {"ok": True, "message": service.export_action(path)}
-                return {"ok": True, "message": _msg("en", "exported", count=logdb.export_csv(path), path=path)}
+                return {"ok": True, "message": service.export_action(path, lang) if path else ""}
         except Exception as exc:  # noqa: BLE001 - lỗi của tác vụ phải về được giao diện
             _LOG.exception("Tác vụ '%s' lỗi", name)
-            return {"ok": False, "message": _msg("en" if english else "vi", "failed", error=exc)}
-        return {"ok": False, "message": _msg("en" if english else "vi", "unknown")}
+            return {"ok": False, "message": _msg(lang, "failed", error=exc)}
+        return {"ok": False, "message": _msg(lang, "unknown")}
 
     def window(self, op: str) -> None:
         """Điều khiển cửa sổ từ thanh tiêu đề tự vẽ."""
@@ -638,14 +363,14 @@ class Host:
             width=620, height=height, min_size=(460, 520), frameless=True, easy_drag=False,
             on_top=True, background_color=_APP_BG, text_select=True, **self._centered(620, height))
         api._window = window  # noqa: SLF001 - cùng mô-đun
-        _reload_on_show(window, str(web_root() / "friction.html"))
+        osw.reload_on_show(window, str(web_root() / "friction.html"))
         with self._lock:
             self._frictions[fid] = (window, api)
         window.events.closed += lambda: self._on_friction_closed(fid)
-        _when_shown(window, lambda: _center_on_screen(window, 620, 740))
-        _when_shown(window, lambda: _activate(window))
-        if sys.platform == "win32":
-            window.events.loaded += lambda: _activate(window)             # trang tải xong: lấy focus lần nữa để Esc dùng được ngay
+        _when_shown(window, lambda: osw.center_on_screen(window, 620, 740))
+        _when_shown(window, lambda: osw.activate(window))
+        if osw.REFOCUS_ON_LOAD:
+            window.events.loaded += lambda: osw.activate(window)             # trang tải xong: lấy focus lần nữa để Esc dùng được ngay
 
     def _on_friction_closed(self, fid: int) -> None:
         with self._lock:
@@ -676,7 +401,7 @@ class Host:
             try:
                 self._app_window.restore()
                 self._app_window.show()
-                _activate(self._app_window)
+                osw.activate(self._app_window)
                 self._reveal_if_faded()
                 return
             except Exception:  # noqa: BLE001 - cửa sổ cũ hỏng: tạo cửa sổ mới
@@ -684,26 +409,26 @@ class Host:
         window = self._webview.create_window(
             "Chotto", url=str(web_root() / "app.html"), js_api=AppApi(self), width=_APP_W, height=_APP_H,
             min_size=(360, 640), frameless=True, easy_drag=False, background_color=_APP_BG, text_select=True,
-            hidden=sys.platform == "win32", **self._centered(_APP_W, _APP_H))   # Windows: ẩn hẳn tới khi trang tải xong (không nháy)
+            hidden=osw.HIDE_UNTIL_LOADED, **self._centered(_APP_W, _APP_H))   # Windows: ẩn hẳn tới khi trang tải xong (không nháy)
         self._app_window = window
-        _reload_on_show(window, str(web_root() / "app.html"))
+        osw.reload_on_show(window, str(web_root() / "app.html"))
         window.events.closed += self._on_settings_closed
-        _when_shown(window, lambda: _center_on_screen(window, _APP_W, _APP_H))
-        _when_shown(window, lambda: _activate(window))
-        window.events.shown += lambda: _enable_snap(window)
-        window.events.shown += lambda: _set_window_icon(window)
+        _when_shown(window, lambda: osw.center_on_screen(window, _APP_W, _APP_H))
+        _when_shown(window, lambda: osw.activate(window))
+        window.events.shown += lambda: osw.enable_snap(window)
+        window.events.shown += lambda: osw.set_icon(window, str(web_root().parent.parent / "packaging" / "chotto.ico"))
         opened = threading.Event()
 
         def reveal() -> None:
             if not opened.is_set():
                 opened.set()
-                _fade(window, 0, 0, 0)                                   # trong suốt hoàn toàn TRƯỚC khi hiện, để không nháy
+                osw.fade(window, 0, 0, 0)                                   # trong suốt hoàn toàn TRƯỚC khi hiện, để không nháy
                 try:
                     window.show()
                 except Exception:  # noqa: BLE001 - cửa sổ đã đóng
                     return
-                _activate(window)
-                _fade(window, 0, 255, 220)
+                osw.activate(window)
+                osw.fade(window, 0, 255, 220)
 
         window.events.loaded += lambda: threading.Timer(0.12, reveal).start()
         threading.Timer(2.5, reveal).start()                             # phòng khi sự kiện loaded không đến
@@ -725,7 +450,7 @@ class Host:
         if window is None or not self._faded_out:
             return
         self._faded_out = False
-        threading.Thread(target=_fade, args=(window, 0, 255, 200), name="chotto-reveal", daemon=True).start()
+        threading.Thread(target=osw.fade, args=(window, 0, 255, 200), name="chotto-reveal", daemon=True).start()
 
     def config_changed(self) -> None:
         """Báo agent đọc lại cấu hình ngay (không chờ lần kiểm tra định kỳ)."""
@@ -745,7 +470,7 @@ class Host:
             return
         if op == "minimize":
             self._faded_out = True
-            _fade(window, 255, 0, 140)          # mờ dần rồi mới thu xuống thanh tác vụ; mở lại sẽ hiện dần
+            osw.fade(window, 255, 0, 140)          # mờ dần rồi mới thu xuống thanh tác vụ; mở lại sẽ hiện dần
             window.minimize()
         elif op == "toggle_maximize":
             if not self._animate_maximize(window):       # không làm được hiệu ứng thì dùng phóng to/thu nhỏ của hệ điều hành
@@ -754,7 +479,7 @@ class Host:
                 else:
                     window.maximize()
         elif op == "close":
-            _fade(window, 255, 0, 150)
+            osw.fade(window, 255, 0, 150)
             window.destroy()
 
     def _animate_maximize(self, window: Any) -> bool:
@@ -763,34 +488,19 @@ class Host:
         Cửa sổ không viền không có hiệu ứng của hệ điều hành, nên ta tự dời/giãn cửa sổ giữa kích thước thường và
         vùng làm việc của màn hình (không che thanh tác vụ). Không dùng WindowState, nên bấm lần nữa là về đúng kích thước cũ.
         """
-        if sys.platform != "win32" or self._anim_busy:
+        if not osw.CUSTOM_FRAME or self._anim_busy:
             return self._anim_busy
         try:
-            import ctypes
-            from ctypes import wintypes
-
-            user32 = ctypes.windll.user32
-            hwnd = int(window.native.Handle.ToInt64())
-            rect = wintypes.RECT()
-            user32.GetWindowRect(hwnd, ctypes.byref(rect))
-            current = (rect.left, rect.top, rect.right, rect.bottom)
+            hwnd = win32_window.native_hwnd(window)
+            current = win32_window.window_rect(hwnd)
             if self._app_maximized and self._normal_rect is None:
                 return False                              # đã phóng to bằng hệ điều hành (vd. Win+Up): để nó tự khôi phục
             if self._app_maximized:
                 target = self._normal_rect
             else:
-                class MonitorInfo(ctypes.Structure):
-                    _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
-                                ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
-
-                info = MonitorInfo()
-                info.cbSize = ctypes.sizeof(MonitorInfo)
-                monitor = user32.MonitorFromWindow(hwnd, 2)          # MONITOR_DEFAULTTONEAREST
-                if not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
-                    return False
-                work = info.rcWork
-                self._normal_rect = current
-                target = (work.left, work.top, work.right, work.bottom)
+                target = win32_window.monitor_work_rect(hwnd)
+                if target is not None:
+                    self._normal_rect = current
             if target is None:
                 return False
         except Exception:  # noqa: BLE001 - hiệu ứng chỉ là phần thêm
@@ -808,7 +518,7 @@ class Host:
                 for i in range(1, steps + 1):
                     k = 1 - (1 - i / steps) ** 3                      # ease-out cubic
                     l, t, r, b = (round(a + (z - a) * k) for a, z in zip(current, target))
-                    user32.SetWindowPos(hwnd, 0, l, t, r - l, b - t, 0x0214)   # NOZORDER|NOACTIVATE|NOOWNERZORDER
+                    win32_window.set_window_rect(hwnd, (l, t, r, b))
                     time.sleep(duration / steps)
             except Exception:  # noqa: BLE001
                 _LOG.debug("Hiệu ứng phóng to bị gián đoạn", exc_info=True)
@@ -822,17 +532,12 @@ class Host:
         """Cửa sổ không viền của WinForms không có mép để kéo, nên giao diện tự vẽ mép và gọi vào đây."""
         self._resize = None
         window = self._app_window
-        if window is None or self._app_maximized or sys.platform != "win32":
+        if window is None or self._app_maximized or not osw.CUSTOM_FRAME:
             return
         try:
-            import ctypes
-            from ctypes import wintypes
-
-            hwnd = int(window.native.Handle.ToInt64())
-            rect = wintypes.RECT()
-            ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect))
-            dpi = ctypes.windll.user32.GetDpiForWindow(hwnd) or 96
-            self._resize = (hwnd, set(edge) & set("nsew"), (rect.left, rect.top, rect.right, rect.bottom), dpi / 96)
+            hwnd = win32_window.native_hwnd(window)
+            self._resize = (hwnd, set(edge) & set("nsew"), win32_window.window_rect(hwnd),
+                            win32_window.window_dpi_scale(hwnd))
         except Exception:  # noqa: BLE001 - chỉ là tiện ích kéo giãn
             _LOG.debug("Không bắt đầu được kéo giãn", exc_info=True)
 
@@ -852,9 +557,7 @@ class Host:
         if "n" in edges:
             top = min(top + round(dy), bottom - min_h)
         try:
-            import ctypes
-
-            ctypes.windll.user32.SetWindowPos(hwnd, 0, left, top, right - left, bottom - top, 0x0214)  # NOZORDER|NOACTIVATE|NOOWNERZORDER
+            win32_window.set_window_rect(hwnd, (left, top, right, bottom))
         except Exception:  # noqa: BLE001
             _LOG.debug("Không kéo giãn được", exc_info=True)
 

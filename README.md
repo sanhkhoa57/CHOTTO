@@ -37,8 +37,16 @@ CHOTTO/
 │   ├── tier2.py              Tầng 2: heuristics tiếng Việt (thương hiệu giả, TLD rủi ro, từ khóa dụ dỗ...)
 │   ├── tier3.py              Tầng 3: tuổi tên miền (RDAP theo IANA bootstrap ‖ WHOIS), cache SQLite 48h, timeout 1,8s
 │   ├── advisor.py            AI's Advices: lời khuyên cục bộ theo tổ hợp dấu hiệu, rồi từng dấu hiệu
-│   ├── caller.py             nhận diện link có xuất phát từ Zalo hay không
-│   ├── platform_setup.py     đăng ký URL handler + chuyển tiếp sang trình duyệt thật
+│   ├── platforms/            mọi thứ phụ thuộc hệ điều hành, sau một API chung (__init__.py)
+│   │   ├── common.py         dùng chung: lệnh khởi chạy, chống vòng lặp, quy tắc nhận diện Zalo
+│   │   ├── windows.py        đăng ký trình mở link (HKCU), mở trình duyệt thật, tự khởi động, nhận diện Zalo
+│   │   ├── macos.py          như trên bằng LaunchServices, LaunchAgent, lsappinfo
+│   │   ├── linux.py          chỉ đủ để chạy thử (xdg-open)
+│   │   ├── window.py         chọn thủ thuật cửa sổ theo hệ điều hành cho giao diện pywebview và nhân vật
+│   │   ├── win32_window.py   Win32 (ctypes): focus, snap, làm mờ, căn giữa, khung tự vẽ, cửa sổ overlay
+│   │   └── cocoa_window.py   AppKit: focus, căn giữa, tải lại trang khi hiện
+│   ├── mascot/               nhân vật taskbar: recolor.py (tô màu), brain.py (state machine), taskbar.py (cửa sổ), assets/
+│   ├── messages.py           câu thông báo EN/VI của cửa sổ ứng dụng và các tác vụ (một bảng duy nhất)
 │   ├── ui.py                 giao diện Tkinter Dark Mode (dự phòng): màn hình đệm + cửa sổ cài đặt
 │   ├── viewmodel.py          Result → dữ liệu hiển thị (tách đường link thành phần ngụy trang / nơi thật sự tới)
 │   ├── webhost.py            tiến trình giao diện HTML (pywebview): màn hình đệm + cửa sổ ứng dụng

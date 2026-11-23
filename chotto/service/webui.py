@@ -20,7 +20,7 @@ from concurrent.futures import Future
 from dataclasses import dataclass, field
 from typing import IO, TYPE_CHECKING, Any, Final
 
-from .. import platform_setup
+from .. import platforms
 
 if TYPE_CHECKING:
     from ..engine import Result
@@ -57,7 +57,7 @@ class _Waiter:
 class WebUI:
     """Một tiến trình ``ui-host`` dùng lại cho nhiều cửa sổ."""
 
-    def __init__(self, argv: Callable[[], list[str]] = platform_setup.ui_host_argv, ready_timeout: float = 10.0) -> None:
+    def __init__(self, argv: Callable[[], list[str]] = platforms.ui_host_argv, ready_timeout: float = 10.0) -> None:
         """Tạo (chưa khởi chạy).
 
         Args:

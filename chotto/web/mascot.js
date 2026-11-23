@@ -1,6 +1,6 @@
 // Tô màu nhân vật taskbar để xem trước trong cửa sổ ứng dụng.
-// Cùng thuật toán với chotto/mascot.py (recolor_pixels) và design/chotto_mascot_customizer.html:
-// mask kênh R = số nhóm + 1, kênh G = 255 là điểm giữ nguyên. Tham số lấy từ chotto/mascot_assets/palette.json.
+// Cùng thuật toán với chotto/mascot/recolor.py (recolor_pixels) và design/chotto_mascot_customizer.html:
+// mask kênh R = số nhóm + 1, kênh G = 255 là điểm giữ nguyên. Tham số lấy từ chotto/mascot/assets/palette.json.
 "use strict";
 (() => {
   const hx = (c) => [1, 3, 5].map((i) => parseInt(c.substr(i, 2), 16));

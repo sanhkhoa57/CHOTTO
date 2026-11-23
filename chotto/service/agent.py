@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from .. import __version__
-from ..caller import Caller
+from ..platforms import Caller
 from ..core.url import MAX_URL_LENGTH
 from . import ipc
 

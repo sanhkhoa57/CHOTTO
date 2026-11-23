@@ -11,7 +11,7 @@ from pathlib import Path
 os.environ.setdefault("CHOTTO_DATA_DIR", tempfile.mkdtemp(prefix="chotto-test-"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from chotto.caller import Caller  # noqa: E402
+from chotto.platforms import Caller  # noqa: E402
 from chotto.config import DEFAULTS, load_rules, validate_config  # noqa: E402
 from chotto.engine import Engine, Result  # noqa: E402
 from chotto.service.handler import LinkHandler, merge_after_tier3  # noqa: E402

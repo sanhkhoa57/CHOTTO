@@ -18,11 +18,11 @@ if not exist packaging\chotto.ico (
     if errorlevel 1 exit /b 1
 )
 for /f "delims=" %%v in ('%PY% -c "import chotto; print(chotto.__version__)"') do set "VERSION=%%v"
-REM chotto\mascot_assets: sprite + mask nhân vật taskbar. chotto\web: giao diện HTML (HTML/CSS/JS + font). --collect-all webview: pywebview và WebView2 loader.
+REM chotto\mascot\assets: sprite + mask nhân vật taskbar. chotto\web: giao diện HTML (HTML/CSS/JS + font). --collect-all webview: pywebview và WebView2 loader.
 %PY% -m PyInstaller --noconfirm --clean --noconsole --onedir --name CHOTTO --icon packaging\chotto.ico ^
     --add-data "chotto\data;chotto\data" ^
     --add-data "chotto\web;chotto\web" ^
-    --add-data "chotto\mascot_assets;chotto\mascot_assets" ^
+    --add-data "chotto\mascot\assets;chotto\mascot\assets" ^
     --collect-all webview ^
     main.py
 if errorlevel 1 (

@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import main  # noqa: E402
 from chotto import __version__  # noqa: E402
-from chotto.caller import Caller  # noqa: E402
+from chotto.platforms import Caller  # noqa: E402
 from chotto.config import DEFAULTS, load_rules  # noqa: E402
 from chotto.engine import Engine  # noqa: E402
 from chotto.service import agent, ipc  # noqa: E402
@@ -195,7 +195,7 @@ class LauncherTests(IsolatedDataDir):
 
     def test_launcher_falls_back_and_starts_agent(self) -> None:
         with patch.object(main, "detect_caller", return_value=Caller(True, "zalo.exe")), \
-                patch.object(main.platform_setup, "spawn_agent", return_value=True) as spawn, \
+                patch.object(main.platforms, "spawn_agent", return_value=True) as spawn, \
                 patch("chotto.service.app.run_once", return_value=0) as run_once:
             self.assertEqual(main.launch("https://a.vn/", force=False), 0)
         spawn.assert_called_once()
@@ -204,7 +204,7 @@ class LauncherTests(IsolatedDataDir):
     def test_agent_disabled_skips_ipc(self) -> None:
         (self.dir / "config.json").write_text('{"agent_enabled": false}', "utf-8")
         with patch.object(main, "detect_caller", return_value=Caller(False, "winword.exe")), \
-                patch.object(main.platform_setup, "spawn_agent") as spawn, \
+                patch.object(main.platforms, "spawn_agent") as spawn, \
                 patch("chotto.service.agent.send_open") as send, \
                 patch("chotto.service.app.run_once", return_value=0):
             main.launch("https://a.vn/", force=False)
@@ -214,7 +214,7 @@ class LauncherTests(IsolatedDataDir):
     def test_ipc_crash_never_loses_the_link(self) -> None:
         with patch.object(main, "detect_caller", return_value=Caller(True)), \
                 patch("chotto.service.agent.send_open", side_effect=ValueError("hỏng")), \
-                patch.object(main.platform_setup, "spawn_agent", return_value=False), \
+                patch.object(main.platforms, "spawn_agent", return_value=False), \
                 patch("chotto.service.app.run_once", return_value=0) as run_once:
             main.launch("https://a.vn/", force=False)
         run_once.assert_called_once()
