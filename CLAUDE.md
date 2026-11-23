@@ -58,6 +58,11 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 ## Bố cục thư mục theo nền tảng (2026-11-23)
 - `platforms/PC/{windows,macos}` = build/bộ cài desktop; `platforms/android`; `platforms/extension`. `chotto/platforms/` (không liên quan) là code Python phụ thuộc hệ điều hành. `packaging/guides/` = file hướng dẫn trong gói tải.
 - Trang cài đặt của extension (`src/ui/options.*`) dùng y giao diện app Windows (khung điện thoại, 4 mục, thanh điều hướng nổi). `app.css` do `tools/sync_extension_data.py` sinh từ `chotto/web/style.css` + `app.html` (đừng sửa tay; phần riêng ở `options.css`): sửa CSS app Windows thì chạy lại tool đó.
+  Khung rộng 420x880 như cửa sổ app (`_APP_W/_APP_H`), kéo được bằng thanh trên cùng (vị trí lưu `localStorage`). Cài đặt lưu ngay mỗi lần đổi. E2E đã sửa theo trang mới (tab qua `[data-tab]`, nhật ký ở `#recentFull`).
+- Xóa nhật ký có ở cả 3 nền tảng: Desktop `logdb.clear()` + tác vụ `clear_log` (có hộp xác nhận), extension thông điệp `log-clear`, Android `LogDb.clear()`.
+- `platforms/android`: `ParityTest` đọc vector bằng đường dẫn tương đối `../../../tests/data` (đổi chỗ thư mục thì sửa).
+- `build_windows.bat` PHẢI giữ CRLF trong thư mục làm việc (LF + chữ Việt trong REM làm `cmd` chạy sai và để lại file rác như `(3`). Sau khi sửa file bằng công cụ, đổi lại CRLF.
+- Gói `downloads/CHOTTO-macOS.zip` chỉ dựng được trên Mac; đã cũ hơn Windows/Android/extension (dựng lại 2026-11-23).
 
 ## Cấu trúc `chotto/` (sắp xếp lại 2026-11-23)
 - Mọi code phụ thuộc hệ điều hành nằm trong `chotto/platforms/` (`windows.py`, `macos.py`, `linux.py` + `common.py`; thủ thuật
@@ -75,6 +80,8 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
   app lưu cài đặt thì host gửi `config_changed` → `WebUI.on_config_changed` (ngoài ra agent tự stat `config.json` mỗi 1,5 giây).
 - Bẫy: Tk `deiconify` luôn kích hoạt cửa sổ dù có `WS_EX_NOACTIVATE` → `_give_back_focus` trả focus sau 30/250/600 ms (lấy cửa sổ trước đó TRƯỚC khi dựng cửa sổ).
 - Giao diện Tk dự phòng (`ui.py`) không có mục nhân vật.
+- Cỡ (2026-11-23): `_BASE_SCALE = 0.30` (cỡ thường), tư thế "Khoan đã!" nhân thêm `_STOP_MUL = 2` (gấp 4 bản đầu). Cửa sổ nhân vật dựng theo cỡ to nhất nên vùng chạy hẹp hơn ở hai đầu.
+- Muốn thấy sửa đổi của agent/mascot phải tắt agent cũ (`main.py agent`, `ui-host`) rồi chạy lại: `main.py` chỉ nối vào agent đang chạy.
 
 ## Việc đã thử và bỏ
 - **Mica/Acrylic (nền mờ Windows 11):** thử 4 cách với pywebview + WinForms đều không ra hiệu ứng (WinForms tô nền đè lên). Người dùng đồng ý bỏ qua.
