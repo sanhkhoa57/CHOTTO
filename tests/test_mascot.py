@@ -417,6 +417,26 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
         self.assertEqual(calls, ["show"])
         m.stop()
 
+    def test_fps_setting_is_validated(self) -> None:
+        self.assertEqual(validate_config({})["mascot_fps"], 60)
+        for ok in (10, 15, 30, 59, 60, 90, 144, 240):                  # thanh kéo: số nguyên bất kỳ trong khoảng
+            self.assertEqual(validate_config({"mascot_fps": ok})["mascot_fps"], ok)
+        self.assertEqual(validate_config({"mascot_fps": 1})["mascot_fps"], 10)      # ngoài khoảng thì kẹp lại
+        self.assertEqual(validate_config({"mascot_fps": 9999})["mascot_fps"], 240)
+        for bad in ("60", 60.0, True, None, [60]):                     # sai kiểu thì về mặc định
+            self.assertEqual(validate_config({"mascot_fps": bad})["mascot_fps"], 60, bad)
+        from chotto.config import SETTINGS_KEYS
+
+        self.assertIn("mascot_fps", SETTINGS_KEYS)                  # cửa sổ ứng dụng được phép sửa
+
+    def test_fps_setting_sets_the_frame_interval(self) -> None:
+        for fps in (10, 15, 37, 60, 144, 240):
+            m, _calls = self._start_with(mascot_enabled=True, mascot_fps=fps)
+            with patch.object(mascot.taskbar, "any_process_running", return_value=False):
+                m._poll()
+            self.assertAlmostEqual(m._frame_s, 1 / fps)
+            m.stop()
+
     def test_startup_validation_and_session_end_reset(self) -> None:
         self.assertEqual(validate_config({})["mascot_startup"], "login")
         self.assertEqual(validate_config({"mascot_startup": "bogus"})["mascot_startup"], "login")

@@ -40,6 +40,7 @@ UILanguage = Literal["en", "vi"]
 UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
 MascotStartup = Literal["login", "zalo", "off"]
 MASCOT_STARTUPS: Final[tuple[str, ...]] = ("login", "zalo", "off")
+MASCOT_FPS_RANGE: Final[tuple[int, int]] = (10, 240)       # số khung hình/giây của nhân vật taskbar (thanh kéo trong Cài đặt)
 # Màu mặc định của 6 nhóm nhân vật taskbar (Tóc, Mắt, Da, Áo choàng, Váy, Giày/phụ kiện): khớp ``D.def`` của
 # design/chotto_mascot_customizer.html và ``chotto/mascot/assets/palette.json`` (có test kiểm tra).
 MASCOT_DEFAULT_COLORS: Final[tuple[str, ...]] = ("#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f")
@@ -70,6 +71,7 @@ class Config(TypedDict):
     mascot_colors: list[str]
     mascot_pinned: bool
     mascot_pos: float
+    mascot_fps: int
 
 
 DEFAULTS: Final[Config] = {
@@ -94,16 +96,18 @@ DEFAULTS: Final[Config] = {
     "mascot_colors": list(MASCOT_DEFAULT_COLORS),
     "mascot_pinned": False,         # Cố định nhân vật tại một chỗ (không chạy qua lại)
     "mascot_pos": 0.85,             # Vị trí cố định: tỉ lệ 0 (trái) .. 1 (phải) trên chiều ngang màn hình
+    "mascot_fps": 60,               # Khung hình/giây của nhân vật, 10..240 (cao hơn = mượt hơn nhưng tốn CPU hơn)
 }
 
 # Các khóa người dùng được xem và sửa từ cửa sổ ứng dụng / cài đặt (các khóa khác như trình duyệt đã lưu thì không).
 SETTINGS_KEYS: Final[tuple[str, ...]] = (
     "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
-    "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos",
+    "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos", "mascot_fps",
 )
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
-_INT_RANGES: Final[dict[str, tuple[int, int]]] = {"friction_seconds": (3, 15), "log_retention_days": (1, 3650)}
+_INT_RANGES: Final[dict[str, tuple[int, int]]] = {"friction_seconds": (3, 15), "log_retention_days": (1, 3650),
+                                                  "mascot_fps": MASCOT_FPS_RANGE}
 _FLOAT_RANGES: Final[dict[str, tuple[float, float]]] = {
     "tier3_timeout": (0.5, 3.0), "cache_ttl_hours": (24.0, 72.0), "mascot_pos": (0.0, 1.0),
 }

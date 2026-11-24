@@ -191,6 +191,33 @@ details[open] summary::after{transform:rotate(45deg)}
 @media (max-width:760px){.wrap{padding:0 16px}.hidem{display:none!important}
 .bar{gap:8px!important;padding:0 6px 0 14px!important}.bar>div:first-child{flex:0 0 auto!important}.bar>div:last-child{flex:1 1 auto!important;gap:6px!important;min-width:0}
 .bar .btn{display:none!important}.bar #logo{font-size:15px!important;gap:7px!important}}
+/* Mascot hỏi đáp (góc phải màn hình): bong bóng thoại kiểu truyện tranh, trắng viền đen, bóng chấm bi. Luôn trắng/đen ở cả hai giao diện. */
+.mx{--mx-dot:rgba(244,239,231,.4);position:fixed;right:16px;bottom:16px;z-index:60;width:min(360px,calc(100vw - 32px));display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}
+:root[data-theme="light"] .mx{--mx-dot:rgba(43,25,56,.55)}
+.mx>*{pointer-events:auto}
+.mx-bub{position:relative;box-sizing:border-box;min-width:min(280px,100%);max-width:100%;padding:22px 26px 40px;color:#15101a;font:700 16px/1.45 "Onest","Segoe UI",system-ui,sans-serif;transform-origin:88% 100%}
+.mx-bub[hidden]{display:none}
+.mx-bub[data-k="thought"]{padding:30px 36px 48px}
+.mx-bub[data-k="alert"]{padding:38px 46px 52px;font-weight:800}
+.mx-bub svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.mx-bub .mx-t{position:relative;display:block;overflow-wrap:anywhere}
+.mx-bub .mx-t i{font-style:normal;visibility:hidden}
+.mx-bub.pop{animation:mx-pop .38s cubic-bezier(.3,1.3,.5,1)}
+@keyframes mx-pop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.03);opacity:1}100%{transform:scale(1)}}
+.mx-form{display:flex;gap:6px;width:100%;box-sizing:border-box;padding:6px;border-radius:14px;background:#fff;box-shadow:0 0 0 2.5px #15101a,5px 5px 0 #15101a}
+.mx-form[hidden]{display:none}
+.mx-form input{flex:1;min-width:0;height:38px;padding:0 10px;border:0;border-radius:8px;background:#f3eee8;color:#15101a;font:600 15px "Onest","Segoe UI",system-ui,sans-serif}
+.mx-form input:focus-visible{outline:2px solid #15101a}
+.mx-form button{flex:none;height:38px;padding:0 14px;border:0;border-radius:8px;background:#15101a;color:#fff;font:700 14px "Onest","Segoe UI",system-ui,sans-serif;cursor:pointer}
+.mx-form button.mx-x{padding:0 11px;background:#e8e1d6;color:#15101a}
+.mx-form button:disabled,.mx-form input:disabled{opacity:.55;cursor:wait}
+.mx-who{all:unset;pointer-events:auto;display:block;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;border-radius:12px}
+.mx-who:focus-visible{outline:2px solid var(--k1);outline-offset:4px}
+.mx-who img{display:block;height:128px;width:auto;user-select:none;-webkit-user-drag:none}
+.mx-hint{margin:0;font:500 12px/1.3 "Onest","Segoe UI",system-ui,sans-serif;color:var(--k21);text-align:right;text-shadow:0 0 6px var(--k0),0 0 2px var(--k0)}
+.mx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:600px){.mx{right:10px;bottom:10px;width:calc(100vw - 20px)}.mx-who img{height:96px}.mx-bub{font-size:15px}}
+@media (prefers-reduced-motion:reduce){.mx-bub.pop{animation:none}}
 </style>
 </head>
 <body>
@@ -320,7 +347,7 @@ details[open] summary::after{transform:rotate(45deg)}
           <div style="padding: 18px 20px; background: linear-gradient(160deg, var(--k62), var(--k63))">
             <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--k64)"><i style="width: 6px; height: 6px; border-radius: 50%; background: var(--k65)"></i><span data-t="escBlocked"></span></div>
             <div data-t="escFake" style="margin-top: 8px; font-size: 22px; font-weight: 600; letter-spacing: -0.02em"></div>
-            <div style="margin-top: 6px; font-size: 13px; color: var(--k66); word-break: break-all">vietcombank.com.vn.<b style="color: var(--hot)">xacthuc-tk.top</b></div>
+            <button type="button" id="trapLink" style="all: unset; display: block; box-sizing: border-box; margin-top: 6px; font-size: 13px; color: var(--k66); word-break: break-all; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px">vietcombank.com.vn.<b style="color: var(--hot)">xacthuc-tk.top</b></button>
           </div>
         </div>
         <button class="cap" id="escCap" data-ta="aria-label:escBtnAria" style="width: 132px; height: 112px">Esc</button>
@@ -339,7 +366,7 @@ details[open] summary::after{transform:rotate(45deg)}
       <div class="card rv" style="flex: 1.1 1 420px; padding: 0; overflow: hidden">
         <div class="mastage" id="maStage" data-s="sleep" role="img" data-ta="aria-label:maStageAria">
           <span class="ma-chip" data-t="escBlocked"></span>
-          <div class="ma-pos"><img class="ma-img" id="maImg" src="chotto/mascot/assets/pose_0.png" alt="" width="234" height="488" decoding="async"></div>
+          <div class="ma-pos"><img class="ma-img" id="maImg" src="chotto/mascot/assets/web/pose_0.png" alt="" width="254" height="508" decoding="async"></div>
           <div class="ma-bar" aria-hidden="true"><i></i><i></i><i class="on"></i><i></i><i></i></div>
         </div>
       </div>
@@ -632,7 +659,7 @@ details[open] summary::after{transform:rotate(45deg)}
   // ---------- mascot: bốn trạng thái, tự chuyển theo vòng đời thật (ngủ → chạy → giật mình → "Khoan đã!") ----------
   var MA = ['sleep', 'run', 'alert', 'stop'], MA_POSE = [0, 2, 1, 3], MA_HOLD = [3200, 3600, 1500, 3200];
   var ma = { i: 0, timer: 0 };
-  MA_POSE.forEach(function (n) { new Image().src = 'chotto/mascot/assets/pose_' + n + '.png'; });   // nạp sẵn để đổi tư thế không nháy
+  MA_POSE.forEach(function (n) { new Image().src = 'chotto/mascot/assets/web/pose_' + n + '.png'; });   // nạp sẵn để đổi tư thế không nháy
   MA.forEach(function (key, i) {
     var b = document.createElement('button');
     b.className = 'mastate'; b.type = 'button'; b.setAttribute('role', 'tab');
@@ -650,7 +677,7 @@ details[open] summary::after{transform:rotate(45deg)}
   function setMascot(i, byUser) {
     ma.i = i;
     var stage = $('#maStage'), img = $('#maImg');
-    img.src = 'chotto/mascot/assets/pose_' + MA_POSE[i] + '.png';
+    img.src = 'chotto/mascot/assets/web/pose_' + MA_POSE[i] + '.png';
     stage.removeAttribute('data-s'); void stage.offsetWidth;                 // chạy lại hoạt ảnh của trạng thái
     stage.setAttribute('data-s', MA[i]);
     renderMascot();
@@ -896,6 +923,206 @@ details[open] summary::after{transform:rotate(45deg)}
     } else { els.forEach(function (el) { el.classList.add('shown'); }); }
     setTimeout(function () { $$('.rv').forEach(function (el) { if (el.getBoundingClientRect().top < innerHeight) el.classList.add('shown'); }); }, 1200);
   } catch (e) {}
+})();
+</script>
+
+<div class="mx" id="mx">
+  <div class="mx-bub" id="mxBub" data-k="normal" role="status" aria-live="polite" hidden></div>
+  <form class="mx-form" id="mxForm" autocomplete="off" hidden>
+    <input id="mxIn" type="text" maxlength="150" placeholder="Dán link nghi ngờ hoặc hỏi về Chotto..." aria-label="Hỏi Chotto">
+    <button type="submit" id="mxSend">Gửi</button>
+    <button type="button" class="mx-x" id="mxClose" aria-label="Đóng (Esc)">✕</button>
+  </form>
+  <button type="button" class="mx-who" id="mxWho" aria-label="Chotto, linh vật chống lừa đảo. Nhấn đúp hoặc nhấn Enter để hỏi đáp, soi link"><img id="mxImg" src="chotto/mascot/assets/web/pose_0.png" alt="" width="254" height="508" decoding="async"></button>
+  <p class="mx-hint">Double-click vào tui để hỏi đáp / soi link</p>
+</div>
+
+<script>
+/* ---------- mascot chat: lời thoại theo ngữ cảnh (0 token, chạy hoàn toàn ở trình duyệt) + hỏi đáp qua /api/mascot-chat ---------- */
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var bub = $('#mxBub'), form = $('#mxForm'), inp = $('#mxIn'), send = $('#mxSend'), who = $('#mxWho'), img = $('#mxImg');
+  var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var NS = 'http://www.w3.org/2000/svg';
+
+  // ----- bộ lọc đầu vào (PHẢI khớp api/mascot-chat.js) -----
+  var MIN_LEN = 4, MAX_LEN = 150, DAILY = 6;
+  var DOMAIN_RE = /(https?:\/\/|www\.)\S+|[a-z0-9-]+\.(vn|com|top|xyz|net|org|info|click|site|online|tk|me|io|app)(?![a-z0-9])/i;
+  var KEYWORDS = ['chotto', 'scam', 'lừa đảo', 'giả mạo', 'phishing', 'link', 'url', 'tên miền', 'domain', 'mã độc', 'virus', 'trojan', 'hack',
+    'mất nick', 'chiếm quyền', 'zalo', 'messenger', 'facebook', 'telegram', 'ngân hàng', 'vietcombank', 'mbbank', 'techcombank', 'momo', 'shopee',
+    'shipper', 'sinh trắc', 'cài đặt', 'tải về', 'download', 'windows', 'macos', 'mac', 'arm', 'x86', 'extension', 'tiện ích', 'trình duyệt',
+    'miễn phí', 'free', 'nhẹ', 'ram', 'bảo mật', 'an toàn', 'chặn'];
+  var BLACKLIST = ['viết code', 'giải bài', 'dịch sang', 'tóm tắt', 'viết văn', 'làm thơ', 'kể chuyện', 'sql', 'python', 'javascript', 'bài tập'];
+  function hasKeyword(text, w) {
+    if (/^[a-z0-9 ]+$/.test(w)) return new RegExp('(^|[^a-z0-9])' + w + '([^a-z0-9]|$)').test(text);
+    return text.indexOf(w) >= 0;
+  }
+  function checkInput(raw) {
+    var s = String(raw).trim();
+    if (s.length < MIN_LEN || s.length > MAX_LEN) return false;
+    var low = s.toLowerCase();
+    if (BLACKLIST.some(function (b) { return low.indexOf(b) >= 0; })) return false;
+    return DOMAIN_RE.test(s) || KEYWORDS.some(function (k) { return hasKeyword(low, k); });
+  }
+
+  // ----- lời thoại -----
+  var LINES = {
+    hello: 'Chào đằng ấy! Tui là Chotto. Bấm đúp vào tui nếu muốn soi link lạ hay hỏi gì về app nha!',
+    hoverTrap: 'KHOAN ĐÃ! Nhìn cái đuôi .xacthuc-tk.top kia kìa, ngân hàng nào xài tên miền phèn vậy?!',
+    clickTrap: 'Á À BẮT QUẢ TANG! Tay nhanh hơn não rồi nha, bấm Esc quay xe gấp!',
+    esc: 'Pha xử lý cồng kềnh nhưng an toàn. Cài Chotto vào máy là lần sau tui tự chặn giùm luôn!',
+    download: 'Cài đi bạn ơi, nhẹ hơn cả tình cảm người cũ dành cho bạn, 0đ không quảng cáo!',
+    idle: ['Đang soi code xem uy tín không đúng hông? Sạch 100%, không giấu malware đâu mà lo...',
+           'Không biết hôm nay có ai suýt chuyển khoản nhầm cho "shipper" nữa không ta...'],
+    open: 'Dán link nghi ngờ vào đây, tui soi cho!',
+    loading: 'Đang soi...',
+    refuse: ['HỎI LẠC ĐỀ RỒI! Tui là vệ sĩ chống scam của Chotto, không phải trợ lý làm bài tập hay chém gió đâu nha!',
+             'Khoan! Câu này không liên quan tới Chotto hay link lừa đảo. Dán thử một đường link nghi ngờ vào đây tui soi cho!',
+             'Từ chối tiếp nhận! Tui chỉ rành bóc phốt link bẩn với giải đáp về app Chotto thôi.'],
+    quota: 'Nay tui tư vấn hết công suất rồi! Tải Chotto về máy trải nghiệm trực tiếp cho lẹ nha.',
+    fail: 'Hôm nay tui soi nhiều link quá nên hơi lag não, bạn bấm tải Chotto về dùng thử cho trực quan nha!'
+  };
+  var POSE = { sleep: 0, startled: 1, run: 2, stop: 3 };
+  var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+
+  // ----- vẽ bong bóng: SVG dựng theo kích thước chữ; bóng đổ = chấm bi lệch (7,7) -----
+  function superPts(cx, cy, a, b, n) {                                  // điểm trên hình "chữ nhật bo tròn" (siêu elip) theo chiều kim đồng hồ
+    var pts = [];
+    for (var i = 0; i < n; i++) {
+      var t = (i / n) * Math.PI * 2 - Math.PI / 2, c = Math.cos(t), s = Math.sin(t);
+      pts.push([cx + a * Math.sign(c) * Math.pow(Math.abs(c), 2 / 3), cy + b * Math.sign(s) * Math.pow(Math.abs(s), 2 / 3)]);
+    }
+    return pts;
+  }
+  function shape(kind, w, h) {
+    var x0 = 4, y0 = 4, x1 = w - 12, y1 = h - 26, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, a = (x1 - x0) / 2, b = (y1 - y0) / 2, d = '', extra = '', i;
+    if (kind === 'thought') {
+      var n = Math.max(10, Math.round((w + h) / 26)), P = superPts(cx, cy, a - 8, b - 8, n);
+      d = 'M' + P[0][0].toFixed(1) + ' ' + P[0][1].toFixed(1);
+      for (i = 1; i <= n; i++) {
+        var q = P[i % n], p = P[i - 1], r = Math.hypot(q[0] - p[0], q[1] - p[1]) * 0.62;
+        d += 'A' + r.toFixed(1) + ' ' + r.toFixed(1) + ' 0 0 1 ' + q[0].toFixed(1) + ' ' + q[1].toFixed(1);
+      }
+      d += 'Z';
+      extra = 'M' + (x1 - 26) + ' ' + (y1 + 10) + 'm-8 0a8 8 0 1 0 16 0a8 8 0 1 0-16 0Z M' + (x1 - 8) + ' ' + (y1 + 22) + 'm-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0Z';
+    } else if (kind === 'alert') {
+      var m = Math.max(10, Math.min(20, Math.round((w + h) / 34))) * 2, P2 = superPts(cx, cy, a + 8, b + 8, m), pts = [];
+      for (i = 0; i < m; i++) {
+        var f = i % 2 ? 0.8 : 1.04, pp = P2[i];
+        pts.push([(cx + (pp[0] - cx) * f).toFixed(1), (cy + (pp[1] - cy) * f).toFixed(1)]);
+      }
+      d = 'M' + pts.map(function (p) { return p.join(' '); }).join('L') + 'Z';
+      var sx = x0 + 14, sy = y0 - 2, st = [];
+      for (i = 0; i < 10; i++) { var rr = i % 2 ? 6 : 15, an = (i / 10) * Math.PI * 2 - Math.PI / 2; st.push((sx + rr * Math.cos(an)).toFixed(1) + ' ' + (sy + rr * Math.sin(an)).toFixed(1)); }
+      extra = 'M' + st.join('L') + 'Z';
+    } else {
+      var r0 = 22, tr = x1 - 34, tl = x1 - 66;
+      d = 'M' + (x0 + r0) + ' ' + y0 + 'H' + (x1 - r0) + 'Q' + x1 + ' ' + y0 + ' ' + x1 + ' ' + (y0 + r0) + 'V' + (y1 - r0) + 'Q' + x1 + ' ' + y1 + ' ' + (x1 - r0) + ' ' + y1 +
+        'H' + tr + 'L' + (x1 - 22) + ' ' + (y1 + 22) + 'L' + tl + ' ' + y1 + 'H' + (x0 + r0) + 'Q' + x0 + ' ' + y1 + ' ' + x0 + ' ' + (y1 - r0) + 'V' + (y0 + r0) + 'Q' + x0 + ' ' + y0 + ' ' + (x0 + r0) + ' ' + y0 + 'Z';
+    }
+    return { d: d, extra: extra };
+  }
+  function draw() {
+    var old = bub.querySelector('svg'); if (old) old.remove();
+    var w = bub.offsetWidth, h = bub.offsetHeight; if (!w || !h) return;
+    var sh = shape(bub.getAttribute('data-k'), w, h);
+    var s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); s.setAttribute('aria-hidden', 'true');
+    s.innerHTML = '<defs><pattern id="mxDots" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2.5" cy="2.5" r="1.3" style="fill:var(--mx-dot)"/></pattern></defs>' +
+      '<g transform="translate(7 7)" fill="url(#mxDots)"><path d="' + sh.d + '"/>' + (sh.extra ? '<path d="' + sh.extra + '"/>' : '') + '</g>' +
+      '<g fill="#fff" stroke="#15101a" stroke-width="3" stroke-linejoin="round"><path d="' + sh.d + '"/>' + (sh.extra ? '<path d="' + sh.extra + '"/>' : '') + '</g>';
+    bub.insertBefore(s, bub.firstChild);
+  }
+
+  // ----- nói: đổi kiểu, đổi pose, nảy lên, gõ chữ -----
+  var typeT = 0, hideT = 0, busy = false;
+  function say(kind, text, pose, keep) {
+    clearTimeout(typeT); clearTimeout(hideT);
+    bub.setAttribute('data-k', kind); bub.hidden = false;
+    img.src = 'chotto/mascot/assets/web/pose_' + pose + '.png';
+    bub.innerHTML = '<span class="mx-t"><span></span><i></i></span>';
+    var a = bub.querySelector('.mx-t span'), b = bub.querySelector('.mx-t i'), ch = Array.from(text), n = calm ? ch.length : 0;
+    a.textContent = ch.slice(0, n).join(''); b.textContent = ch.slice(n).join('');       // chữ chưa gõ vẫn chiếm chỗ (ẩn) nên bong bóng không đổi cỡ
+    draw();
+    bub.classList.remove('pop'); void bub.offsetWidth; bub.classList.add('pop');
+    function done() { if (!keep && form.hidden) hideT = setTimeout(function () { bub.hidden = true; img.src = 'chotto/mascot/assets/web/pose_0.png'; }, 9000); }
+    (function step() {
+      if (n >= ch.length) return done();
+      n++; a.textContent = ch.slice(0, n).join(''); b.textContent = ch.slice(n).join('');
+      typeT = setTimeout(step, 16);
+    })();
+  }
+  window.addEventListener('resize', function () { if (!bub.hidden) draw(); });
+
+  // ----- tình huống -----
+  var last = {};
+  function once(key, gap) { var t = Date.now(); if (last[key] && t - last[key] < gap) return false; last[key] = t; return true; }
+  function chatOpen() { return !form.hidden; }
+  var trapped = false, idleT = 0;
+  function bumpIdle() { clearTimeout(idleT); idleT = setTimeout(function () { if (!chatOpen() && !busy) say('thought', pick(LINES.idle), POSE.sleep); }, 15000); }
+  ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'].forEach(function (ev) { window.addEventListener(ev, bumpIdle, { passive: true }); });
+  bumpIdle();
+  setTimeout(function () { if (!chatOpen()) say('normal', LINES.hello, POSE.stop); }, 900);
+
+  var trap = $('#trapLink');
+  if (trap) {
+    trap.addEventListener('mouseenter', function () { if (!chatOpen() && once('hover', 4000)) say('alert', LINES.hoverTrap, POSE.stop); });
+    trap.addEventListener('click', function () { if (chatOpen()) return; trapped = true; say('alert', LINES.clickTrap, POSE.startled); });
+  }
+  var escCap = $('#escCap');
+  function escaped() { if (chatOpen()) return; trapped = false; say('normal', LINES.esc, POSE.stop); }
+  if (escCap) escCap.addEventListener('click', escaped);
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target.closest && e.target.closest('a[href="#tai-xuong"].btn, #platforms [data-p="cta"]');
+    if (t && !chatOpen() && once('dl', 6000)) say('normal', LINES.download, POSE.stop);
+  });
+
+  // ----- hỏi đáp -----
+  function quota() {
+    var day = new Date().toISOString().slice(0, 10), q = { d: day, n: 0 };
+    try { var s = JSON.parse(localStorage.getItem('chotto-mascot-quota') || 'null'); if (s && s.d === day && s.n >= 0) q = s; } catch (e) {}
+    return q;
+  }
+  function openChat() {
+    form.hidden = false; clearTimeout(hideT);
+    say('normal', LINES.open, POSE.stop, true);
+    inp.focus();
+  }
+  function closeChat() {
+    form.hidden = true; busy = false; inp.disabled = send.disabled = false; inp.value = '';
+    if (!bub.hidden) hideT = setTimeout(function () { bub.hidden = true; img.src = 'chotto/mascot/assets/web/pose_0.png'; }, 3000);
+    who.focus();
+  }
+  who.addEventListener('dblclick', openChat);
+  who.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); openChat(); } });
+  $('#mxClose').addEventListener('click', closeChat);
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (chatOpen()) { closeChat(); return; }
+    if (trapped) escaped();
+  });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (busy) return;
+    var v = inp.value.trim();
+    if (!checkInput(v)) { say('alert', pick(LINES.refuse), POSE.startled, true); return; }        // trượt bộ lọc: không gọi API
+    var q = quota();
+    if (q.n >= DAILY) { say('normal', LINES.quota, POSE.stop, true); return; }
+    q.n++; try { localStorage.setItem('chotto-mascot-quota', JSON.stringify(q)); } catch (err) {}
+    busy = true; inp.disabled = send.disabled = true;
+    say('thought', LINES.loading, POSE.run, true);
+    var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 20000);
+    fetch('/api/mascot-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: v }), signal: ctl.signal })
+      .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (j) {
+        if (!j || typeof j.reply !== 'string') throw new Error('shape');
+        var al = j.bubbleType === 'alert';
+        say(al ? 'alert' : 'normal', j.reply, al ? POSE.startled : POSE.stop, true);
+      })
+      .catch(function () { say('normal', LINES.fail, POSE.stop, true); })
+      .then(function () { clearTimeout(to); busy = false; inp.disabled = send.disabled = false; inp.value = ''; if (chatOpen()) inp.focus(); });
+  });
 })();
 </script>
 </body>

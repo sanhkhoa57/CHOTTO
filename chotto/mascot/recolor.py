@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+from array import array
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
@@ -22,9 +23,11 @@ __all__ = [
     "GROUPS",
     "Palette",
     "load_palette",
+    "candidate_offsets",
     "normalize_colors",
     "recolor_image",
     "recolor_pixels",
+    "recolored_pose",
     "recolored_poses",
     "source_poses",
 ]
@@ -77,7 +80,27 @@ def _round(value: float) -> int:
     return int(value + 0.5)
 
 
-def recolor_pixels(src: bytes, mask: bytes, colors: Sequence[str], palette: Palette) -> bytes:
+def candidate_offsets(src: bytes, mask: bytes) -> array[int]:
+    """Vị trí byte (bội của 4) của các điểm ảnh CÓ THỂ bị tô: không trong suốt, thuộc một nhóm, không phải điểm giữ nguyên."""
+    offsets = array("I")
+    for i in range(0, len(src), 4):
+        if src[i + 3] == 0:
+            continue
+        k = mask[i] - 1
+        if k < 0 or k >= GROUPS or mask[i + 1] == 255:
+            continue
+        offsets.append(i)
+    return offsets
+
+
+# Kết quả tô một điểm ảnh chỉ phụ thuộc (màu gốc, nhóm, màu đích của nhóm; riêng da còn kéo theo má hồng nhưng cũng suy ra từ màu da):
+# nhớ chung giữa các lần đổi màu thì đổi MỘT ô màu chỉ phải tính lại đúng nhóm đó.
+_MEMOS: dict[tuple[int, str], dict[int, tuple[int, int, int]]] = {}
+_MEMO_LIMIT: Final[int] = 96
+
+
+def recolor_pixels(src: bytes, mask: bytes, colors: Sequence[str], palette: Palette,
+                   offsets: array[int] | None = None) -> bytes:
     """Tô màu một ảnh RGBA (byte thô) theo mask: kênh R = số nhóm + 1, kênh G = 255 là điểm cần giữ nguyên.
 
     Giống hệt ``render()`` của bản thiết kế: nhóm trùng màu mặc định giữ nguyên ảnh gốc; viền đen được bảo vệ
@@ -92,20 +115,23 @@ def recolor_pixels(src: bytes, mask: bytes, colors: Sequence[str], palette: Pale
     base_lum = [_lum(*b) for b in base]
     skin_lum = _lum(*target[2])
     blush_k = 0.45 + 0.30 * min(1.0, skin_lum / base_lum[2])
+    if offsets is None:
+        offsets = candidate_offsets(src, mask)
+    if len(_MEMOS) > _MEMO_LIMIT:
+        _MEMOS.clear()
+    norm = normalize_colors(list(colors))
+    memos = [_MEMOS.setdefault((k, norm[k]), {}) for k in range(GROUPS)]
     out = bytearray(src)
-    memo: dict[int, tuple[int, int, int]] = {}
-    for i in range(0, len(src), 4):
-        if src[i + 3] == 0:
-            continue
+    for i in offsets:
         k = mask[i] - 1
-        if k < 0 or k >= GROUPS or mask[i + 1] == 255 or same[k]:
+        if same[k]:
             continue
         r, g, b = src[i], src[i + 1], src[i + 2]
-        key = (((r << 8 | g) << 8 | b) << 3) | k
+        key = (r << 8 | g) << 8 | b
+        memo = memos[k]
         hit = memo.get(key)
         if hit is None:
-            hit = _recolor_one(r, g, b, k, target[k], palette, base[2], base_lum[2], blush_k)
-            memo[key] = hit
+            hit = memo[key] = _recolor_one(r, g, b, k, target[k], palette, base[2], base_lum[2], blush_k)
         out[i], out[i + 1], out[i + 2] = hit
     return bytes(out)
 
@@ -139,12 +165,13 @@ def _recolor_one(r: int, g: int, b: int, k: int, tk_: tuple[int, int, int], pale
     return _round(r * iw + nr * w), _round(g * iw + ng * w), _round(b * iw + nb * w)
 
 
-def recolor_image(image: Image.Image, mask: Image.Image, colors: Sequence[str], palette: Palette) -> Image.Image:
+def recolor_image(image: Image.Image, mask: Image.Image, colors: Sequence[str], palette: Palette,
+                  offsets: array[int] | None = None) -> Image.Image:
     """Bản Pillow của ``recolor_pixels`` (ảnh và mask cùng kích thước)."""
     from PIL import Image as PILImage
 
     rgba = image.convert("RGBA")
-    data = recolor_pixels(rgba.tobytes(), mask.convert("RGBA").tobytes(), colors, palette)
+    data = recolor_pixels(rgba.tobytes(), mask.convert("RGBA").tobytes(), colors, palette, offsets)
     return PILImage.frombytes("RGBA", rgba.size, data)
 
 
@@ -161,8 +188,21 @@ def source_poses() -> tuple[tuple[Image.Image, Image.Image], ...]:
     return tuple(pairs)
 
 
+@lru_cache(maxsize=POSES)
+def _pose_offsets(pose: int) -> array[int]:
+    """Điểm ảnh có thể bị tô của một tư thế (tính một lần cho cả phiên)."""
+    img, msk = source_poses()[pose]
+    return candidate_offsets(img.tobytes(), msk.tobytes())
+
+
+@lru_cache(maxsize=16)
+def recolored_pose(colors: tuple[str, ...], pose: int) -> Image.Image:
+    """Một tư thế đã tô theo ``colors`` (cache theo bộ màu: để nhân vật đổi màu từng tư thế, tư thế đang hiện trước)."""
+    img, msk = source_poses()[pose]
+    return recolor_image(img, msk, colors, load_palette(), _pose_offsets(pose))
+
+
 @lru_cache(maxsize=4)
 def recolored_poses(colors: tuple[str, ...]) -> tuple[Image.Image, ...]:
     """4 tư thế đã tô theo ``colors`` (cache theo bộ màu: tính một lần, hoạt ảnh chỉ dùng lại)."""
-    palette = load_palette()
-    return tuple(recolor_image(img, msk, colors, palette) for img, msk in source_poses())
+    return tuple(recolored_pose(colors, n) for n in range(POSES))

@@ -36,3 +36,9 @@ guardian.keys.json
 .chotto-guardian/
 CHOTTO-Guardian/
 *.guardian-secret
+
+# Khóa API của mascot chat: KHÔNG bao giờ commit (chỉ .env.example được phép)
+.env
+.env.*
+!.env.example
+.dev.vars

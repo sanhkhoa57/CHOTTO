@@ -110,6 +110,7 @@
     });
     $$("#seconds button").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.s) === s.settings.friction_seconds));
     $$("#buddyStartup button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === (s.settings.mascot_startup || "login")));
+    if (document.activeElement !== $("#buddyFps")) fpsShow(s.settings.mascot_fps || 60);          // đang kéo thì không giật thanh về chỗ cũ
     buddySync(s);
     buddyPlaceUI();
   }
@@ -189,6 +190,19 @@
     $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === b));
     save({ mascot_startup: b.dataset.v }, () => $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === before)));
   }));
+  // thanh kéo FPS: kéo thì cập nhật số ngay, thả tay mới lưu (agent đọc lại và đổi nhịp ngay, không cần khởi động lại)
+  const fps = $("#buddyFps");
+  function fpsShow(v) {
+    fps.value = v;
+    fps.style.setProperty("--p", `${((fps.value - fps.min) / (fps.max - fps.min)) * 100}%`);
+    $("#buddyFpsOut").textContent = `${fps.value} fps`;
+  }
+  fps.addEventListener("input", () => fpsShow(fps.value));
+  fps.addEventListener("change", () => {
+    const before = state && state.settings.mascot_fps || 60;
+    save({ mascot_fps: Number(fps.value) }, () => fpsShow(before));
+  });
+  fpsShow(60);
   $$("[data-lang-switch] button").forEach((b) => b.addEventListener("click", () => {
     const before = I18N.lang;
     if (b.dataset.lang === before) return;
@@ -234,23 +248,26 @@
     $$("#buddyRows .buddy-sw").forEach((w) => {
       const g = Number(w.dataset.g);
       $$("button", w).forEach((b) => b.addEventListener("click", () => buddySet(g, b.dataset.c)));
-      $("input", w).addEventListener("input", (e) => buddySet(g, e.target.value.toLowerCase()));
+      $("input", w).addEventListener("input", (e) => buddySet(g, e.target.value.toLowerCase(), 150));
     });
     $$("#buddyStage figcaption").forEach((f, n) => { f.textContent = t(`buddy.p${n}`); });
     buddyMark();
   }
-  function buddySave() {
+  function buddySave(delay = 0) {                            // ô màu mẫu/Ngẫu nhiên/Đặt lại: lưu ngay; kéo bảng chọn màu: gộp 150 ms
     clearTimeout(BUDDY.timer);
-    BUDDY.timer = setTimeout(() => {
+    const run = () => {
       BUDDY.timer = 0;
       const before = state && state.settings.mascot_colors;
       save({ mascot_colors: BUDDY.cur.slice() }, () => { if (validColors(before)) { BUDDY.cur = before.slice(); buddyRender(); buddyMark(); } });
-    }, 350);
+    };
+    if (delay > 0) BUDDY.timer = setTimeout(run, delay);
+    else run();                                              // gửi lệnh lưu TRƯỚC khi vẽ lại bản xem trước (vẽ tốn vài chục ms)
   }
-  function buddySet(g, c) {
+  function buddySet(g, c, delay = 0) {
     if (!BUDDY.cur) return;
     BUDDY.cur[g] = c;
-    buddyRender(); buddyMark(); buddySave();
+    buddySave(delay);
+    buddyRender(); buddyMark();
   }
   function buddySync(s) {
     $("#buddyNote").hidden = s.mascot_supported !== false;
@@ -304,12 +321,14 @@
   function buddyRandom() {
     if (!BUDDY.P) return;
     BUDDY.cur = BUDDY.P.default.map((def, g) => { const l = [def].concat(BUDDY.P.swatches[g]); return l[Math.floor(Math.random() * l.length)]; });
-    buddyRender(); buddyMark(); buddySave();
+    buddySave();
+    buddyRender(); buddyMark();
   }
   function buddyReset() {
     if (!BUDDY.P) return;
     BUDDY.cur = BUDDY.P.default.slice();
-    buddyRender(); buddyMark(); buddySave();
+    buddySave();
+    buddyRender(); buddyMark();
   }
   // "Chọn vị trí": agent cho kéo nhân vật bằng chuột; chỉ dùng được khi nhân vật đang hiện và đã bật "cố định".
   let placing = false;
@@ -415,7 +434,7 @@
     default_handler: !location.search.includes("off"), blacklist_text: "Scam list updated at 07:42 today",
     settings: { tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
       ui_language: location.search.includes("vi") ? "vi" : "en",
-      mascot_enabled: true, mascot_startup: "login", mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"] },
+      mascot_enabled: true, mascot_startup: "login", mascot_fps: 60, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"] },
     summary: { total: 128, safe: 121, warned: 7, closed: 6, blocked: 2 },
     recent: [
       { ts: now - 3600, host: "xacthuc-tk.top", level: "BLOCKED", decision: "cancel" },

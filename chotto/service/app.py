@@ -34,7 +34,7 @@ from .webui import WebUI, WebUIError
 if TYPE_CHECKING:
     import tkinter as tk
 
-    from ..mascot import TaskbarMascot
+    from ..mascot import MascotRunner
     from ..ui import SettingsActions
 
 __all__ = ["AutoUpdater", "build_handler", "run_once", "run_resident"]
@@ -352,12 +352,15 @@ class _HandlerCache:
         return self.get().cfg
 
 
-def _start_mascot(root: tk.Tk, open_app: Callable[[], None], web: WebUI | None) -> TaskbarMascot | None:
-    """Nhân vật taskbar (tự ẩn/hiện theo ``mascot_enabled``); lỗi bất kỳ chỉ ghi log, agent chạy tiếp."""
-    try:
-        from ..mascot import TaskbarMascot
+def _start_mascot(open_app: Callable[[], None], web: WebUI | None) -> MascotRunner | None:
+    """Nhân vật taskbar (tự ẩn/hiện theo ``mascot_enabled``) trên luồng Tk riêng; lỗi bất kỳ chỉ ghi log, agent chạy tiếp.
 
-        mascot = TaskbarMascot(root, open_app)
+    ``open_app`` được gọi từ luồng nhân vật nên chỉ được đặt cờ (không đụng Tk của luồng chính).
+    """
+    try:
+        from ..mascot import MascotRunner
+
+        mascot = MascotRunner(open_app)
         if web is not None:
             web.on_config_changed = mascot.request_reload
         mascot.start()
@@ -415,11 +418,15 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
     if web is not None:
         web.start()                    # giữ sẵn: màn hình đệm sau hiện trong khoảng 0,2 giây
     state: dict[str, Any] = {"busy": False, "handled": False, "settings": None}
-    mascot = _start_mascot(window, lambda: open_settings(), web)
+    open_flag = threading.Event()                  # nhân vật (luồng Tk riêng) xin mở ứng dụng: luồng chính tự xử lý ở drain
+    mascot = _start_mascot(open_flag.set, web)
     osw.watch_session_end(_reset_mascot_on_session_end)
     handlers = _HandlerCache(window, web, mascot.notify if mascot is not None else None)
 
     def drain() -> None:
+        if open_flag.is_set():
+            open_flag.clear()
+            window.after(0, open_settings)
         if core.quit_requested.is_set() and not state["busy"]:
             shutdown()         # không bao giờ đóng ngang màn hình đệm người dùng đang cân nhắc
             return

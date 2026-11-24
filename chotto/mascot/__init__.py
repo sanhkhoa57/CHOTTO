@@ -9,7 +9,8 @@ link đáng ngờ.
 from __future__ import annotations
 
 from .brain import ALERT_SECONDS, REST_SECONDS, RUN_SECONDS, Frame, MascotBrain
-from .recolor import Palette, load_palette, normalize_colors, recolor_image, recolor_pixels, recolored_poses
+from .recolor import Palette, load_palette, normalize_colors, recolor_image, recolor_pixels, recolored_pose, recolored_poses
+from .runner import MascotRunner
 from .taskbar import PLACE_FLAG, TaskbarMascot, place_flag_set, set_place_flag, supported
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "RUN_SECONDS",
     "Frame",
     "MascotBrain",
+    "MascotRunner",
     "Palette",
     "TaskbarMascot",
     "load_palette",
@@ -26,6 +28,7 @@ __all__ = [
     "place_flag_set",
     "recolor_image",
     "recolor_pixels",
+    "recolored_pose",
     "recolored_poses",
     "set_place_flag",
     "supported",

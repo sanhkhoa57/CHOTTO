@@ -344,6 +344,105 @@ def make_tool_window(hwnd: int) -> None:
     user32.SetWindowPos(hwnd, ctypes.c_void_p(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 | 0x0020)  # TOPMOST, giữ chỗ
 
 
+def enable_layered(hwnd: int) -> None:
+    """Thêm WS_EX_LAYERED (để cập nhật bằng ``LayeredSurface``: alpha từng điểm ảnh, viền mịn, không dùng màu khóa)."""
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    get = user32.GetWindowLongPtrW
+    put = user32.SetWindowLongPtrW
+    get.restype = put.restype = ctypes.c_ssize_t
+    get.argtypes = (ctypes.c_void_p, ctypes.c_int)
+    put.argtypes = (ctypes.c_void_p, ctypes.c_int, ctypes.c_ssize_t)
+    put(hwnd, -20, get(hwnd, -20) | 0x00080000)                           # WS_EX_LAYERED
+
+
+class LayeredSurface:
+    """Bề mặt 32-bit BGRA (alpha đã nhân trước) của một cửa sổ layered: ``update`` đổi ảnh VÀ vị trí trong MỘT lệnh
+    (``UpdateLayeredWindow``) nên không rách hình, viền khử răng cưa như trên web. Cửa sổ phải đã gọi ``enable_layered``."""
+
+    def __init__(self, hwnd: int, width: int, height: int) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class _Header(ctypes.Structure):
+            _fields_ = [("size", ctypes.c_uint32), ("width", ctypes.c_int32), ("height", ctypes.c_int32), ("planes", ctypes.c_uint16),
+                        ("bits", ctypes.c_uint16), ("compression", ctypes.c_uint32), ("image", ctypes.c_uint32),
+                        ("xppm", ctypes.c_int32), ("yppm", ctypes.c_int32), ("used", ctypes.c_uint32), ("important", ctypes.c_uint32)]
+
+        class _Blend(ctypes.Structure):
+            _fields_ = [("op", ctypes.c_ubyte), ("flags", ctypes.c_ubyte), ("alpha", ctypes.c_ubyte), ("format", ctypes.c_ubyte)]
+
+        self._ct = ctypes
+        self._wt = wintypes
+        self._blend = _Blend(0, 0, 255, 1)                                  # AC_SRC_OVER, AC_SRC_ALPHA
+        self._hwnd, self._size = hwnd, (width, height)
+        gdi32, user32 = ctypes.windll.gdi32, ctypes.windll.user32
+        gdi32.CreateCompatibleDC.restype = ctypes.c_void_p
+        gdi32.CreateCompatibleDC.argtypes = (ctypes.c_void_p,)
+        gdi32.CreateDIBSection.restype = ctypes.c_void_p
+        gdi32.CreateDIBSection.argtypes = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p),
+                                           ctypes.c_void_p, ctypes.c_uint32)
+        gdi32.SelectObject.restype = ctypes.c_void_p
+        gdi32.SelectObject.argtypes = (ctypes.c_void_p, ctypes.c_void_p)
+        gdi32.DeleteObject.argtypes = (ctypes.c_void_p,)
+        gdi32.DeleteDC.argtypes = (ctypes.c_void_p,)
+        user32.UpdateLayeredWindow.argtypes = (ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p,
+                                               ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_uint32)
+        header = _Header(ctypes.sizeof(_Header), width, -height, 1, 32, 0, width * height * 4, 0, 0, 0, 0)   # chiều cao âm = từ trên xuống
+        self._dc = gdi32.CreateCompatibleDC(None)
+        bits = ctypes.c_void_p()
+        self._bitmap = gdi32.CreateDIBSection(self._dc, ctypes.byref(header), 0, ctypes.byref(bits), None, 0)
+        if not self._dc or not self._bitmap or not bits.value:
+            raise OSError("Không tạo được bề mặt layered")
+        self._bits = bits.value
+        self._old = gdi32.SelectObject(self._dc, self._bitmap)
+
+    def update(self, bgra: bytes, x: int, y: int) -> None:
+        """Ghi khung hình ``bgra`` (đúng ``rộng x cao x 4`` byte, alpha đã nhân trước) và đặt cửa sổ tại ``(x, y)``."""
+        ct, wt = self._ct, self._wt
+        width, height = self._size
+        if len(bgra) != width * height * 4:
+            raise ValueError("Sai kích thước khung hình")
+        ct.memmove(self._bits, bgra, len(bgra))
+        pos, size, src = wt.POINT(x, y), wt.SIZE(width, height), wt.POINT(0, 0)
+        ct.windll.user32.UpdateLayeredWindow(self._hwnd, None, ct.byref(pos), ct.byref(size), self._dc, ct.byref(src), 0,
+                                             ct.byref(self._blend), 2)         # ULW_ALPHA
+
+    def close(self) -> None:
+        gdi32 = self._ct.windll.gdi32
+        if self._dc:
+            gdi32.SelectObject(self._dc, self._old)
+            gdi32.DeleteObject(self._bitmap)
+            gdi32.DeleteDC(self._dc)
+            self._dc = self._bitmap = None
+
+
+def fine_timer(on: bool) -> None:
+    """Bật/hạ bộ hẹn giờ Windows xuống 1 ms (``timeBeginPeriod``); mặc định ~15,6 ms nên ``after(33)`` của Tk bị trễ thành 37-45 ms.
+    Phải gọi cặp bật/tắt cân bằng; chỉ bật khi đang có hoạt ảnh vì nó làm máy ít được nghỉ (tốn pin)."""
+    try:
+        import ctypes
+
+        (ctypes.windll.winmm.timeBeginPeriod if on else ctypes.windll.winmm.timeEndPeriod)(1)
+    except (AttributeError, OSError):
+        pass
+
+
+def set_noactivate(hwnd: int, on: bool) -> None:
+    """Bật/tắt WS_EX_NOACTIVATE (tắt = cửa sổ nhận được focus bàn phím, dùng cho ô chat của nhân vật)."""
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    get = user32.GetWindowLongPtrW
+    put = user32.SetWindowLongPtrW
+    get.restype = put.restype = ctypes.c_ssize_t
+    get.argtypes = (ctypes.c_void_p, ctypes.c_int)
+    put.argtypes = (ctypes.c_void_p, ctypes.c_int, ctypes.c_ssize_t)
+    style = get(hwnd, -20)
+    put(hwnd, -20, (style | 0x08000000) if on else (style & ~0x08000000))
+
+
 def watch_session_end(callback: Callable[[], None]) -> None:
     """Gọi ``callback`` (trên luồng nền) khi phiên Windows sắp kết thúc: tắt máy, khởi động lại hoặc đăng xuất.
 

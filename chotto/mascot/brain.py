@@ -52,6 +52,7 @@ class MascotBrain:
     x: float = field(default=0.0, init=False)
     direction: int = field(default=-1, init=False)
     warning: bool = field(default=False, init=False)
+    attending: bool = field(default=False, init=False)   # đang chat với người dùng: giơ tay đứng yên như khi có cảnh báo
     pinned: bool = field(default=False, init=False)
     patrol: bool = field(default=False, init=False)      # đang tuần tra: chạy hết mép, quay đầu, cứ 3 giây lại nghỉ một nhịp
     _until: float = field(default=0.0, init=False)
@@ -97,10 +98,19 @@ class MascotBrain:
         self.patrol = False
         self._go("alert")
 
+    def attend(self, on: bool) -> None:
+        """Bắt đầu/kết thúc chat: giật mình rồi giơ tay đứng yên; kết thúc thì về rảnh (đang có cảnh báo thì giữ nguyên)."""
+        self.attending = on
+        if on:
+            self.patrol = False
+            self._go("alert")
+        elif self.state == "stop" and not self.warning:
+            self._go("sleep")
+
     def warning_closed(self) -> None:
         """Màn hình cảnh báo đã đóng: về trạng thái rảnh (cú giật mình đang dở thì cho diễn nốt)."""
         self.warning = False
-        if self.state == "stop":
+        if self.state == "stop" and not self.attending:
             self._go("sleep")
 
     # ---- thời gian ----
@@ -110,7 +120,7 @@ class MascotBrain:
         self.t += dt
         if self.state == "alert":
             if self.t >= self._until:
-                self._go("stop" if self.warning else "sleep")
+                self._go("stop" if self.warning or self.attending else "sleep")
         elif self.state == "sleep":
             if (not self.reduced_motion and not self.pinned and self.t >= self._until
                     and self.right > self.left):
@@ -126,8 +136,9 @@ class MascotBrain:
 
     @property
     def animating(self) -> bool:
-        """Đang có chuyển động nhanh (cần khung hình dày); ngủ thì vẽ thưa để đỡ CPU."""
-        return self.state != "sleep" and not (self.state == "stop" and self.t > 0.4)
+        """Đang có chuyển động nhanh (cần khung hình dày). Ngủ có nhịp thở riêng (``TaskbarMascot`` tự lo);
+        "Khoan đã!" lắc nhẹ mãi như trên web, trừ khi người dùng tắt hiệu ứng (khi đó đứng yên sau cú nảy)."""
+        return self.state != "sleep" and not (self.state == "stop" and self.t > 0.4 and self.reduced_motion)
 
     def frame(self) -> Frame:
         """Khung hình hiện tại (số liệu theo bản thiết kế, nhân ``unit``)."""
@@ -154,4 +165,5 @@ class MascotBrain:
         if m:
             scale = 0.88 + t / 0.14 * 0.17 if t < 0.14 else (1.05 - (t - 0.14) / 0.16 * 0.05 if t < 0.3 else 1.0)
         rise = (16 + (1 - t / 0.28) * 70) if (m and t < 0.28) else 16
-        return Frame(pose, self.x, dy=rise * u, flip=flip, sx=scale, sy=scale)
+        wave = math.radians(1.6) * (1 - math.cos((t - 0.55) / 1.3 * math.tau)) / 2 if (m and t > 0.55) else 0.0   # tay lắc nhẹ như ma-wave trên web
+        return Frame(pose, self.x, dy=rise * u, flip=flip, sx=scale, sy=scale, rot=wave)

@@ -16,20 +16,22 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
-from ..config import MASCOT_DEFAULT_COLORS, config_stamp, data_dir, load_config
+from ..config import MASCOT_DEFAULT_COLORS, MASCOT_FPS_RANGE, config_stamp, data_dir, load_config
 from ..platforms import any_process_running
 from ..platforms import win32_window as w32
 from ..platforms import window as osw
 from ..util import clamp as _clamp
+from . import speech
 from .brain import POSE_INDEX, WARNING_LEVELS, Frame, MascotBrain
-from .recolor import normalize_colors, recolored_poses, source_poses
+from .bubble import SpeechBubble
+from .recolor import POSES, normalize_colors, recolored_pose, source_poses
 
 if TYPE_CHECKING:
     import tkinter as tk
 
     from PIL import Image
 
-__all__ = ["PLACE_FLAG", "TaskbarMascot", "place_flag_set", "set_place_flag", "supported"]
+__all__ = ["PLACE_FLAG", "TaskbarMascot", "body_seed", "outline_sprite", "place_flag_set", "set_place_flag", "supported"]
 
 _LOG = logging.getLogger("chotto")
 
@@ -45,14 +47,56 @@ def supported() -> bool:
     return True
 
 
-_KEY: Final[str] = "#ff00fe"                  # màu trong suốt (-transparentcolor): không có trong sprite
-_KEY_RGB: Final[tuple[int, int, int]] = (255, 0, 254)
 _BASE_SCALE: Final[float] = 0.30              # 488 px gốc → ~146 px ở 100% scale (gấp đôi bản đầu: 0.15)
 _STOP_MUL: Final[float] = 2.0                 # tư thế "Khoan đã!" to gấp đôi cỡ thường (= gấp 4 bản đầu)
 _DESIGN_SCALE: Final[float] = 0.31            # tỉ lệ sprite trong khung hoạt ảnh của bản thiết kế
-_FAST_MS: Final[int] = 33
 _SLOW_MS: Final[int] = 120
 _POLL_MS: Final[int] = 1500
+_OUTLINE_PX: Final[float] = 2.0                # độ dày viền đen quanh nhân vật ở 100% (nhân theo DPI), kiểu nét anime
+_OUTLINE_RGB: Final[tuple[int, int, int]] = (26, 18, 32)   # đen tím ấm (đen tuyền trông gắt trên nền sáng)
+_RIM_RGB: Final[tuple[int, int, int]] = (255, 250, 242)    # đường sáng mảnh ngoài viền: nổi trên taskbar tối, gần như vô hình trên nền sáng
+_RIM_ALPHA: Final[int] = 190
+
+
+def body_seed(pose: int, size: tuple[int, int]) -> Image.Image:
+    """Phần THÂN nhân vật (điểm thuộc nhóm màu 1-6 trong mask) ở cỡ ``size``: hiệu ứng như zZ, dấu !, vệt bụi không thuộc nhóm nào."""
+    from PIL import Image as PILImage
+
+    img, msk = source_poses()[pose]
+    groups = msk.getchannel("R").point(lambda v: 255 if 1 <= v <= 6 else 0)
+    solid = img.getchannel("A").point(lambda v: 255 if v >= 96 else 0)
+    from PIL import ImageChops
+
+    seed = ImageChops.multiply(groups, solid).resize(size, PILImage.Resampling.BOX)
+    return seed.point(lambda v: 255 if v >= 64 else 0)
+
+
+def outline_sprite(image: Image.Image, width_px: float, seed: Image.Image | None = None) -> tuple[Image.Image, int]:
+    """Viền kiểu anime quanh hình (RGBA): nét tối dày ``width_px`` + đường sáng mảnh bên ngoài (để viền vẫn nổi trên taskbar tối),
+    kèm làm nét nhẹ màu bên trong. Trả về (ảnh RGBA đã nới lề, số điểm ảnh lề mỗi phía).
+
+    ``seed`` (ảnh "L" cùng cỡ ``image``): vùng được viền. Truyền phần THÂN nhân vật để các hiệu ứng nhỏ tách rời (zZ, dấu !, vệt bụi)
+    không bị viền thành cục đen; thiếu thì dùng toàn bộ phần không trong suốt.
+    """
+    from PIL import Image as PILImage
+    from PIL import ImageFilter
+
+    radius = max(1, round(width_px))
+    rim = max(1, round(width_px * 0.6))
+    pad = radius + rim + 2
+    size = (image.width + 2 * pad, image.height + 2 * pad)
+    r, g, b, a = image.split()
+    sharp = PILImage.merge("RGB", (r, g, b)).filter(ImageFilter.UnsharpMask(radius=1.2, percent=70, threshold=2))
+    body = PILImage.merge("RGBA", (*sharp.split(), a))
+    core = PILImage.new("L", size, 0)
+    core.paste((seed if seed is not None else a).point(lambda v: 255 if v >= 96 else 0), (pad, pad))
+    dark = core.filter(ImageFilter.MaxFilter(2 * radius + 1))
+    light = dark.filter(ImageFilter.MaxFilter(2 * rim + 1)).filter(ImageFilter.GaussianBlur(0.7))
+    canvas = PILImage.new("RGBA", size, (0, 0, 0, 0))
+    canvas.paste(PILImage.new("RGBA", size, (*_RIM_RGB, 255)), mask=light.point(lambda v: v * _RIM_ALPHA // 255))
+    canvas.paste(PILImage.new("RGBA", size, (*_OUTLINE_RGB, 255)), mask=dark.filter(ImageFilter.GaussianBlur(0.6)))
+    canvas.alpha_composite(body, (pad, pad))
+    return canvas, pad
 _FLAG_MS: Final[int] = 250
 PLACE_FLAG: Final[str] = "mascot_place.flag"   # có file này = người dùng đang kéo nhân vật để chọn vị trí
 
@@ -75,9 +119,11 @@ def place_flag_set() -> bool:
         return (data_dir() / PLACE_FLAG).exists()
     except OSError:
         return False
-_DUST: Final[str] = "#d8d2c8"
-_MENU: Final[dict[str, tuple[str, str]]] = {"en": ("Open Chotto", "Hide character"),
-                                            "vi": ("Mở CHOTTO", "Ẩn nhân vật")}
+_DUST_RGBA: Final[tuple[int, int, int, int]] = (216, 210, 200, 255)
+_MENU: Final[dict[str, tuple[str, str, str]]] = {"en": ("Open Chotto", "Hide character", "Ask Chotto"),
+                                                 "vi": ("Mở CHOTTO", "Ẩn nhân vật", "Hỏi Chotto")}
+_GREET_GAP: Final[float] = 30.0                 # giây tối thiểu giữa hai lời chào
+_IDLE_RANGE: Final[tuple[float, float]] = (480.0, 900.0)   # giây giữa hai lần nhân vật tự nói khi rảnh
 
 
 @dataclass
@@ -102,25 +148,26 @@ class TaskbarMascot:
         self._enabled = False
         self._switch_on = False                # công tắc "mascot_enabled" trong cấu hình (khác với đang hiện)
         self._startup = "login"
+        self._frame_s = 1 / 60                  # nhịp khung hình theo cài đặt mascot_fps (bù thời gian dựng khung để nhịp không lệch)
         self._zalo_names: tuple[str, ...] = ()
         self._colors: tuple[str, ...] = tuple(MASCOT_DEFAULT_COLORS)
         self._lang = "en"
         self._stamp: tuple[int, int] | None = None
         self._window: Any = None
         self._canvas: Any = None
-        self._sprite_item: int | None = None
+        self._surface: w32.LayeredSurface | None = None
         self._brain: MascotBrain | None = None
-        self._poses: tuple[Image.Image, ...] | None = None
-        self._incoming: tuple[tuple[str, ...], tuple[Image.Image, ...]] | None = None
+        self._poses: list[Image.Image | None] | None = None       # từng tư thế đã tô (tư thế mới tô xong thì thay ngay, không đợi đủ bốn)
+        self._incoming: collections.deque[tuple[tuple[str, ...], int, Image.Image]] = collections.deque()
         self._rendering: tuple[str, ...] | None = None
-        self._cache: dict[tuple[int, bool, int, int, int], Any] = {}
+        self._cache: dict[int, Any] = {}                    # sprite từng tư thế ở cỡ màn hình (RGBa)
         self._dust: list[_Dust] = []
-        self._dust_items: list[int] = []
+        self._dust_cache: dict[int, Any] = {}
+        self._sprite_h = 1
+        self._pad = 0                          # lề trong suốt quanh sprite để chứa viền (chân đứng cao hơn đáy ảnh đúng bằng chừng này)
         self._dust_timer = 0.0
         self._last = time.monotonic()
         self._loop_id: str | None = None
-        self._geom: tuple[int, int, int, int] = (0, 0, 0, 0)
-        self._shown_key: tuple[int, bool, int, int, int] | None = None
         self._scale = _BASE_SCALE
         self._unit = 1.0
         self._area: tuple[int, int, int, int] = (0, 0, 0, 0)
@@ -130,6 +177,11 @@ class TaskbarMascot:
         self._pos = 0.85                      # vị trí cố định, tỉ lệ 0..1 trên vùng chạy
         self._placing = False
         self._dragging = False
+        self._bubble: SpeechBubble | None = None
+        self._greeted = -_GREET_GAP
+        self._presented: tuple[Any, ...] | None = None   # khung đang hiện (khung không đổi thì khỏi vẽ lại)
+        self._fine = False                    # đang giữ bộ hẹn giờ 1 ms (chỉ khi có hoạt ảnh)
+        self._idle_due = 0.0
 
     # ---- giao diện công khai (gọi từ bất kỳ luồng nào) ----
     def notify(self, event: str, level: str = "") -> None:
@@ -178,15 +230,20 @@ class TaskbarMascot:
         except Exception:  # noqa: BLE001
             pass
         self._loop_id = None
+        bubble, self._bubble = self._bubble, None
+        if bubble is not None:
+            bubble.destroy()
         window, self._window = self._window, None
         if window is not None:
             try:
                 window.destroy()
             except Exception:  # noqa: BLE001
                 pass
+        surface, self._surface = self._surface, None
+        if surface is not None:
+            surface.close()
         self._cache.clear()
-        self._sprite_item = None
-        self._dust_items = []
+        self._set_fine(False)
 
     def _poll(self) -> None:
         """Theo dõi cấu hình mỗi ``_POLL_MS`` (dự phòng cho tín hiệu ``config_changed``)."""
@@ -194,6 +251,7 @@ class TaskbarMascot:
         self._reconcile()
         if self._enabled and self._window is not None:
             self._place_bounds()                      # đổi độ phân giải / dời taskbar
+            self._idle_talk()
         if not self._broken:
             self._root.after(_POLL_MS, lambda: self._safe(self._poll))
 
@@ -213,6 +271,7 @@ class TaskbarMascot:
             self._render_async(colors)
         self._switch_on = bool(cfg["mascot_enabled"])
         self._startup = cfg["mascot_startup"]
+        self._frame_s = 1 / _clamp(float(cfg["mascot_fps"]), *map(float, MASCOT_FPS_RANGE))
         self._zalo_names = tuple(cfg["zalo_processes"])
         self._reconcile()
         self._sync_pin()
@@ -226,18 +285,27 @@ class TaskbarMascot:
             self._hide()
 
     def _render_async(self, colors: tuple[str, ...]) -> None:
-        """Tô màu trên luồng nền (lần đầu mất tới ~1 giây); Tk nhận kết quả ở khung hình sau."""
+        """Tô màu trên luồng nền, TƯ THẾ ĐANG HIỆN TRƯỚC (hiện ngay khi xong), ba tư thế còn lại tô tiếp sau đó.
+
+        Có lệnh đổi màu mới hơn thì bỏ dở việc đang làm. Tk nhận từng tư thế ở khung hình sau.
+        """
         if self._rendering == colors:
             return
         self._rendering = colors
+        first = POSE_INDEX[self._brain.state] if self._brain is not None else 0
 
         def work() -> None:
-            try:
-                poses = recolored_poses(colors)
-            except Exception:  # noqa: BLE001 - lỗi tô màu: dùng màu gốc
-                _LOG.exception("Không tô màu được nhân vật, dùng màu gốc")
-                poses = tuple(img for img, _ in source_poses())
-            self._incoming = (colors, poses)
+            for n in [first] + [p for p in range(POSES) if p != first]:
+                if self._rendering != colors:
+                    return                                # đã có bộ màu mới hơn
+                try:
+                    image = recolored_pose(colors, n)
+                except Exception:  # noqa: BLE001 - lỗi tô màu: dùng màu gốc
+                    _LOG.exception("Không tô màu được nhân vật, dùng màu gốc")
+                    image = source_poses()[n][0]
+                self._incoming.append((colors, n, image))
+            if self._rendering == colors:
+                self._rendering = None
 
         threading.Thread(target=work, name="chotto-mascot-paint", daemon=True).start()
 
@@ -247,6 +315,7 @@ class TaskbarMascot:
             self._broken = True
             return
         self._enabled = True
+        self._presented = None
         previous = w32.foreground_window()                      # lấy TRƯỚC khi dựng cửa sổ (dựng xong có thể đã thành foreground)
         if self._window is None:
             self._build()
@@ -260,6 +329,10 @@ class TaskbarMascot:
             self._root.after(delay, lambda: self._safe(lambda: self._give_back_focus(previous)))
         self._last = time.monotonic()
         self._schedule(0)
+        now = time.monotonic()
+        if now - self._greeted >= _GREET_GAP:         # mỗi lần nhân vật vừa hiện ra thì chào (chống chào dồn khi hiện/ẩn liên tục)
+            self._greeted = now
+            self._root.after(1500, lambda: self._safe(lambda: self._say("normal", speech.pick("hello"))))
         _LOG.info("Hiện nhân vật taskbar")
 
     def _sync_pin(self) -> None:
@@ -267,7 +340,7 @@ class TaskbarMascot:
         brain = self._brain
         if brain is None:
             return
-        brain.set_pinned(self._pinned or self._placing)
+        brain.set_pinned(self._pinned or self._placing or self._chatting())
         if self._pinned and not self._placing and not self._dragging:
             brain.drag_to(brain.left + _clamp(self._pos) * (brain.right - brain.left))
 
@@ -278,10 +351,6 @@ class TaskbarMascot:
         self._dragging = False
         if self._canvas is not None:
             self._canvas.configure(cursor="sb_h_double_arrow" if on else "")
-            self._canvas.delete("hint")
-            if on:
-                width, height = self._size
-                self._canvas.create_line(4, height - 1, width - 4, height - 1, fill="#d4a24a", width=2, dash=(4, 3), tags="hint")
         self._sync_pin()
         self._schedule(0)
 
@@ -314,8 +383,18 @@ class TaskbarMascot:
         if previous and previous != self._hwnd and w32.foreground_window() == self._hwnd:
             w32.set_foreground(previous)
 
+    def _set_fine(self, on: bool) -> None:
+        """Bộ hẹn giờ 1 ms chỉ bật lúc đang chạy/giật mình (cặp bật/tắt luôn cân bằng)."""
+        if on != self._fine:
+            self._fine = on
+            w32.fine_timer(on)
+
     def _hide(self) -> None:
         self._enabled = False
+        self._set_fine(False)
+        if self._bubble is not None:
+            self._bubble.close_chat()
+            self._bubble.hide()
         if self._window is not None:
             self._window.withdraw()
         _LOG.info("Ẩn nhân vật taskbar")
@@ -332,22 +411,23 @@ class TaskbarMascot:
         window = tk.Toplevel(self._root)
         window.withdraw()
         window.overrideredirect(True)
-        window.configure(bg=_KEY)
-        window.attributes("-transparentcolor", _KEY)
         window.attributes("-topmost", True)
-        canvas = tk.Canvas(window, width=width, height=height, bg=_KEY, highlightthickness=0, bd=0)
+        canvas = tk.Canvas(window, width=width, height=height, highlightthickness=0, bd=0)       # chỉ để nhận chuột; hình vẽ qua LayeredSurface
         canvas.pack()
         canvas.bind("<Button-3>", lambda e: self._safe(lambda: self._menu(e.x_root, e.y_root)))
-        canvas.bind("<Double-Button-1>", lambda e: None if self._placing else self._safe(self._open_app))
+        canvas.bind("<Double-Button-1>", lambda e: None if self._placing else self._safe(self._open_chat))
         canvas.bind("<ButtonPress-1>", lambda e: self._safe(lambda: self._press(e)))
         canvas.bind("<B1-Motion>", lambda e: self._safe(lambda: self._motion(e)))
         canvas.bind("<ButtonRelease-1>", lambda e: self._safe(lambda: self._release(e)))
         window.update_idletasks()
         self._hwnd = w32.toplevel_hwnd(int(window.winfo_id()))
         w32.make_tool_window(self._hwnd)
+        w32.enable_layered(self._hwnd)
+        self._surface = w32.LayeredSurface(self._hwnd, width, height)
         self._window, self._canvas = window, canvas
         self._size = (width, height)
         self._brain = MascotBrain(0, 1, unit=self._unit, reduced_motion=not w32.animations_enabled())
+        self._bubble = SpeechBubble(self._root, dpi, self._on_chat_change)
 
     def _place_bounds(self) -> None:
         self._area = w32.taskbar_work_area()
@@ -362,14 +442,44 @@ class TaskbarMascot:
     def _menu(self, x: int, y: int) -> None:
         import tkinter as tk
 
-        open_label, hide_label = _MENU.get(self._lang, _MENU["en"])
+        open_label, hide_label, ask_label = _MENU.get(self._lang, _MENU["en"])
         menu = tk.Menu(self._window, tearoff=0)
+        menu.add_command(label=ask_label, command=lambda: self._safe(self._open_chat))
         menu.add_command(label=open_label, command=lambda: self._safe(self._open_app))
         menu.add_command(label=hide_label, command=lambda: self._safe(self._hide_by_user))
         try:
             menu.tk_popup(x, y)
         finally:
             menu.grab_release()
+
+    # ---- lời thoại + hỏi đáp (chotto/mascot/bubble.py) ----
+    def _chatting(self) -> bool:
+        return self._bubble is not None and self._bubble.chatting
+
+    def _say(self, kind: speech.Kind, text: str) -> None:
+        """Nói một câu (bỏ qua khi đang chat); đặt lại đồng hồ "rảnh rỗi"."""
+        if self._bubble is None or not self._enabled or self._chatting():
+            return
+        self._idle_due = time.monotonic() + random.uniform(*_IDLE_RANGE)
+        self._bubble.say(kind, text)
+        self._schedule(0)
+
+    def _idle_talk(self) -> None:
+        now = time.monotonic()
+        if not self._idle_due:
+            self._idle_due = now + random.uniform(*_IDLE_RANGE)
+        elif now >= self._idle_due and self._brain is not None and not self._brain.warning and self._bubble is not None                 and not self._bubble.visible:
+            self._say("thought", speech.pick("idle"))
+
+    def _open_chat(self) -> None:
+        if self._bubble is not None and self._enabled and not self._placing:
+            self._bubble.open_chat()
+
+    def _on_chat_change(self, on: bool) -> None:
+        if self._brain is not None:
+            self._brain.attend(on)
+        self._sync_pin()
+        self._schedule(0)
 
     def _hide_by_user(self) -> None:
         """"Ẩn nhân vật" trong menu: lưu ``mascot_enabled = false`` để công tắc trong ứng dụng khớp."""
@@ -393,80 +503,137 @@ class TaskbarMascot:
 
     def _frame(self) -> None:
         self._loop_id = None
+        started = time.perf_counter()
         if self._reload.is_set():
             self._apply_config()
         if not self._enabled or self._window is None or self._brain is None:
             self._events.clear()
             return
-        incoming, self._incoming = self._incoming, None
-        if incoming is not None and incoming[0] == self._colors:
-            self._poses = incoming[1]
-            self._cache.clear()
-            self._shown_key = None
-            self._rendering = None
+        while self._incoming:
+            colors, n, image = self._incoming.popleft()
+            if colors != self._colors:
+                continue                                  # kết quả của bộ màu cũ
+            if self._poses is None:
+                self._poses = [None] * POSES
+            self._poses[n] = image
+            self._cache.pop(n, None)
+            self._presented = None
         brain = self._brain
         while self._events:
             event, level = self._events.popleft()
             if event == "warning_open" and level in WARNING_LEVELS:
                 brain.warning_opened()
+                self._say("alert", speech.pick("warn"))
             elif event == "warning_closed":
                 brain.warning_closed()
+                self._say("normal", speech.pick("closed"))
         now = time.monotonic()
         dt, self._last = now - self._last, now
         brain.tick(dt)
-        if self._poses is not None:
-            self._draw(brain.frame(), dt)
-        self._schedule(_FAST_MS if brain.animating or self._dust or self._dragging else _SLOW_MS)
+        frame = brain.frame()
+        if self._poses is not None and self._poses[frame.pose] is not None:
+            self._draw(frame, dt)
+        moving = brain.animating or bool(self._dust) or self._dragging or (brain.state == "sleep" and not brain.reduced_motion)
+        self._set_fine(moving)                                              # thở cũng cần 60 khung/giây mới mượt như web
+        spent = time.perf_counter() - started
+        self._schedule(max(1, round((self._frame_s - spent) * 1000)) if moving else _SLOW_MS)
 
-    def _sprite(self, frame: Frame) -> tuple[Any, tuple[int, bool, int, int, int]]:
-        """PhotoImage của khung hình (lượng tử hóa biến dạng để cache được vài chục ảnh là đủ)."""
-        key = (frame.pose, frame.flip, round(frame.sx * 100), round(frame.sy * 100), round(frame.rot * 100))
-        cached = self._cache.get(key)
+    def _base(self, pose: int) -> Any:
+        """Sprite của tư thế ở đúng cỡ màn hình, alpha đã nhân trước (RGBa) để nội suy không viền đen. Cache theo tư thế."""
+        cached = self._cache.get(pose)
         if cached is not None:
-            return cached, key
+            return cached
         from PIL import Image as PILImage
-        from PIL import ImageTk
 
         assert self._poses is not None
-        src = self._poses[frame.pose]
-        scale = self._scale * (_STOP_MUL if frame.pose == POSE_INDEX["stop"] else 1.0)
-        w = max(1, round(src.width * scale * key[2] / 100))
-        h = max(1, round(src.height * scale * key[3] / 100))
-        img = src.resize((w, h), PILImage.Resampling.LANCZOS)
-        if key[4]:
-            img = img.rotate(math.degrees(key[4] / 100), resample=PILImage.Resampling.BICUBIC, expand=True)
-        if frame.flip:
-            img = img.transpose(PILImage.Transpose.FLIP_LEFT_RIGHT)
-        alpha = img.getchannel("A").point(lambda a: 255 if a >= 110 else 0)
-        flat = PILImage.new("RGB", img.size, _KEY_RGB)
-        flat.paste(img.convert("RGB"), mask=alpha)
-        photo = ImageTk.PhotoImage(flat, master=self._window)
-        if len(self._cache) > 96:
-            self._cache.clear()
-        self._cache[key] = photo
-        return photo, key
+        src = self._poses[pose]
+        assert src is not None
+        scale = self._scale * (_STOP_MUL if pose == POSE_INDEX["stop"] else 1.0)
+        size = (max(1, round(src.width * scale)), max(1, round(src.height * scale)))
+        sized = src.resize(size, PILImage.Resampling.LANCZOS)
+        framed, self._pad = outline_sprite(sized, _OUTLINE_PX * self._scale / _BASE_SCALE, body_seed(pose, size))
+        base = framed.convert("RGBa")
+        self._cache[pose] = base
+        return base
+
+    def _sprite_tile(self, frame: Frame, frac_x: float) -> tuple[Any, int, int, int]:
+        """Vẽ sprite với co giãn/xoay/lật/dịch chuyển LẺ TỚI MỘT PHẦN ĐIỂM ẢNH (như GPU trên web), quanh chân giữa của nó.
+
+        Trả về (ảnh RGBa nhỏ vừa khít sprite, x, y của góc trái trên trong khung, chiều cao sprite để đặt bong bóng thoại).
+        """
+        from PIL import Image as PILImage
+
+        base = self._base(frame.pose)
+        bw, bh = base.size
+        width, height = self._size
+        flip = -1.0 if frame.flip else 1.0
+        theta = -frame.rot if frame.flip else frame.rot                       # góc xoay nhìn thấy trên màn hình (ngược chiều kim đồng hồ dương)
+        c, s = math.cos(theta), math.sin(theta)
+        p, q = frame.sx * flip, frame.sy
+        m00, m01, m10, m11 = c * p, s * q, -s * p, c * q                      # M = R · diag(sx·lật, sy)
+        px, py = width / 2 + frac_x + frame.dx, height + frame.dy             # chân giữa sprite trong khung
+        xs, ys = [], []
+        foot = bh - self._pad                                                 # chân nằm trên đáy ảnh một khoảng bằng lề viền
+        for cx, cy in ((-bw / 2, -foot), (bw / 2, -foot), (bw / 2, float(self._pad)), (-bw / 2, float(self._pad))):
+            xs.append(px + m00 * cx + m01 * cy)
+            ys.append(py + m10 * cx + m11 * cy)
+        ox, oy = math.floor(min(xs)) - 1, math.floor(min(ys)) - 1
+        tw, th = math.ceil(max(xs)) - ox + 2, math.ceil(max(ys)) - oy + 2
+        det = m00 * m11 - m01 * m10
+        i00, i01, i10, i11 = m11 / det, -m01 / det, -m10 / det, m00 / det     # nghịch đảo của M
+        rx, ry = ox - px, oy - py
+        data = (i00, i01, bw / 2 + i00 * rx + i01 * ry, i10, i11, foot + i10 * rx + i11 * ry)
+        tile = base.transform((tw, th), PILImage.Transform.AFFINE, data, resample=PILImage.Resampling.BILINEAR)   # như GPU trên web
+        return tile, ox, oy, round(max(ys) - min(ys))
+
+    @staticmethod
+    def _blit(dst: Any, src: Any, x: int, y: int) -> None:
+        """Dán ``src`` (RGBA, alpha mềm) lên ``dst`` tại (x, y), cắt phần lọt ra ngoài."""
+        left, top = max(0, -x), max(0, -y)
+        right, bottom = min(src.width, dst.width - x), min(src.height, dst.height - y)
+        if right > left and bottom > top:
+            dst.alpha_composite(src.crop((left, top, right, bottom)), (x + left, y + top))
 
     def _draw(self, frame: Frame, dt: float) -> None:
-        canvas, (width, height) = self._canvas, self._size
-        photo, key = self._sprite(frame)
-        cx, cy = width / 2 + frame.dx, height + frame.dy
-        if self._sprite_item is None:
-            self._sprite_item = canvas.create_image(cx, cy, image=photo, anchor="s")
-        else:
-            if key != self._shown_key:
-                canvas.itemconfigure(self._sprite_item, image=photo)
-            canvas.coords(self._sprite_item, cx, cy)
-        self._shown_key = key
-        left, _top, _right, bottom = self._area
-        geom = (round(frame.x - width / 2), bottom - height, width, height)
-        if geom != self._geom:
-            self._window.geometry(f"{width}x{height}+{geom[0]}+{geom[1]}")
-            self._geom = geom
-        self._draw_dust(frame, dt, geom[0])
+        """Dựng cả khung hình bằng Pillow rồi đổi ảnh + vị trí cửa sổ trong một lệnh (không rách hình, viền mịn)."""
+        from PIL import Image as PILImage
 
-    def _draw_dust(self, frame: Frame, dt: float, win_x: int) -> None:
-        """Bụi nhẹ sau gót khi chạy (chấm nhỏ dần rồi biến mất)."""
-        brain, canvas, height = self._brain, self._canvas, self._size[1]
+        surface, (width, height) = self._surface, self._size
+        if surface is None:
+            return
+        _left, _top, _right, bottom = self._area
+        win_x = math.floor(frame.x - width / 2)
+        frac_x = round((frame.x - width / 2 - win_x) * 16) / 16
+        self._step_dust(dt)
+        # làm tròn tham số tới 1/16 điểm ảnh: các khung giống hệt nhau (đang đứng/thở rất chậm) thì không vẽ lại
+        f = Frame(frame.pose, frame.x, round(frame.dx * 16) / 16, round(frame.dy * 16) / 16, frame.flip,
+                  round(frame.sx * 2500) / 2500, round(frame.sy * 2500) / 2500, round(frame.rot * 5000) / 5000)
+        present = (f, win_x, frac_x, bottom) if not self._dust and not self._placing else None
+        if present is None or present != self._presented:
+            tile, tx, ty, self._sprite_h = self._sprite_tile(f, frac_x)
+            if self._dust or self._placing:                                   # có bụi/đường gợi ý: ghép theo alpha thường
+                image = PILImage.new("RGBA", (width, height), (0, 0, 0, 0))
+                self._paint_dust(image, win_x)
+                self._blit(image, tile.convert("RGBA"), tx, ty)
+                if self._placing:                                             # đường đứt gợi ý "kéo tôi sang trái/phải"
+                    from PIL import ImageDraw
+
+                    draw = ImageDraw.Draw(image)
+                    for x0 in range(4, width - 8, 7):
+                        draw.line((x0, height - 2, x0 + 4, height - 2), fill=(212, 162, 74, 255), width=2)
+                packed = image.convert("RGBa")
+            else:                                                             # thở/đứng/nhảy: dán thẳng (đã nhân alpha trước), khỏi đổi định dạng
+                packed = PILImage.new("RGBa", (width, height))
+                packed.paste(tile, (tx, ty))
+            surface.update(packed.tobytes("raw", "BGRa"), win_x, bottom - height)
+            self._presented = present
+        if self._bubble is not None and self._bubble.visible:
+            sprite_top = bottom + round(frame.dy) - self._sprite_h
+            self._bubble.place(round(frame.x + frame.dx), sprite_top, self._area)
+
+    def _step_dust(self, dt: float) -> None:
+        """Bụi nhẹ sau gót khi chạy: sinh hạt mới và cho các hạt cũ bay, lớn dần, tàn đi."""
+        brain = self._brain
         assert brain is not None
         u = self._unit
         if brain.state == "run" and not brain.reduced_motion:
@@ -484,12 +651,21 @@ class TaskbarMascot:
             if p.life > 0:
                 alive.append(p)
         self._dust = alive
-        for item in self._dust_items:
-            canvas.delete(item)
-        self._dust_items = []
-        for p in alive:
-            r = p.r * min(1.0, p.life / 0.25)
-            x, y = p.x - win_x, height - p.h
-            self._dust_items.append(canvas.create_oval(x - r, y - r, x + r, y + r, fill=_DUST, outline=""))
-        if self._sprite_item is not None and self._dust_items:
-            canvas.tag_raise(self._sprite_item)
+
+    def _dust_disc(self, radius: int) -> Any:
+        """Hình tròn bụi khử răng cưa (vẽ lớn gấp 4 rồi thu nhỏ), cache theo bán kính."""
+        disc = self._dust_cache.get(radius)
+        if disc is None:
+            from PIL import Image as PILImage
+            from PIL import ImageDraw
+
+            big = PILImage.new("RGBA", (radius * 8, radius * 8), (0, 0, 0, 0))
+            ImageDraw.Draw(big).ellipse((0, 0, radius * 8 - 1, radius * 8 - 1), fill=_DUST_RGBA)
+            disc = self._dust_cache[radius] = big.resize((radius * 2, radius * 2), PILImage.Resampling.LANCZOS)
+        return disc
+
+    def _paint_dust(self, image: Any, win_x: int) -> None:
+        height = self._size[1]
+        for p in self._dust:
+            r = max(1, round(p.r * min(1.0, p.life / 0.25)))
+            self._blit(image, self._dust_disc(r), round(p.x - win_x) - r, round(height - p.h) - r)
