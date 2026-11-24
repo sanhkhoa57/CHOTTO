@@ -5,6 +5,7 @@
     { "src": "icon.png", "use": "@vercel/static" },
     { "src": "chotto_anime_promo_voiced.mp4", "use": "@vercel/static" },
     { "src": "chotto/web/fonts/*", "use": "@vercel/static" },
+    { "src": "chotto/mascot/assets/pose_*.png", "use": "@vercel/static" },
     { "src": "downloads/*", "use": "@vercel/static" }
   ]
 }
