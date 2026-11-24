@@ -131,3 +131,4 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Cài đặt nhân vật: chế độ khởi động `off` hiển thị là "Thủ công" (EN "Manual"); giá trị lưu vẫn là `off`. Hàng nút `.seg` xuống dòng thì giãn trọn hàng; chú thích `.tip` tự dịch trái (`--tip-dx`, `fitTip` trong `app.js`) khi gần mép phải.
 - Tầng 1: `blacklist.db` dựng lại hoàn toàn mỗi lần cập nhật (không cộng dồn, ~439k mục, ~16 MB, `.fp` ~3,5 MB); mục tự thêm vào DB sẽ mất. Từng bàn danh sách riêng `my_blacklist.txt` nhưng người dùng chưa làm.
 - CHƯA làm: triển khai lại Vercel (trang tải + `api/mascot-chat.js` mới) khi đẩy lên.
+- Ảnh gốc nhân vật có lỗ trong suốt li ti giữa mặt/tóc (viền tối lấp vào thành "chấm đen"): `python tools/fix_mascot_holes.py` vá tại chỗ `assets/pose_*.png` (chạy lại sau `tools/extract_mascot.py`, rồi `tools/make_web_mascot.py`). Ảnh web dựng gấp 3 chiều cao hiển thị (`TARGET_SCALE`) cho nét trên màn hình DPI cao.
