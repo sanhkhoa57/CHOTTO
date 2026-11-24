@@ -49,13 +49,15 @@ def supported() -> bool:
 
 _BASE_SCALE: Final[float] = 0.30              # 488 px gốc → ~146 px ở 100% scale (gấp đôi bản đầu: 0.15)
 _STOP_MUL: Final[float] = 2.0                 # tư thế "Khoan đã!" to gấp đôi cỡ thường (= gấp 4 bản đầu)
-_DESIGN_SCALE: Final[float] = 0.31            # tỉ lệ sprite trong khung hoạt ảnh của bản thiết kế
+_STOP_SS: Final[int] = 2                      # tư thế "Khoan đã!" dựng x2 rồi gộp 2x2 (siêu lấy mẫu) cho nét khi lắc
+_TILE_CACHE_MAX: Final[int] = 96              # số khung siêu lấy mẫu nhớ sẵn (lắc 1,6° làm tròn 0,001 rad ≈ 28 góc x vài vị trí lẻ)
+_DESIGN_SCALE: Final[float] = 0.31           # tỉ lệ sprite trong khung hoạt ảnh của bản thiết kế
 _SLOW_MS: Final[int] = 120
 _POLL_MS: Final[int] = 1500
 _OUTLINE_PX: Final[float] = 2.0                # độ dày viền đen quanh nhân vật ở 100% (nhân theo DPI), kiểu nét anime
 _OUTLINE_RGB: Final[tuple[int, int, int]] = (26, 18, 32)   # đen tím ấm (đen tuyền trông gắt trên nền sáng)
 _RIM_RGB: Final[tuple[int, int, int]] = (255, 250, 242)    # đường sáng mảnh ngoài viền: nổi trên taskbar tối, gần như vô hình trên nền sáng
-_RIM_ALPHA: Final[int] = 190
+_RIM_ALPHA: Final[int] = 120                   # nhạt: đậm quá thì trên nền tối thành chuỗi chấm trắng lởm chởm
 
 
 def body_seed(pose: int, size: tuple[int, int]) -> Image.Image:
@@ -81,17 +83,25 @@ def outline_sprite(image: Image.Image, width_px: float, seed: Image.Image | None
     from PIL import Image as PILImage
     from PIL import ImageFilter
 
+    from PIL import ImageChops
+
     radius = max(1, round(width_px))
     rim = max(1, round(width_px * 0.6))
     pad = radius + rim + 2
     size = (image.width + 2 * pad, image.height + 2 * pad)
     r, g, b, a = image.split()
-    sharp = PILImage.merge("RGB", (r, g, b)).filter(ImageFilter.UnsharpMask(radius=1.2, percent=70, threshold=2))
+    sharp = PILImage.merge("RGB", (r, g, b)).filter(ImageFilter.UnsharpMask(radius=1.2, percent=45, threshold=3))
+    solid_seed = (seed if seed is not None else a).point(lambda v: 255 if v >= 96 else 0)
+    # Ảnh gốc có một vành sáng li ti ở mép (sót lại khi tách nền); tô màu xong nó thành chấm trắng/hồng đè lên nét viền.
+    # Gọt mép thân đi ~nửa nét viền để nét tối bên dưới lộ ra (chỉ quanh thân; hiệu ứng tách rời giữ nguyên).
+    erode = max(1, round(width_px * 0.5))
+    near_body = solid_seed.filter(ImageFilter.MaxFilter(2 * erode + 3))
+    a = ImageChops.composite(a.filter(ImageFilter.MinFilter(2 * erode + 1)), a, near_body)
     body = PILImage.merge("RGBA", (*sharp.split(), a))
     core = PILImage.new("L", size, 0)
-    core.paste((seed if seed is not None else a).point(lambda v: 255 if v >= 96 else 0), (pad, pad))
+    core.paste(solid_seed, (pad, pad))
     dark = core.filter(ImageFilter.MaxFilter(2 * radius + 1))
-    light = dark.filter(ImageFilter.MaxFilter(2 * rim + 1)).filter(ImageFilter.GaussianBlur(0.7))
+    light = dark.filter(ImageFilter.MaxFilter(2 * rim + 1)).filter(ImageFilter.GaussianBlur(1.0))
     canvas = PILImage.new("RGBA", size, (0, 0, 0, 0))
     canvas.paste(PILImage.new("RGBA", size, (*_RIM_RGB, 255)), mask=light.point(lambda v: v * _RIM_ALPHA // 255))
     canvas.paste(PILImage.new("RGBA", size, (*_OUTLINE_RGB, 255)), mask=dark.filter(ImageFilter.GaussianBlur(0.6)))
@@ -160,11 +170,11 @@ class TaskbarMascot:
         self._poses: list[Image.Image | None] | None = None       # từng tư thế đã tô (tư thế mới tô xong thì thay ngay, không đợi đủ bốn)
         self._incoming: collections.deque[tuple[tuple[str, ...], int, Image.Image]] = collections.deque()
         self._rendering: tuple[str, ...] | None = None
-        self._cache: dict[int, Any] = {}                    # sprite từng tư thế ở cỡ màn hình (RGBa)
+        self._cache: dict[int, Any] = {}                    # tư thế -> (sprite RGBa, lề viền, hệ số siêu lấy mẫu), xem ``_base``
+        self._tile_cache: dict[tuple[Any, ...], Any] = {}   # khung siêu lấy mẫu đã dựng (tư thế "Khoan đã!"), xoá cùng ``_cache``
         self._dust: list[_Dust] = []
         self._dust_cache: dict[int, Any] = {}
         self._sprite_h = 1
-        self._pad = 0                          # lề trong suốt quanh sprite để chứa viền (chân đứng cao hơn đáy ảnh đúng bằng chừng này)
         self._dust_timer = 0.0
         self._last = time.monotonic()
         self._loop_id: str | None = None
@@ -243,6 +253,7 @@ class TaskbarMascot:
         if surface is not None:
             surface.close()
         self._cache.clear()
+        self._tile_cache.clear()
         self._set_fine(False)
 
     def _poll(self) -> None:
@@ -474,6 +485,7 @@ class TaskbarMascot:
     def _open_chat(self) -> None:
         if self._bubble is not None and self._enabled and not self._placing:
             self._bubble.open_chat()
+            self._schedule(0)                                            # đặt chỗ bong bóng + ô chat ngay ở khung hình tới
 
     def _on_chat_change(self, on: bool) -> None:
         if self._brain is not None:
@@ -517,6 +529,8 @@ class TaskbarMascot:
                 self._poses = [None] * POSES
             self._poses[n] = image
             self._cache.pop(n, None)
+            if n == POSE_INDEX["stop"]:
+                self._tile_cache.clear()
             self._presented = None
         brain = self._brain
         while self._events:
@@ -538,23 +552,30 @@ class TaskbarMascot:
         spent = time.perf_counter() - started
         self._schedule(max(1, round((self._frame_s - spent) * 1000)) if moving else _SLOW_MS)
 
-    def _base(self, pose: int) -> Any:
-        """Sprite của tư thế ở đúng cỡ màn hình, alpha đã nhân trước (RGBa) để nội suy không viền đen. Cache theo tư thế."""
+    def _base(self, pose: int) -> tuple[Any, int, int]:
+        """Sprite của tư thế, alpha đã nhân trước (RGBa) để nội suy không viền đen. Cache theo tư thế.
+
+        Trả về (ảnh, lề viền, hệ số siêu lấy mẫu k): ảnh dựng ở cỡ màn hình x k; ``_sprite_tile`` biến đổi ở cỡ đó rồi thu về.
+        Tư thế "Khoan đã!" có ảnh gốc nhỏ nhất mà hiện to nhất (gần 1:1 với ảnh gốc) và lắc liên tục: vẽ thẳng ở cỡ màn hình
+        thì nội suy bilinear lúc xoay làm nhòe thêm nửa điểm ảnh. Dựng x2 rồi gộp 2x2 thì nét giữ được, chỉ tốn ~4 lần pixel.
+        """
         cached = self._cache.get(pose)
         if cached is not None:
-            return cached
+            return cached  # type: ignore[no-any-return]
         from PIL import Image as PILImage
 
         assert self._poses is not None
         src = self._poses[pose]
         assert src is not None
-        scale = self._scale * (_STOP_MUL if pose == POSE_INDEX["stop"] else 1.0)
+        stop = pose == POSE_INDEX["stop"]
+        k = _STOP_SS if stop else 1
+        scale = self._scale * (_STOP_MUL if stop else 1.0) * k
         size = (max(1, round(src.width * scale)), max(1, round(src.height * scale)))
-        sized = src.resize(size, PILImage.Resampling.LANCZOS)
-        framed, self._pad = outline_sprite(sized, _OUTLINE_PX * self._scale / _BASE_SCALE, body_seed(pose, size))
-        base = framed.convert("RGBa")
-        self._cache[pose] = base
-        return base
+        sized = src.resize(size, PILImage.Resampling.LANCZOS)                 # KHÔNG làm nét thêm: ảnh gốc có chấm nhiễu, làm nét thì thành chấm trắng
+        framed, pad = outline_sprite(sized, _OUTLINE_PX * self._scale / _BASE_SCALE * k, body_seed(pose, size))
+        entry = (framed.convert("RGBa"), pad, k)
+        self._cache[pose] = entry
+        return entry
 
     def _sprite_tile(self, frame: Frame, frac_x: float) -> tuple[Any, int, int, int]:
         """Vẽ sprite với co giãn/xoay/lật/dịch chuyển LẺ TỚI MỘT PHẦN ĐIỂM ẢNH (như GPU trên web), quanh chân giữa của nó.
@@ -563,7 +584,14 @@ class TaskbarMascot:
         """
         from PIL import Image as PILImage
 
-        base = self._base(frame.pose)
+        base, pad, k = self._base(frame.pose)
+        key: tuple[Any, ...] | None = None
+        if k > 1:                                                             # siêu lấy mẫu tốn ~4 lần: nhớ khung (tư thế lắc qua lại nên lặp lại)
+            frame = Frame(frame.pose, 0.0, frame.dx, frame.dy, frame.flip, frame.sx, frame.sy, round(frame.rot * 1000) / 1000)
+            key = (frame, frac_x, self._size)
+            hit = self._tile_cache.get(key)
+            if hit is not None:
+                return hit  # type: ignore[no-any-return]
         bw, bh = base.size
         width, height = self._size
         flip = -1.0 if frame.flip else 1.0
@@ -571,20 +599,26 @@ class TaskbarMascot:
         c, s = math.cos(theta), math.sin(theta)
         p, q = frame.sx * flip, frame.sy
         m00, m01, m10, m11 = c * p, s * q, -s * p, c * q                      # M = R · diag(sx·lật, sy)
-        px, py = width / 2 + frac_x + frame.dx, height + frame.dy             # chân giữa sprite trong khung
+        px, py = (width / 2 + frac_x + frame.dx) * k, (height + frame.dy) * k   # chân giữa sprite trong khung (toạ độ x k)
         xs, ys = [], []
-        foot = bh - self._pad                                                 # chân nằm trên đáy ảnh một khoảng bằng lề viền
-        for cx, cy in ((-bw / 2, -foot), (bw / 2, -foot), (bw / 2, float(self._pad)), (-bw / 2, float(self._pad))):
+        foot = bh - pad                                                       # chân nằm trên đáy ảnh một khoảng bằng lề viền
+        for cx, cy in ((-bw / 2, -foot), (bw / 2, -foot), (bw / 2, float(pad)), (-bw / 2, float(pad))):
             xs.append(px + m00 * cx + m01 * cy)
             ys.append(py + m10 * cx + m11 * cy)
-        ox, oy = math.floor(min(xs)) - 1, math.floor(min(ys)) - 1
-        tw, th = math.ceil(max(xs)) - ox + 2, math.ceil(max(ys)) - oy + 2
+        ox, oy = (math.floor(min(xs)) // k - 1) * k, (math.floor(min(ys)) // k - 1) * k   # góc tile thẳng hàng lưới k để gộp đúng điểm ảnh
+        tw, th = (-(-math.ceil(max(xs)) // k) + 1) * k - ox, (-(-math.ceil(max(ys)) // k) + 1) * k - oy
         det = m00 * m11 - m01 * m10
         i00, i01, i10, i11 = m11 / det, -m01 / det, -m10 / det, m00 / det     # nghịch đảo của M
         rx, ry = ox - px, oy - py
         data = (i00, i01, bw / 2 + i00 * rx + i01 * ry, i10, i11, foot + i10 * rx + i11 * ry)
         tile = base.transform((tw, th), PILImage.Transform.AFFINE, data, resample=PILImage.Resampling.BILINEAR)   # như GPU trên web
-        return tile, ox, oy, round(max(ys) - min(ys))
+        result = (tile, ox, oy, round(max(ys) - min(ys)))
+        if key is not None:
+            result = (tile.reduce(k), ox // k, oy // k, round((max(ys) - min(ys)) / k))   # gộp kxk (alpha đã nhân trước nên không viền đen)
+            if len(self._tile_cache) >= _TILE_CACHE_MAX:
+                self._tile_cache.pop(next(iter(self._tile_cache)))
+            self._tile_cache[key] = result
+        return result
 
     @staticmethod
     def _blit(dst: Any, src: Any, x: int, y: int) -> None:

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Final, Literal
 from ..config import data_dir
 
 if TYPE_CHECKING:
-    from PIL import Image
+    from PIL import Image, ImageFont
 
 __all__ = ["DAILY_LIMIT", "LINES", "Kind", "ask", "check_input", "layout", "pick", "quota_left", "quota_use", "render_bubble"]
 
@@ -40,8 +40,8 @@ LINES: Final[dict[str, str | tuple[str, ...]]] = {
     "closed": "Ổn áp! Lần sau có link lạ cứ bấm đúp vào tui, tui soi giùm.",
     "idle": ("Đang soi code xem uy tín không đúng hông? Sạch 100%, không giấu malware đâu mà lo...",
              'Không biết hôm nay có ai suýt chuyển khoản nhầm cho "shipper" nữa không ta...'),
-    "open": "Dán link nghi ngờ vào đây, tui soi cho!",
-    "loading": "Đang soi...",
+    "open": "Bạn hỏi tui gì cũng được nha!",
+    "loading": "Đang suy nghĩ...",
     "refuse": ("HỎI LẠC ĐỀ RỒI! Tui là vệ sĩ chống scam của Chotto, không phải trợ lý làm bài tập hay chém gió đâu nha!",
                "Khoan! Câu này không liên quan tới Chotto hay link lừa đảo. Dán thử một đường link nghi ngờ vào đây tui soi cho!",
                "Từ chối tiếp nhận! Tui chỉ rành bóc phốt link bẩn với giải đáp về app Chotto thôi."),
@@ -61,10 +61,19 @@ _DOMAIN = re.compile(r"(https?://|www\.)\S+|[a-z0-9-]+\.(vn|com|top|xyz|net|org|
 _KEYWORDS: Final[tuple[str, ...]] = (
     "chotto", "scam", "lừa đảo", "giả mạo", "phishing", "link", "url", "tên miền", "domain", "mã độc", "virus", "trojan", "hack",
     "mất nick", "chiếm quyền", "zalo", "messenger", "facebook", "telegram", "ngân hàng", "vietcombank", "mbbank", "techcombank",
-    "momo", "shopee", "shipper", "sinh trắc", "cài đặt", "tải về", "download", "windows", "macos", "mac", "arm", "x86", "extension",
-    "tiện ích", "trình duyệt", "miễn phí", "free", "nhẹ", "ram", "bảo mật", "an toàn", "chặn")
-_BLACKLIST: Final[tuple[str, ...]] = ("viết code", "giải bài", "dịch sang", "tóm tắt", "viết văn", "làm thơ", "kể chuyện",
-                                      "sql", "python", "javascript", "bài tập")
+    "momo", "shopee", "shipper", "sinh trắc", "cài đặt", "tải về", "download", "windows", "macos", "mac", "x86", "extension",
+    "tiện ích", "trình duyệt", "miễn phí", "bảo mật", "chặn", "otp", "mã xác thực", "chuyển khoản", "chuyển tiền", "trúng thưởng",
+    "rút gọn", "đáng ngờ")
+# Chặn trước khi gọi AI: việc ngoài lề, lách luật (đổi vai, bỏ qua quy tắc, đòi xem lời nhắc), nhờ làm điều xấu.
+_BLACKLIST: Final[tuple[str, ...]] = (
+    "viết code", "giải bài", "dịch sang", "tóm tắt", "viết văn", "làm thơ", "kể chuyện", "sql", "python", "javascript", "bài tập",
+    "lập trình", "code cho", "giải toán", "phương trình", "dịch giúp", "translate", "bài văn", "viết bài", "viết email", "viết thư",
+    "bài thơ", "truyện", "bài hát", "nấu", "html", "css", "java", "c++",
+    "bỏ qua", "phớt lờ", "quên hết", "quên đi", "hướng dẫn trước", "chỉ dẫn trước", "lệnh hệ thống", "quy tắc của bạn", "prompt",
+    "ignore", "instruction", "jailbreak", "developer mode", "đóng vai", "nhập vai", "roleplay", "role play", "giả vờ", "giả sử bạn",
+    "từ giờ bạn", "từ bây giờ bạn", "không còn là", "act as", "pretend", "base64", "rot13",
+    "cách hack", "hack hộ", "hack giúp", "tạo link giả", "tạo trang giả", "làm web giả", "viết mã độc", "tạo mã độc", "cách lừa",
+    "giúp tôi lừa", "đánh cắp")
 
 
 def _has_keyword(text: str, word: str) -> bool:
@@ -74,12 +83,12 @@ def _has_keyword(text: str, word: str) -> bool:
 
 
 def check_input(raw: str) -> bool:
-    """Câu hỏi có đủ điều kiện gửi lên máy chủ không (độ dài, chủ đề link/Chotto, không xin việc ngoài lề)."""
+    """Câu hỏi có đủ điều kiện gửi lên máy chủ không (độ dài, chủ đề link/Chotto, không lạc đề hay lách luật)."""
     text = raw.strip()
     if not MIN_LEN <= len(text) <= MAX_LEN:
         return False
     low = text.lower()
-    if any(b in low for b in _BLACKLIST):
+    if any(_has_keyword(low, b) for b in _BLACKLIST):
         return False
     return _DOMAIN.search(text) is not None or any(_has_keyword(low, k) for k in _KEYWORDS)
 
@@ -134,7 +143,13 @@ _TAIL: Final[int] = 26                         # chiều cao đuôi / bong bóng
 _SS: Final[int] = 3                            # siêu mẫu để viền mịn
 _INK: Final[tuple[int, int, int, int]] = (21, 16, 26, 255)
 _WHITE: Final[tuple[int, int, int, int]] = (255, 255, 255, 255)
-_LINE: Final[float] = 3.0
+_LINE: Final[float] = 4.0                      # nét viền dày kiểu truyện tranh (web: stroke-width 4, giữ khớp)
+_RIM: Final[float] = 1.5                       # dày đường sáng ngoài viền
+_RIM_RGB: Final[tuple[int, int, int]] = (255, 250, 242)
+_RIM_ALPHA: Final[int] = 235
+_TONE: Final[tuple[int, int, int]] = (138, 124, 150)   # chấm "screentone" đổ bóng trong ruột, dày dần về phía đáy-phải
+_TONE_BAND: Final[tuple[float, float]] = (11.0, 5.0)  # bề dày hai dải screentone (chấm nhỏ ngoài, chấm to sát viền)
+_FONT_FILES: Final[tuple[str, ...]] = ("segoeuib.ttf", "SegoeUI-Bold.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf")
 
 
 def layout(kind: str, text_w: int, text_h: int, u: float) -> tuple[int, int, int, int]:
@@ -185,7 +200,8 @@ def _shape(kind: str, w: float, h: float, u: float) -> tuple[list[tuple[list[tup
                  y0 + (6 if i % 2 else 15) * u * math.sin(i / 10 * math.tau - math.pi / 2)) for i in range(10)]
         polys.append((star, True))
     else:
-        r, tr, tl = 22 * u, x1 - 34 * u, x1 - 66 * u
+        r, tr, tl = 22 * u, x1 - 34 * u, x1 - 72 * u
+        tip = (x1 - 20 * u, y1 + 24 * u)
         pts: list[tuple[float, float]] = []
 
         def arc(ax: float, ay: float, a0: float, a1: float) -> None:
@@ -193,9 +209,17 @@ def _shape(kind: str, w: float, h: float, u: float) -> tuple[list[tuple[list[tup
                 t = math.radians(a0 + (a1 - a0) * k / 8)
                 pts.append((ax + r * math.cos(t), ay + r * math.sin(t)))
 
+        def curve(p0: tuple[float, float], c: tuple[float, float], p1: tuple[float, float]) -> None:
+            for k in range(1, 13):                                                # đường Bézier bậc hai (đuôi cong như trên web: lệnh Q)
+                t = k / 12
+                pts.append(((1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * c[0] + t * t * p1[0],
+                            (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * c[1] + t * t * p1[1]))
+
         arc(x1 - r, y0 + r, -90, 0)
         arc(x1 - r, y1 - r, 0, 90)
-        pts += [(tr, y1), (x1 - 22 * u, y1 + 22 * u), (tl, y1)]
+        pts.append((tr, y1))
+        curve((tr, y1), (x1 - 31 * u, y1 + 13 * u), tip)                          # đuôi nhọn, hai cạnh hơi lõm như đuôi thoại manga
+        curve(tip, (x1 - 42 * u, y1 + 10 * u), (tl, y1))
         arc(x0 + r, y1 - r, 90, 180)
         arc(x0 + r, y0 + r, 180, 270)
         polys.append((pts, True))
@@ -227,23 +251,74 @@ def render_bubble(kind: str, width: int, height: int, u: float = 1.0, dot: tuple
     def solid(color: tuple[int, ...]) -> Image.Image:
         return Image.new("RGBA", (big_w, big_h), color)
 
+    def dot_grid(step: float, rad: float) -> Image.Image:
+        """Lưới chấm bi (hàng le) phủ cả ảnh."""
+        grid = Image.new("L", (big_w, big_h), 0)
+        gd = ImageDraw.Draw(grid)
+        for gy in range(-2, int(big_h / step) + 3):
+            for gx in range(-2, int(big_w / step) + 3):
+                px, py = (gx + (0.5 if gy % 2 else 0)) * step, gy * step
+                gd.ellipse((px - rad, py - rad, px + rad, py + rad), fill=255)
+        return grid
+
     # bóng: hình lệch (7,7) giao với lưới chấm bi (hàng le)
     off = _SHADOW * uu
-    dots = Image.new("L", (big_w, big_h), 0)
-    dd = ImageDraw.Draw(dots)
-    step, rad = 5 * uu, 1.7 * uu
-    for gy in range(-2, int(big_h / step) + 3):
-        for gx in range(-2, int(big_w / step) + 3):
-            px, py = (gx + (0.5 if gy % 2 else 0)) * step, gy * step
-            dd.ellipse((px - rad, py - rad, px + rad, py + rad), fill=255)
     out = Image.new("RGBA", (big_w, big_h), (0, 0, 0, 0))
-    out.paste(solid((*dot, 255)), mask=ImageChops.multiply(mask(off, off), dots))
+    out.paste(solid((*dot, 255)), mask=ImageChops.multiply(mask(off, off), dot_grid(5 * uu, 1.8 * uu)))
+    rim = round(_RIM * uu)
+    out.paste(solid((*_RIM_RGB, _RIM_ALPHA)), mask=mask(grow=lw / 2 + rim))    # đường sáng mảnh ngoài viền: bong bóng nổi trên nền tối
     out.paste(solid(_INK), mask=mask(grow=lw / 2))                             # viền đen: hình nở nửa nét
-    out.paste(solid(_WHITE), mask=mask(grow=-lw / 2))                          # ruột trắng
+    inner = mask(grow=-lw / 2)
+    out.paste(solid(_WHITE), mask=inner)                                       # ruột trắng
+    for depth, rad in zip(_TONE_BAND, (0.9, 1.6)):                             # screentone: dải mép đáy-phải, chấm to dần về phía viền
+        d = round(depth * uu)
+        band = ImageChops.subtract(inner, ImageChops.offset(inner, -d, -d))
+        out.paste(solid((*_TONE, 255)), mask=ImageChops.multiply(band, dot_grid(4 * uu, rad * uu)))
     draw = ImageDraw.Draw(out)
-    for pts, outlined in polys:                                                # đa giác: nét viền đè lại lên ruột
+    for pts, outlined in polys:                                                # đa giác: nét viền đè lại lên ruột (và lên screentone)
         if outlined:
             draw.line(pts + [pts[0]], fill=_INK, width=lw, joint="curve")
-    small = out.resize((width, height), Image.Resampling.LANCZOS)
-    small.putalpha(small.getchannel("A").point(lambda v: 255 if v >= 110 else 0))
-    return small
+    return out.resize((width, height), Image.Resampling.LANCZOS)               # giữ alpha mềm: cửa sổ layered vẽ viền khử răng cưa
+
+
+def load_font(px: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Font chữ đậm của bong bóng (Segoe UI Bold; thiếu thì các font đậm khác; cuối cùng là font mặc định của Pillow)."""
+    from PIL import ImageFont
+
+    for name in _FONT_FILES:
+        try:
+            return ImageFont.truetype(name, px)
+        except OSError:
+            continue
+    return ImageFont.load_default(px)
+
+
+def wrap_text(font: ImageFont.FreeTypeFont | ImageFont.ImageFont, text: str, limit: int) -> list[str]:
+    """Ngắt ``text`` thành các dòng rộng không quá ``limit`` điểm ảnh (từ dài hơn một dòng thì để tràn, không cắt)."""
+    lines: list[str] = []
+    current = ""
+    for word in text.split():
+        trial = f"{current} {word}".strip()
+        if current and font.getlength(trial) > limit:
+            lines.append(current)
+            current = word
+        else:
+            current = trial
+    if current:
+        lines.append(current)
+    return lines or [""]
+
+
+def paint_text(base: Image.Image, font: ImageFont.FreeTypeFont | ImageFont.ImageFont, lines: list[str], x: int, y: int,
+               line_h: int, shown: int) -> Image.Image:
+    """Bản sao của ``base`` với ``shown`` ký tự đầu của ``lines`` đã viết (hiệu ứng gõ chữ), chữ khử răng cưa."""
+    from PIL import ImageDraw
+
+    out = base.copy()
+    draw = ImageDraw.Draw(out)
+    for i, line in enumerate(lines):
+        if shown <= 0:
+            break
+        draw.text((x, y + i * line_h), line[:shown], font=font, fill=_INK)
+        shown -= len(line)
+    return out

@@ -159,6 +159,8 @@ body { background: var(--bg); font-family: var(--sans); }
 .fps output { min-width: 4.4em; text-align: right; font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 .seg { display: flex; border-radius: 999px; padding: 4px; flex: none; background: var(--surface2); box-shadow: none; }
 .seg button { padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
+.opt:has(.seg) .seg { flex: 1 1 100%; min-width: 0; }   /* xuống hàng thì chiếm trọn hàng: chữ dài (VI) không bị cắt */
+.opt:has(.seg) .seg button { flex: 1 1 auto; padding: 8px 8px; white-space: nowrap; }
 .seg button:hover { color: var(--ink); }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 2px 8px rgba(58, 37, 71, .16); }
 .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
@@ -203,7 +205,7 @@ body { background: var(--bg); font-family: var(--sans); }
 .tip { position: relative; display: inline-grid; place-items: center; vertical-align: middle; width: 15px; height: 15px; margin-left: 7px; border-radius: 50%;
   font: italic 700 10px/1 Georgia, serif; color: var(--muted); box-shadow: inset 0 0 0 1.25px currentColor; cursor: help; user-select: none; transition: color .15s, background .15s; }
 .tip:hover, .tip:focus-visible { color: #fff; background: var(--ink); box-shadow: none; outline: none; }
-.tip::after { content: attr(data-tip); position: absolute; z-index: 30; left: -8px; top: calc(100% + 9px); width: max-content; max-width: 210px; padding: 9px 12px; border-radius: 14px;
+.tip::after { content: attr(data-tip); position: absolute; z-index: 30; left: calc(-8px + var(--tip-dx, 0px)); top: calc(100% + 9px); width: max-content; max-width: 210px; padding: 9px 12px; border-radius: 14px;
   background: var(--ink); color: #fff; font: 500 12.5px/1.4 var(--sans); font-style: normal; text-align: left; white-space: normal; letter-spacing: 0;
   box-shadow: 0 14px 30px -10px rgba(58, 37, 71, .5); opacity: 0; transform: translateY(-3px) scale(.97); transform-origin: 14px 0; pointer-events: none;
   transition: opacity .12s ease-out, transform .12s ease-out; }
@@ -344,7 +346,7 @@ body { background: var(--bg); font-family: var(--sans); }
         <div class="fold" id="buddyFold"><div class="fold-in">
         <div class="opt"><div><strong data-i18n="set.buddyStart">When to show it</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyStart">i</span></div>
           <div class="seg" role="group" id="buddyStartup" data-i18n-attr="aria-label:set.buddyStart" aria-label="When to show it">
-            <button data-v="login" aria-pressed="false" data-i18n="start.login">At sign-in</button><button data-v="zalo" aria-pressed="false" data-i18n="start.zalo">With Zalo</button><button data-v="off" aria-pressed="false" data-i18n="start.off">Off</button>
+            <button data-v="login" aria-pressed="false" data-i18n="start.login">At sign-in</button><button data-v="zalo" aria-pressed="false" data-i18n="start.zalo">With Zalo</button><button data-v="off" aria-pressed="false" data-i18n="start.off">Manual</button>
           </div></div>
         <div class="opt opt--stack"><div><strong data-i18n="set.buddyFps">Smoothness</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyFps">i</span></div>
           <div class="fps"><input type="range" id="buddyFps" min="10" max="240" step="1" value="60" data-i18n-attr="aria-label:set.buddyFps" aria-label="Smoothness"><output id="buddyFpsOut" for="buddyFps">60 fps</output></div></div>

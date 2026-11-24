@@ -195,10 +195,10 @@ details[open] summary::after{transform:rotate(45deg)}
 .mx{--mx-dot:rgba(244,239,231,.4);position:fixed;right:16px;bottom:16px;z-index:60;width:min(360px,calc(100vw - 32px));display:flex;flex-direction:column;align-items:flex-end;gap:6px;pointer-events:none}
 :root[data-theme="light"] .mx{--mx-dot:rgba(43,25,56,.55)}
 .mx>*{pointer-events:auto}
-.mx-bub{position:relative;box-sizing:border-box;min-width:min(280px,100%);max-width:100%;padding:22px 26px 40px;color:#15101a;font:700 16px/1.45 "Onest","Segoe UI",system-ui,sans-serif;transform-origin:88% 100%}
+.mx-bub{position:relative;box-sizing:border-box;min-width:min(280px,100%);max-width:100%;padding:22px 26px 42px;color:#15101a;font:700 16px/1.45 "Onest","Segoe UI",system-ui,sans-serif;transform-origin:88% 100%}
 .mx-bub[hidden]{display:none}
-.mx-bub[data-k="thought"]{padding:30px 36px 48px}
-.mx-bub[data-k="alert"]{padding:38px 46px 52px;font-weight:800}
+.mx-bub[data-k="thought"]{padding:30px 36px 50px}
+.mx-bub[data-k="alert"]{padding:38px 46px 54px;font-weight:800}
 .mx-bub svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}
 .mx-bub .mx-t{position:relative;display:block;overflow-wrap:anywhere}
 .mx-bub .mx-t i{font-style:normal;visibility:hidden}
@@ -951,9 +951,17 @@ details[open] summary::after{transform:rotate(45deg)}
   var DOMAIN_RE = /(https?:\/\/|www\.)\S+|[a-z0-9-]+\.(vn|com|top|xyz|net|org|info|click|site|online|tk|me|io|app)(?![a-z0-9])/i;
   var KEYWORDS = ['chotto', 'scam', 'lừa đảo', 'giả mạo', 'phishing', 'link', 'url', 'tên miền', 'domain', 'mã độc', 'virus', 'trojan', 'hack',
     'mất nick', 'chiếm quyền', 'zalo', 'messenger', 'facebook', 'telegram', 'ngân hàng', 'vietcombank', 'mbbank', 'techcombank', 'momo', 'shopee',
-    'shipper', 'sinh trắc', 'cài đặt', 'tải về', 'download', 'windows', 'macos', 'mac', 'arm', 'x86', 'extension', 'tiện ích', 'trình duyệt',
-    'miễn phí', 'free', 'nhẹ', 'ram', 'bảo mật', 'an toàn', 'chặn'];
-  var BLACKLIST = ['viết code', 'giải bài', 'dịch sang', 'tóm tắt', 'viết văn', 'làm thơ', 'kể chuyện', 'sql', 'python', 'javascript', 'bài tập'];
+    'shipper', 'sinh trắc', 'cài đặt', 'tải về', 'download', 'windows', 'macos', 'mac', 'x86', 'extension', 'tiện ích', 'trình duyệt',
+    'miễn phí', 'bảo mật', 'chặn', 'otp', 'mã xác thực', 'chuyển khoản', 'chuyển tiền', 'trúng thưởng', 'rút gọn', 'đáng ngờ'];
+  // chặn trước khi gọi AI: việc ngoài lề, lách luật (đổi vai, bỏ qua quy tắc, đòi xem lời nhắc), nhờ làm điều xấu
+  var BLACKLIST = ['viết code', 'giải bài', 'dịch sang', 'tóm tắt', 'viết văn', 'làm thơ', 'kể chuyện', 'sql', 'python', 'javascript', 'bài tập',
+    'lập trình', 'code cho', 'giải toán', 'phương trình', 'dịch giúp', 'translate', 'bài văn', 'viết bài', 'viết email', 'viết thư',
+    'bài thơ', 'truyện', 'bài hát', 'nấu', 'html', 'css', 'java', 'c++',
+    'bỏ qua', 'phớt lờ', 'quên hết', 'quên đi', 'hướng dẫn trước', 'chỉ dẫn trước', 'lệnh hệ thống', 'quy tắc của bạn', 'prompt',
+    'ignore', 'instruction', 'jailbreak', 'developer mode', 'đóng vai', 'nhập vai', 'roleplay', 'role play', 'giả vờ', 'giả sử bạn',
+    'từ giờ bạn', 'từ bây giờ bạn', 'không còn là', 'act as', 'pretend', 'base64', 'rot13',
+    'cách hack', 'hack hộ', 'hack giúp', 'tạo link giả', 'tạo trang giả', 'làm web giả', 'viết mã độc', 'tạo mã độc', 'cách lừa',
+    'giúp tôi lừa', 'đánh cắp'];
   function hasKeyword(text, w) {
     if (/^[a-z0-9 ]+$/.test(w)) return new RegExp('(^|[^a-z0-9])' + w + '([^a-z0-9]|$)').test(text);
     return text.indexOf(w) >= 0;
@@ -962,7 +970,7 @@ details[open] summary::after{transform:rotate(45deg)}
     var s = String(raw).trim();
     if (s.length < MIN_LEN || s.length > MAX_LEN) return false;
     var low = s.toLowerCase();
-    if (BLACKLIST.some(function (b) { return low.indexOf(b) >= 0; })) return false;
+    if (BLACKLIST.some(function (b) { return hasKeyword(low, b); })) return false;
     return DOMAIN_RE.test(s) || KEYWORDS.some(function (k) { return hasKeyword(low, k); });
   }
 
@@ -996,7 +1004,7 @@ details[open] summary::after{transform:rotate(45deg)}
     return pts;
   }
   function shape(kind, w, h) {
-    var x0 = 4, y0 = 4, x1 = w - 12, y1 = h - 26, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, a = (x1 - x0) / 2, b = (y1 - y0) / 2, d = '', extra = '', i;
+    var x0 = 4, y0 = 4, x1 = w - 12, y1 = h - 28, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, a = (x1 - x0) / 2, b = (y1 - y0) / 2, d = '', extra = '', i;
     if (kind === 'thought') {
       var n = Math.max(10, Math.round((w + h) / 26)), P = superPts(cx, cy, a - 8, b - 8, n);
       d = 'M' + P[0][0].toFixed(1) + ' ' + P[0][1].toFixed(1);
@@ -1017,9 +1025,10 @@ details[open] summary::after{transform:rotate(45deg)}
       for (i = 0; i < 10; i++) { var rr = i % 2 ? 6 : 15, an = (i / 10) * Math.PI * 2 - Math.PI / 2; st.push((sx + rr * Math.cos(an)).toFixed(1) + ' ' + (sy + rr * Math.sin(an)).toFixed(1)); }
       extra = 'M' + st.join('L') + 'Z';
     } else {
-      var r0 = 22, tr = x1 - 34, tl = x1 - 66;
+      var r0 = 22, tr = x1 - 34, tl = x1 - 72;       // đuôi nhọn, hai cạnh hơi lõm (khớp chotto/mascot/speech.py)
       d = 'M' + (x0 + r0) + ' ' + y0 + 'H' + (x1 - r0) + 'Q' + x1 + ' ' + y0 + ' ' + x1 + ' ' + (y0 + r0) + 'V' + (y1 - r0) + 'Q' + x1 + ' ' + y1 + ' ' + (x1 - r0) + ' ' + y1 +
-        'H' + tr + 'L' + (x1 - 22) + ' ' + (y1 + 22) + 'L' + tl + ' ' + y1 + 'H' + (x0 + r0) + 'Q' + x0 + ' ' + y1 + ' ' + x0 + ' ' + (y1 - r0) + 'V' + (y0 + r0) + 'Q' + x0 + ' ' + y0 + ' ' + (x0 + r0) + ' ' + y0 + 'Z';
+        'H' + tr + 'Q' + (x1 - 31) + ' ' + (y1 + 13) + ' ' + (x1 - 20) + ' ' + (y1 + 24) + 'Q' + (x1 - 42) + ' ' + (y1 + 10) + ' ' + tl + ' ' + y1 +
+        'H' + (x0 + r0) + 'Q' + x0 + ' ' + y1 + ' ' + x0 + ' ' + (y1 - r0) + 'V' + (y0 + r0) + 'Q' + x0 + ' ' + y0 + ' ' + (x0 + r0) + ' ' + y0 + 'Z';
     }
     return { d: d, extra: extra };
   }
@@ -1029,9 +1038,22 @@ details[open] summary::after{transform:rotate(45deg)}
     var sh = shape(bub.getAttribute('data-k'), w, h);
     var s = document.createElementNS(NS, 'svg');
     s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); s.setAttribute('aria-hidden', 'true');
-    s.innerHTML = '<defs><pattern id="mxDots" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2.5" cy="2.5" r="1.3" style="fill:var(--mx-dot)"/></pattern></defs>' +
-      '<g transform="translate(7 7)" fill="url(#mxDots)"><path d="' + sh.d + '"/>' + (sh.extra ? '<path d="' + sh.extra + '"/>' : '') + '</g>' +
-      '<g fill="#fff" stroke="#15101a" stroke-width="3" stroke-linejoin="round"><path d="' + sh.d + '"/>' + (sh.extra ? '<path d="' + sh.extra + '"/>' : '') + '</g>';
+    // Kiểu truyện tranh (khớp chotto/mascot/speech.py): bóng chấm bi lệch (7,7), đường sáng mảnh ngoài viền, ruột trắng,
+    // screentone ở dải mép đáy-phải (hai lớp: chấm nhỏ ngoài, chấm to sát viền), rồi nét viền đen dày 4.
+    var paths = '<path d="' + sh.d + '"/>' + (sh.extra ? '<path d="' + sh.extra + '"/>' : ''), W = w + 40, H = h + 40;
+    function band(id, depth) {                                         // dải = thân trừ chính nó dời (-depth,-depth)
+      return '<mask id="' + id + '" maskUnits="userSpaceOnUse" x="-20" y="-20" width="' + W + '" height="' + H + '"><rect x="-20" y="-20" width="' + W + '" height="' + H + '" fill="#fff"/>' +
+        '<g fill="#000" transform="translate(' + (-depth) + ' ' + (-depth) + ')">' + paths + '</g></mask>';
+    }
+    function tone(id, r) { return '<pattern id="' + id + '" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2" cy="2" r="' + r + '" fill="#8a7c96"/></pattern>'; }
+    s.innerHTML = '<defs><pattern id="mxDots" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><circle cx="2.5" cy="2.5" r="1.7" style="fill:var(--mx-dot)"/></pattern>' +
+      tone('mxT1', 0.9) + tone('mxT2', 1.6) + band('mxB1', 11) + band('mxB2', 5) + '<clipPath id="mxClip">' + paths + '</clipPath></defs>' +
+      '<g transform="translate(7 7)" fill="url(#mxDots)">' + paths + '</g>' +
+      '<g fill="none" stroke="#fffaf2" stroke-opacity=".92" stroke-width="7" stroke-linejoin="round">' + paths + '</g>' +
+      '<g fill="#fff">' + paths + '</g>' +
+      '<g clip-path="url(#mxClip)"><rect x="-20" y="-20" width="' + W + '" height="' + H + '" fill="url(#mxT1)" mask="url(#mxB1)"/>' +
+      '<rect x="-20" y="-20" width="' + W + '" height="' + H + '" fill="url(#mxT2)" mask="url(#mxB2)"/></g>' +
+      '<g fill="none" stroke="#15101a" stroke-width="4" stroke-linejoin="round">' + paths + '</g>';
     bub.insertBefore(s, bub.firstChild);
   }
 

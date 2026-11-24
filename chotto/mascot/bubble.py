@@ -1,7 +1,9 @@
-"""Bong bóng thoại + ô chat của nhân vật taskbar (cửa sổ Tk riêng, bám theo nhân vật; chạy trên luồng Tk của agent).
+"""Bong bóng thoại + ô chat của nhân vật taskbar (cửa sổ Tk riêng, bám theo nhân vật; chạy trên luồng Tk của nhân vật).
 
-Cửa sổ trong suốt theo màu khóa như cửa sổ nhân vật. Bình thường không nhận focus (WS_EX_NOACTIVATE); chỉ khi mở ô chat mới
-nhận focus để gõ được, đóng ô chat thì trả lại. Gọi API chạy trên luồng nền, kết quả về Tk qua hàng đợi (``after``).
+Bong bóng (hình + chữ) do Pillow vẽ rồi đưa lên cửa sổ layered alpha từng điểm ảnh (``LayeredSurface``, như nhân vật): viền
+và chữ khử răng cưa, không dùng màu khóa. Ô chat là cửa sổ Tk thường riêng, nằm ngay dưới bong bóng, chỉ hiện khi đang chat.
+Bình thường không cửa sổ nào nhận focus (WS_EX_NOACTIVATE); chỉ khi mở ô chat mới nhận focus để gõ được, đóng thì trả lại.
+Gọi API chạy trên luồng nền, kết quả về Tk qua hàng đợi (``after``).
 """
 from __future__ import annotations
 
@@ -20,11 +22,11 @@ if TYPE_CHECKING:
 __all__ = ["SpeechBubble"]
 
 _LOG = logging.getLogger("chotto")
-_KEY: Final[str] = "#ff00fe"
 _INK: Final[str] = "#15101a"
 _TYPE_MS: Final[int] = 18
 _HIDE_MS: Final[int] = 9000
 _MAX_TEXT_W: Final[int] = 300                  # bề rộng chữ tối đa (điểm ảnh ở 100%)
+_TIP_X: Final[int] = 41                        # mũi đuôi cách mép PHẢI ảnh bong bóng chừng này (khớp ``speech._shape``: m + bóng + 20)
 
 
 class SpeechBubble:
@@ -34,16 +36,26 @@ class SpeechBubble:
         self._root = root
         self._u = unit_dpi
         self._on_chat_change = on_chat_change
-        self._win: Any = None
-        self._canvas: Any = None
+        self._win: Any = None                       # cửa sổ layered chứa bong bóng
         self._hwnd = 0
+        self._surface: w32.LayeredSurface | None = None
+        self._barwin: Any = None                    # cửa sổ ô chat (dưới bong bóng)
+        self._bar_hwnd = 0
         self._bar: Any = None
         self._entry: Any = None
         self._send: Any = None
         self._var: Any = None
-        self._font: Any = None
-        self._photo: Any = None
-        self._size = (1, 1)
+        self._font: Any = None                      # font Pillow vẽ chữ trong bong bóng
+        self._base: Any = None                      # ảnh bong bóng chưa có chữ (RGBA)
+        self._lines: list[str] = []
+        self._text_xy = (0, 0)
+        self._line_h = 1
+        self._frame = b""                           # khung hình đang hiện (BGRa), vẽ lại ở vị trí mới khi nhân vật chạy
+        self._xy: tuple[int, int] | None = None     # góc trái trên bong bóng trên màn hình; None = chưa được đặt chỗ, chưa vẽ
+        self._px = 16
+        self._anchor: tuple[int, int, tuple[int, int, int, int]] | None = None   # (tip_x, sprite_top, vùng) của lần ``place`` gần nhất
+        self._bar_shown = False
+        self._size = (1, 1)                         # cỡ vùng gồm bong bóng (căn phải) + ô chat bên dưới
         self._img_w = 1
         self._img_h = 1
         self._visible = False
@@ -68,22 +80,28 @@ class SpeechBubble:
         if self._win is not None:
             return
         import tkinter as tk
-        from tkinter import font as tkfont
 
         u = self._u
         win = tk.Toplevel(self._root)
         win.withdraw()
         win.overrideredirect(True)
-        win.configure(bg=_KEY)
-        win.attributes("-transparentcolor", _KEY)
         win.attributes("-topmost", True)
-        canvas = tk.Canvas(win, width=10, height=10, bg=_KEY, highlightthickness=0, bd=0)
-        canvas.pack()
+        tk.Canvas(win, width=1, height=1, highlightthickness=0, bd=0).pack()                   # chỉ để có cửa sổ; hình đến từ LayeredSurface
         win.update_idletasks()
         self._hwnd = w32.toplevel_hwnd(int(win.winfo_id()))
         w32.make_tool_window(self._hwnd)
-        self._font = tkfont.Font(root=self._root, family="Segoe UI", size=-round(15 * u), weight="bold")
-        bar = tk.Frame(canvas, bg="#ffffff", highlightthickness=round(2 * u), highlightbackground=_INK, bd=0)
+        w32.enable_layered(self._hwnd)
+        barwin = tk.Toplevel(self._root)
+        barwin.withdraw()
+        barwin.overrideredirect(True)
+        barwin.attributes("-topmost", True)
+        barwin.update_idletasks()
+        self._bar_hwnd = w32.toplevel_hwnd(int(barwin.winfo_id()))
+        w32.make_tool_window(self._bar_hwnd)
+        self._px = round(16 * u)
+        self._font = speech.load_font(self._px)
+        bar = tk.Frame(barwin, bg="#ffffff", highlightthickness=round(2 * u), highlightbackground=_INK, bd=0)
+        bar.pack(fill="both", expand=True)
         self._var = tk.StringVar(master=win)                          # có master: luồng nhân vật dùng Tk riêng, không được rơi về Tk mặc định
         self._var.trace_add("write", lambda *_: self._clip())
         entry = tk.Entry(bar, textvariable=self._var, font=("Segoe UI", -round(14 * u)), relief="flat", bg="#f3eee8", fg=_INK,
@@ -97,68 +115,47 @@ class SpeechBubble:
         close.pack(side="left", padx=round(6 * u), pady=round(6 * u))
         entry.bind("<Return>", lambda _e: self._submit())
         entry.bind("<Escape>", lambda _e: self.close_chat())
-        self._win, self._canvas, self._bar, self._entry, self._send = win, canvas, bar, entry, send
+        self._win, self._barwin, self._bar, self._entry, self._send = win, barwin, bar, entry, send
 
     def _clip(self) -> None:
         value = self._var.get()
         if len(value) > speech.MAX_LEN:
             self._var.set(value[:speech.MAX_LEN])
 
-    def _wrap(self, text: str) -> list[str]:
-        limit = round(_MAX_TEXT_W * self._u)
-        lines: list[str] = []
-        current = ""
-        for word in text.split():
-            trial = f"{current} {word}".strip()
-            if current and self._font.measure(trial) > limit:
-                lines.append(current)
-                current = word
-            else:
-                current = trial
-        if current:
-            lines.append(current)
-        return lines or [""]
-
     # ---- nói ----
     def say(self, kind: speech.Kind, text: str, keep: bool = False) -> None:
         """Hiện ``text`` trong bong bóng kiểu ``kind`` (gõ từng chữ). ``keep``: không tự ẩn (đang chat)."""
-        from PIL import ImageTk
-
         self._ensure()
         self._cancel_jobs()
         u = self._u
-        lines = self._wrap(text)
-        line_h = self._font.metrics("linespace")
-        text_w = max(self._font.measure(line) for line in lines)
-        img_w, img_h, tx, ty = speech.layout(kind, text_w, line_h * len(lines), u)
-        self._img_w, self._img_h = img_w, img_h
-        self._photo = ImageTk.PhotoImage(self._flat(speech.render_bubble(kind, img_w, img_h, u)), master=self._win)
+        self._lines = speech.wrap_text(self._font, text, round(_MAX_TEXT_W * u))
+        self._line_h = round(self._px * 1.4)
+        text_w = max(round(self._font.getlength(line)) for line in self._lines) + 1
+        img_w, img_h, tx, ty = speech.layout(kind, text_w, self._line_h * len(self._lines), u)
+        self._img_w, self._img_h, self._text_xy = img_w, img_h, (tx, ty)
+        self._base = speech.render_bubble(kind, img_w, img_h, u)
         bar_h = round(46 * u) if self._chat else 0
         win_w = max(img_w, round(340 * u)) if self._chat else img_w
         win_h = img_h + (bar_h + round(4 * u) if self._chat else 0)
         self._size = (win_w, win_h)
-        canvas = self._canvas
-        canvas.configure(width=win_w, height=win_h)
-        canvas.delete("all")
-        canvas.create_image(win_w - img_w, 0, image=self._photo, anchor="nw")
-        items = [canvas.create_text(win_w - img_w + tx, ty + i * line_h, text="", anchor="nw", font=self._font, fill=_INK)
-                 for i in range(len(lines))]
-        if self._chat:
-            canvas.create_window(0, img_h + round(4 * u), window=self._bar, anchor="nw", width=win_w, height=bar_h)
+        old, self._surface = self._surface, w32.LayeredSurface(self._hwnd, img_w, img_h)
+        if old is not None:
+            old.close()
         self._geom = None
+        self._xy = None
         self._visible = True
+        self._paint(0)
         self._win.deiconify()
         self._win.attributes("-topmost", True)
-        total = sum(len(line) for line in lines)
+        if self._anchor is not None:                                  # đã biết chỗ: hiện đúng vị trí ngay, khỏi đợi khung hình sau
+            self.place(*self._anchor)
+        total = sum(len(line) for line in self._lines)
         shown = 0
 
         def step() -> None:
             nonlocal shown
             shown = min(total, shown + 1)
-            left = shown
-            for item, line in zip(items, lines, strict=True):
-                canvas.itemconfigure(item, text=line[:max(0, min(len(line), left))])
-                left -= len(line)
+            self._paint(shown)
             if shown < total:
                 self._type_job = self._root.after(_TYPE_MS, step)
             else:
@@ -168,14 +165,16 @@ class SpeechBubble:
 
         step()
 
-    @staticmethod
-    def _flat(image: Any) -> Any:
-        """RGBA → RGB trên nền màu khóa (điểm trong suốt thành màu khóa)."""
-        from PIL import Image
+    def _paint(self, shown: int) -> None:
+        """Vẽ bong bóng với ``shown`` ký tự đầu đã gõ rồi đẩy lên cửa sổ (nếu đã có vị trí)."""
+        tx, ty = self._text_xy
+        image = speech.paint_text(self._base, self._font, self._lines, tx, ty, self._line_h, shown)
+        self._frame = image.convert("RGBa").tobytes("raw", "BGRa")
+        self._push()
 
-        flat = Image.new("RGB", image.size, (255, 0, 254))
-        flat.paste(image.convert("RGB"), mask=image.getchannel("A"))
-        return flat
+    def _push(self) -> None:
+        if self._surface is not None and self._xy is not None and self._frame:
+            self._surface.update(self._frame, *self._xy)
 
     def _cancel_jobs(self) -> None:
         for job in (self._type_job, self._hide_job):
@@ -198,26 +197,40 @@ class SpeechBubble:
     def destroy(self) -> None:
         self._cancel_jobs()
         self._visible = self._chat = False
-        win, self._win = self._win, None
-        if win is not None:
-            try:
-                win.destroy()
-            except Exception:  # noqa: BLE001
-                pass
+        surface, self._surface = self._surface, None
+        if surface is not None:
+            surface.close()
+        wins, self._win, self._barwin = (self._win, self._barwin), None, None
+        for win in wins:
+            if win is not None:
+                try:
+                    win.destroy()
+                except Exception:  # noqa: BLE001
+                    pass
 
     # ---- đặt vị trí (gọi mỗi khung hình của nhân vật) ----
     def place(self, tip_x: int, sprite_top: int, area: tuple[int, int, int, int]) -> None:
         """Đuôi bong bóng chỉ xuống ``tip_x``; đáy bong bóng sát đỉnh nhân vật ``sprite_top``; kẹp trong vùng làm việc."""
         if not self._visible or self._win is None:
             return
+        self._anchor = (tip_x, sprite_top, area)
+        u = self._u
         width, height = self._size
         left, top, right, _bottom = area
-        x = max(left, min(right - width, tip_x - width + round(44 * self._u)))
-        y = max(top, sprite_top - height - round(2 * self._u))
+        x = max(left, min(right - width, tip_x - width + round(_TIP_X * u)))
+        y = max(top, sprite_top - height - round(2 * u))
         geom = (x, y, width, height)
-        if geom != self._geom:
-            self._win.geometry(f"{width}x{height}+{x}+{y}")
-            self._geom = geom
+        if geom == self._geom:
+            return
+        self._geom = geom
+        self._xy = (x + width - self._img_w, y)                        # bong bóng căn phải trong vùng; ô chat (nếu có) ngay dưới
+        self._push()
+        if self._chat and self._barwin is not None:
+            self._barwin.geometry(f"{width}x{round(46 * u)}+{x}+{y + self._img_h + round(4 * u)}")
+            if not self._bar_shown:                                     # chỉ hiện sau khi đã có chỗ, khỏi nháy ở góc màn hình
+                self._barwin.deiconify()
+                self._barwin.attributes("-topmost", True)
+                self._bar_shown = True
 
     # ---- chat ----
     def open_chat(self) -> None:
@@ -230,12 +243,17 @@ class SpeechBubble:
         self._var.set("")
         self._on_chat_change(True)
         self.say("normal", speech.pick("open"), keep=True)
-        w32.set_noactivate(self._hwnd, False)
-        self._win.after(60, self._focus)
+        w32.set_noactivate(self._bar_hwnd, False)
+        self._barwin.after(60, self._focus)
 
-    def _focus(self) -> None:
+    def _focus(self, tries: int = 0) -> None:
+        if self._barwin is None or not self._chat:
+            return
+        if not self._bar_shown and tries < 20:                          # ô chat chỉ hiện sau lần đặt chỗ đầu: chờ rồi thử lại
+            self._barwin.after(40, lambda: self._focus(tries + 1))
+            return
         try:
-            self._win.focus_force()
+            self._barwin.focus_force()
             self._entry.focus_force()
         except Exception:  # noqa: BLE001
             _LOG.debug("Không đặt được focus cho ô chat", exc_info=True)
@@ -245,8 +263,10 @@ class SpeechBubble:
             return
         self._chat = False
         self._busy = False
-        if self._win is not None:
-            w32.set_noactivate(self._hwnd, True)
+        if self._barwin is not None:
+            w32.set_noactivate(self._bar_hwnd, True)
+            self._barwin.withdraw()
+        self._bar_shown = False
         self._on_chat_change(False)
         self._visible = False
         self._cancel_jobs()

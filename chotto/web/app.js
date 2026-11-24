@@ -185,6 +185,15 @@
     $$("#seconds button").forEach((x) => x.setAttribute("aria-pressed", x === b));
     save({ friction_seconds: Number(b.dataset.s) }, () => $$("#seconds button").forEach((x) => x.setAttribute("aria-pressed", x === before)));
   }));
+  // lời giải thích (i) gần mép phải: dịch hộp sang trái cho khỏi tràn ra ngoài cửa sổ (210 px + lề 24 px)
+  const fitTip = (e) => {
+    const t = e.target.closest && e.target.closest(".tip");
+    if (!t || t.closest(".tile")) return;
+    const left = t.getBoundingClientRect().left - 8;
+    t.style.setProperty("--tip-dx", Math.min(0, document.documentElement.clientWidth - 12 - (left + 234)) + "px");
+  };
+  document.addEventListener("mouseover", fitTip);
+  document.addEventListener("focusin", fitTip);
   $$("#buddyStartup button").forEach((b) => b.addEventListener("click", () => {
     const before = $("#buddyStartup [aria-pressed=true]");
     $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === b));
