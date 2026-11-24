@@ -280,11 +280,7 @@ class SpeechBubble:
         if not speech.check_input(text):                          # trượt bộ lọc: không gọi máy chủ
             self.say("alert", speech.pick("refuse"), keep=True)
             return
-        if speech.quota_left() <= 0:
-            self.say("normal", speech.pick("quota"), keep=True)
-            return
-        speech.quota_use()
-        self._busy = True
+        self._busy = True                                         # bản cài trên máy: hỏi tự do (hạn mức ngày chỉ áp cho trang web)
         self._var.set("")
         self._entry.configure(state="disabled")
         self._send.configure(state="disabled")

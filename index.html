@@ -947,7 +947,7 @@ details[open] summary::after{transform:rotate(45deg)}
   var NS = 'http://www.w3.org/2000/svg';
 
   // ----- bộ lọc đầu vào (PHẢI khớp api/mascot-chat.js) -----
-  var MIN_LEN = 4, MAX_LEN = 150, DAILY = 6;
+  var MIN_LEN = 4, MAX_LEN = 150, DAILY = 3;
   var DOMAIN_RE = /(https?:\/\/|www\.)\S+|[a-z0-9-]+\.(vn|com|top|xyz|net|org|info|click|site|online|tk|me|io|app)(?![a-z0-9])/i;
   var KEYWORDS = ['chotto', 'scam', 'lừa đảo', 'giả mạo', 'phishing', 'link', 'url', 'tên miền', 'domain', 'mã độc', 'virus', 'trojan', 'hack',
     'mất nick', 'chiếm quyền', 'zalo', 'messenger', 'facebook', 'telegram', 'ngân hàng', 'vietcombank', 'mbbank', 'techcombank', 'momo', 'shopee',
@@ -1106,7 +1106,12 @@ details[open] summary::after{transform:rotate(45deg)}
     try { var s = JSON.parse(localStorage.getItem('chotto-mascot-quota') || 'null'); if (s && s.d === day && s.n >= 0) q = s; } catch (e) {}
     return q;
   }
+  function showLeft() {                                                    // ghi số lượt còn lại trong ngày ngay trong ô nhập
+    var left = Math.max(0, DAILY - quota().n);
+    inp.placeholder = 'Hỏi gì cũng được · còn ' + left + '/' + DAILY + ' lượt hôm nay';
+  }
   function openChat() {
+    showLeft();
     form.hidden = false; clearTimeout(hideT);
     say('normal', LINES.open, POSE.stop, true);
     inp.focus();
@@ -1132,6 +1137,7 @@ details[open] summary::after{transform:rotate(45deg)}
     var q = quota();
     if (q.n >= DAILY) { say('normal', LINES.quota, POSE.stop, true); return; }
     q.n++; try { localStorage.setItem('chotto-mascot-quota', JSON.stringify(q)); } catch (err) {}
+    showLeft();
     busy = true; inp.disabled = send.disabled = true;
     say('thought', LINES.loading, POSE.run, true);
     var ctl = new AbortController(), to = setTimeout(function () { ctl.abort(); }, 20000);
