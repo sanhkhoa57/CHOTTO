@@ -13,8 +13,9 @@ import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Final
 
+from ..config import load_config
 from ..platforms import win32_window as w32
-from . import speech
+from . import ai, speech
 
 if TYPE_CHECKING:
     import tkinter as tk
@@ -242,7 +243,7 @@ class SpeechBubble:
         self._busy = False
         self._var.set("")
         self._on_chat_change(True)
-        self.say("normal", speech.pick("open"), keep=True)
+        self.say("normal", ai.open_line(load_config()), keep=True)     # chế độ Miễn phí: kèm số lượt còn lại hôm nay
         w32.set_noactivate(self._bar_hwnd, False)
         self._barwin.after(60, self._focus)
 
@@ -277,17 +278,20 @@ class SpeechBubble:
         if self._busy or not self._chat:
             return
         text = self._var.get().strip()
-        if not speech.check_input(text):                          # trượt bộ lọc: không gọi máy chủ
-            self.say("alert", speech.pick("refuse"), keep=True)
+        cfg = load_config()
+        canned = ai.gate(text, cfg)                               # cả 3 chế độ: trượt bộ lọc từ khóa / hết lượt miễn phí thì không gọi AI
+        if canned is not None:
+            self.say(canned[1], canned[0], keep=True)
             return
-        self._busy = True                                         # bản cài trên máy: hỏi tự do (hạn mức ngày chỉ áp cho trang web)
+        self._busy = True
         self._var.set("")
         self._entry.configure(state="disabled")
         self._send.configure(state="disabled")
         self.say("thought", speech.pick("loading"), keep=True)
 
         def work() -> None:
-            self._results.put(speech.ask(text))
+            result = ai.respond(text, cfg)                        # chỉ trừ lượt khi AI trả lời thật
+            self._results.put((result.text, result.kind))
 
         threading.Thread(target=work, name="chotto-mascot-ask", daemon=True).start()
         self._root.after(150, self._poll_result)

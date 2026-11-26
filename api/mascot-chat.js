@@ -120,7 +120,8 @@ module.exports = async function handler(req, res) {
   if (!checkInput(message)) return res.status(400).json({ error: 'invalid' });
 
   const { text, outOfQuota } = await askModels(message);
-  if (!text) return res.status(200).json({ reply: outOfQuota ? QUOTA_REPLY : FALLBACK_REPLY, bubbleType: 'normal' });
+  // failed: app trên máy không trừ lượt miễn phí khi AI không trả lời được ("quota" = mọi khóa hết hạn mức)
+  if (!text) return res.status(200).json({ reply: outOfQuota ? QUOTA_REPLY : FALLBACK_REPLY, bubbleType: 'normal', failed: outOfQuota ? 'quota' : 'error' });
   if (isRefusal(text)) {
     return res.status(200).json({ reply: REFUSALS[Math.floor(Math.random() * REFUSALS.length)], bubbleType: 'normal', refused: true });
   }
@@ -128,5 +129,7 @@ module.exports = async function handler(req, res) {
   return res.status(200).json({ reply, bubbleType: ALERT_RE.test(reply) ? 'alert' : 'normal' });
 };
 
+module.exports.SYSTEM_PROMPT = SYSTEM_PROMPT;   // app (API riêng / AI local) dùng bản chép ở chotto/mascot/ai.py: test so khớp
+module.exports.REFUSALS = REFUSALS;
 module.exports.checkInput = checkInput;
 module.exports.isRefusal = isRefusal;

@@ -38,13 +38,21 @@ _LOG = logging.getLogger(__name__)
 UnknownCallerPolicy = Literal["inspect", "forward"]
 UILanguage = Literal["en", "vi"]
 UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
-MascotStartup = Literal["login", "zalo", "off"]
-MASCOT_STARTUPS: Final[tuple[str, ...]] = ("login", "zalo", "off")
+MascotStartup = Literal["login", "zalo"]
+MASCOT_STARTUPS: Final[tuple[str, ...]] = ("login", "zalo")   # "off" (Thủ công) đã bỏ: cấu hình cũ về "login"
 MASCOT_FPS_RANGE: Final[tuple[int, int]] = (10, 240)       # số khung hình/giây của nhân vật taskbar (thanh kéo trong Cài đặt)
 # Màu mặc định của 6 nhóm nhân vật taskbar (Tóc, Mắt, Da, Áo choàng, Váy, Giày/phụ kiện): khớp ``D.def`` của
 # design/chotto_mascot_customizer.html và ``chotto/mascot/assets/palette.json`` (có test kiểm tra).
 MASCOT_DEFAULT_COLORS: Final[tuple[str, ...]] = ("#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f")
 _HEX_COLOR: Final[re.Pattern[str]] = re.compile(r"^#[0-9a-fA-F]{6}$")
+# Hỏi đáp của nhân vật: "free" (máy chủ Chotto, 3 lượt/ngày) | "byok" (khóa API riêng) | "local" (llama.cpp chạy trên máy).
+MascotAIMode = Literal["free", "byok", "local"]
+MASCOT_AI_MODES: Final[tuple[str, ...]] = ("free", "byok", "local")
+MASCOT_BYOK_PROVIDERS: Final[tuple[str, ...]] = ("gemini", "openai", "deepseek", "custom")
+# Mã model local hợp lệ (khớp ``chotto.mascot.local_ai.CATALOG``, có test kiểm tra).
+MASCOT_LOCAL_MODELS: Final[tuple[str, ...]] = ("qwen2.5-0.5b", "qwen2.5-1.5b", "qwen2.5-3b", "gemma-2-2b")
+_MAX_TEXT_SETTING: Final[int] = 200
+_BASE_URL: Final[re.Pattern[str]] = re.compile(r"^(https://[^\s/?#]+|http://(127\.0\.0\.1|localhost|\[::1\])(:\d+)?)(/[^\s?#]*)?$")
 
 
 class Config(TypedDict):
@@ -72,6 +80,11 @@ class Config(TypedDict):
     mascot_pinned: bool
     mascot_pos: float
     mascot_fps: int
+    mascot_ai_mode: MascotAIMode
+    mascot_byok_provider: str
+    mascot_byok_base_url: str
+    mascot_byok_model: str
+    mascot_local_model: str
 
 
 DEFAULTS: Final[Config] = {
@@ -92,17 +105,23 @@ DEFAULTS: Final[Config] = {
     "auto_update": True,            # Agent tự cập nhật danh sách đen mỗi ngày (tải tăng dần theo ETag)
     "ui_language": "en",            # Ngôn ngữ giao diện HTML: "en" | "vi" (giao diện Tk dự phòng luôn tiếng Việt)
     "mascot_enabled": False,        # Nhân vật đồng hành trên thanh taskbar (Windows); người dùng tự bật
-    "mascot_startup": "login",      # Khi nào nhân vật hiện: "login" (cùng agent) | "zalo" (khi Zalo mở) | "off" (tự về tắt khi tắt máy)
+    "mascot_startup": "login",      # Khi nào nhân vật hiện: "login" (cùng agent) | "zalo" (khi Zalo mở)
     "mascot_colors": list(MASCOT_DEFAULT_COLORS),
     "mascot_pinned": False,         # Cố định nhân vật tại một chỗ (không chạy qua lại)
     "mascot_pos": 0.85,             # Vị trí cố định: tỉ lệ 0 (trái) .. 1 (phải) trên chiều ngang màn hình
     "mascot_fps": 60,               # Khung hình/giây của nhân vật, 10..240 (cao hơn = mượt hơn nhưng tốn CPU hơn)
+    "mascot_ai_mode": "free",       # Hỏi đáp: "free" | "byok" | "local"
+    "mascot_byok_provider": "gemini",   # Nhà cung cấp của khóa riêng: gemini | openai | deepseek | custom
+    "mascot_byok_base_url": "",     # Chỉ dùng khi provider = custom (OpenAI-compatible, https hoặc http://localhost)
+    "mascot_byok_model": "",        # Rỗng = model mặc định của nhà cung cấp. Khóa API KHÔNG nằm ở đây (DPAPI, file riêng)
+    "mascot_local_model": "qwen2.5-3b",
 }
 
 # Các khóa người dùng được xem và sửa từ cửa sổ ứng dụng / cài đặt (các khóa khác như trình duyệt đã lưu thì không).
 SETTINGS_KEYS: Final[tuple[str, ...]] = (
     "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
     "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos", "mascot_fps",
+    "mascot_ai_mode", "mascot_byok_provider", "mascot_byok_base_url", "mascot_byok_model", "mascot_local_model",
 )
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
@@ -239,6 +258,19 @@ def validate_config(raw: Mapping[str, Any]) -> Config:
             accepted = value if value in UI_LANGUAGES else None
         elif key == "mascot_startup":
             accepted = value if value in MASCOT_STARTUPS else None
+        elif key == "mascot_ai_mode":
+            accepted = value if value in MASCOT_AI_MODES else None
+        elif key == "mascot_byok_provider":
+            accepted = value if value in MASCOT_BYOK_PROVIDERS else None
+        elif key == "mascot_local_model":
+            accepted = value if value in MASCOT_LOCAL_MODELS else None
+        elif key == "mascot_byok_base_url":
+            if isinstance(value, str) and len(value) <= _MAX_TEXT_SETTING:
+                url = value.strip().rstrip("/")
+                accepted = url if not url or _BASE_URL.match(url) else None     # khóa API chỉ đi qua https (hoặc máy này)
+        elif key == "mascot_byok_model":
+            if isinstance(value, str) and len(value) <= _MAX_TEXT_SETTING and not any(c.isspace() for c in value.strip()):
+                accepted = value.strip()
         elif isinstance(default, str):
             accepted = value if isinstance(value, str) else None
         if accepted is None:

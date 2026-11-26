@@ -60,6 +60,14 @@ def _mascot_supported() -> bool:
     return mascot.supported()
 
 
+def _mascot_ai_state() -> dict[str, Any]:
+    """Trạng thái hỏi đáp cho cửa sổ ứng dụng: chỉ ``has_api_key`` (không có khóa), preset, AI Local."""
+    from .mascot import ai, local_ai
+
+    return {"has_api_key": ai.has_api_key(), "api_key_hint": ai.api_key_hint(), "presets": {k: {"url": u, "model": m} for k, (u, m) in ai.PRESETS.items()},
+            "local": local_ai.status()}
+
+
 def web_root() -> Path:
     """Thư mục ``chotto/web`` (HTML, CSS, JS, font) cả khi chạy mã nguồn lẫn khi đóng gói."""
     return resource_path("web")
@@ -206,7 +214,54 @@ class AppApi:
             "default_handler": platforms.is_default_handler(),
             "blacklist_text": _blacklist_text(last_update_success(), lang=cfg["ui_language"]),
             "mascot_supported": _mascot_supported(),
+            "mascot_ai": _mascot_ai_state(),
         }
+
+    # ---- hỏi đáp của nhân vật: API riêng + AI Local ----
+    def byok_save_key(self, key: str) -> dict[str, Any]:
+        """Mã hóa (DPAPI) và lưu khóa API riêng; rỗng = xóa. Không bao giờ trả khóa về JavaScript."""
+        from .mascot import ai
+
+        lang = load_config()["ui_language"]
+        text = str(key or "").strip()
+        if len(text) > 400 or any(c.isspace() or not c.isprintable() for c in text):
+            return {"ok": False, "has_api_key": ai.has_api_key(), "api_key_hint": ai.api_key_hint(), "error": _msg(lang, "bad_key")}
+        try:
+            ai.save_api_key(text)
+        except OSError as exc:
+            _LOG.warning("Không lưu được khóa API: %s", exc)
+            return {"ok": False, "has_api_key": ai.has_api_key(), "api_key_hint": ai.api_key_hint(),
+                    "error": _msg(lang, "failed", error=exc)}
+        return {"ok": True, "has_api_key": ai.has_api_key(), "api_key_hint": ai.api_key_hint()}
+
+    def local_ai_status(self) -> dict[str, Any]:
+        """Danh mục model, đã tải chưa, tiến trình tải (giao diện hỏi lại liên tục trong lúc tải)."""
+        from .mascot import local_ai
+
+        return local_ai.status()
+
+    def local_ai_download(self, model_id: str) -> dict[str, Any]:
+        """Tải engine (nếu thiếu) rồi model ``model_id`` trên luồng nền."""
+        from .mascot import local_ai
+
+        return {"ok": local_ai.DOWNLOADS.start(str(model_id)), **local_ai.status()}
+
+    def local_ai_cancel(self) -> dict[str, Any]:
+        from .mascot import local_ai
+
+        local_ai.DOWNLOADS.cancel()
+        return local_ai.status()
+
+    def local_ai_delete(self, model_id: str) -> dict[str, Any]:
+        """Xóa file model (tắt server đang dùng nó trước)."""
+        from .mascot import local_ai
+
+        try:
+            ok = local_ai.delete_model(str(model_id))
+        except OSError:
+            _LOG.exception("Không xóa được model AI Local")
+            ok = False
+        return {"ok": ok, **local_ai.status()}
 
     def save(self, values: dict[str, Any]) -> dict[str, Any]:
         """Lưu ngay các khóa cài đặt được phép (giá trị sai được ``validate_config`` đưa về hợp lệ)."""

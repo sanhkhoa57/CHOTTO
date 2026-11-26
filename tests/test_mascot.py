@@ -437,18 +437,11 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
             self.assertAlmostEqual(m._frame_s, 1 / fps)
             m.stop()
 
-    def test_startup_validation_and_session_end_reset(self) -> None:
+    def test_startup_validation(self) -> None:
         self.assertEqual(validate_config({})["mascot_startup"], "login")
         self.assertEqual(validate_config({"mascot_startup": "bogus"})["mascot_startup"], "login")
         self.assertEqual(validate_config({"mascot_startup": "zalo"})["mascot_startup"], "zalo")
-        from chotto.service.app import _reset_mascot_on_session_end
-
-        save_config(dict(DEFAULTS, mascot_enabled=True, mascot_startup="login"))
-        _reset_mascot_on_session_end()
-        self.assertTrue(load_config()["mascot_enabled"])             # chỉ chế độ "off" mới tự về tắt
-        save_config(dict(DEFAULTS, mascot_enabled=True, mascot_startup="off"))
-        _reset_mascot_on_session_end()
-        self.assertFalse(load_config()["mascot_enabled"])
+        self.assertEqual(validate_config({"mascot_startup": "off"})["mascot_startup"], "login")   # "Thủ công" đã bỏ
 
     def test_headless_has_no_support_off_windows(self) -> None:
         with patch.object(mascot.taskbar.osw, "OVERLAY_SUPPORTED", False):

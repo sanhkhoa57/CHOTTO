@@ -24,6 +24,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "exported": "Exported {count} rows to {path}.",
         "cleared": "Activity log cleared.",
         "failed": "Couldn't finish: {error}", "unknown": "Unknown action",
+        "bad_key": "That doesn't look like an API key (no spaces, up to 400 characters)",
         "friction_title": "Chotto · Hold on!",
     },
     "vi": {
@@ -38,6 +39,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "exported": "Đã xuất {count} dòng ra {path}.",
         "cleared": "Đã xóa nhật ký.",
         "failed": "Không thực hiện được: {error}", "unknown": "Tác vụ không hợp lệ",
+        "bad_key": "Khóa API không hợp lệ (không có khoảng trắng, tối đa 400 ký tự)",
         "friction_title": "Chotto · Khoan đã!",
     },
 }

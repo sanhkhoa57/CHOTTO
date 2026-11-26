@@ -45,6 +45,13 @@ Filename: "{app}\CHOTTO.exe"; Description: "Launch CHOTTO"; Flags: nowait postin
 [UninstallRun]
 Filename: "{app}\CHOTTO.exe"; Parameters: "agent-stop"; Flags: runhidden; RunOnceId: "StopAgent"
 Filename: "{app}\CHOTTO.exe"; Parameters: "uninstall"; Flags: runhidden; RunOnceId: "Unregister"
+; AI Local: tắt llama-server còn chạy (chỉ bản nằm trong thư mục CHOTTO, không đụng llama.cpp khác của người dùng) để xóa được file.
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""Get-Process llama-server -ErrorAction SilentlyContinue | Where-Object {{ $_.Path -like '{app}\local_ai\*' -or $_.Path -like '{userappdata}\CHOTTO\local_ai\*' } | Stop-Process -Force"""; Flags: runhidden waituntilterminated; RunOnceId: "StopLocalAI"
+
+[UninstallDelete]
+; File do app tự tạo lúc chạy (Inno chỉ tự xóa file nó cài): model GGUF + engine llama.cpp + log. Bản dự phòng ở %APPDATA% cũng xóa.
+Type: filesandordirs; Name: "{app}\local_ai"
+Type: filesandordirs; Name: "{userappdata}\CHOTTO\local_ai"
 
 [Code]
 // Cài đè lên bản cũ: tắt agent đang chạy nền để file không bị khóa.

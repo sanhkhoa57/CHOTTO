@@ -199,6 +199,34 @@ body { background: var(--bg); font-family: var(--sans); }
   .fold[data-open="true"] .fold-in { transition-delay: .08s; }
 }
 .buddy-note { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.buddy-in { width: 100%; height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-size: 14px; color: var(--ink); user-select: text; min-width: 0; }
+.buddy-in::placeholder { color: var(--faint); }
+.buddy-in:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.buddy-keyrow { display: flex; gap: 8px; width: 100%; }
+.buddy-keyrow .buddy-in { flex: 1; }
+.buddy-keyrow .btn, .buddy-local-act .btn { flex: none; height: 44px; padding: 0 16px; }
+.buddy-keyok { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; margin-top: 10px; padding: 10px 6px 10px 16px;
+  border-radius: 16px; background: var(--ok-chip); color: var(--ok); font-size: 14px; font-weight: 600; }
+.buddy-keyok[hidden] { display: none; }
+.buddy-keyok-t::before { content: "✓"; margin-right: 8px; font-weight: 800; }
+.buddy-keyok code { font: 700 14px/1 ui-monospace, Consolas, monospace; letter-spacing: .04em; }
+.buddy-keyok .link-danger { flex: none; padding: 6px 10px; font-size: 13px; }
+.buddy-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-radius: 22px; }
+.buddy-sub:not([data-open="true"]) > .fold-in { opacity: 0; overflow: hidden; }
+.buddy-tipwide::after { max-width: 290px !important; white-space: pre-line; }
+.buddy-local { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; padding: 14px 16px; margin: 4px 0 2px; border-radius: 18px; background: var(--surface2); }
+.buddy-local:empty { display: none; }
+.buddy-local span { display: block; color: var(--muted); font-size: 12px; }
+.buddy-local b { font-size: 14px; font-weight: 700; }
+.buddy-local p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.buddy-localnote { margin: 10px 0 0; padding: 10px 14px; border-radius: 14px; background: var(--warn-chip); color: var(--warn-ink); font-size: 13px; line-height: 1.4; }
+.buddy-local .ok { color: var(--ok); }
+.buddy-local-act { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0 16px; }
+.buddy-local-act small { color: var(--muted); font-size: 13px; }
+.buddy-local-act .link-danger { padding: 8px 0; }
+.buddy-prog { flex: 1 1 100%; height: 8px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+.buddy-prog i { display: block; height: 100%; width: var(--p, 0%); border-radius: inherit; background: var(--accent); transition: width .3s var(--ease); }
 @media (prefers-reduced-motion: no-preference) { .buddy-sw button, .buddy-sw label { transition: transform .15s var(--ease); } .buddy-sw button:active, .buddy-sw label:active { transform: scale(.9); } }
 
 /* ---- ô tròn "i" siêu nhỏ: rê chuột (hoặc Tab) tới thì hiện lời giải thích ---- */
@@ -346,12 +374,36 @@ body { background: var(--bg); font-family: var(--sans); }
         <div class="fold" id="buddyFold"><div class="fold-in">
         <div class="opt"><div><strong data-i18n="set.buddyStart">When to show it</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyStart">i</span></div>
           <div class="seg" role="group" id="buddyStartup" data-i18n-attr="aria-label:set.buddyStart" aria-label="When to show it">
-            <button data-v="login" aria-pressed="false" data-i18n="start.login">At sign-in</button><button data-v="zalo" aria-pressed="false" data-i18n="start.zalo">With Zalo</button><button data-v="off" aria-pressed="false" data-i18n="start.off">Manual</button>
+            <button data-v="login" aria-pressed="false" data-i18n="start.login">At sign-in</button><button data-v="zalo" aria-pressed="false" data-i18n="start.zalo">With Zalo</button>
           </div></div>
         <div class="opt opt--stack"><div><strong data-i18n="set.buddyFps">Smoothness</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyFps">i</span></div>
           <div class="fps"><input type="range" id="buddyFps" min="10" max="240" step="1" value="60" data-i18n-attr="aria-label:set.buddyFps" aria-label="Smoothness"><output id="buddyFpsOut" for="buddyFps">60 fps</output></div></div>
         <div class="opt"><div><strong data-i18n="set.buddyPin">Keep it in one place</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.buddyPin">i</span></div><button class="switch" role="switch" data-key="mascot_pinned" aria-checked="false" data-i18n-attr="aria-label:set.buddyPin" aria-label="Keep it in one place"></button></div>
         <div class="opt" id="buddyPlaceRow"><div><strong data-i18n="buddy.place">Position</strong><small id="buddyPlaceHint" data-i18n="buddy.placeHint">Drag the character left or right on the taskbar, then press Done.</small></div><button class="btn btn--secondary buddy-place" id="buddyPlace" data-i18n="buddy.placeBtn">Choose position</button></div>
+        <div class="opt"><div><strong data-i18n="set.buddyAi">Chat answers</strong><span class="tip buddy-tipwide" tabindex="0" role="note" data-i18n-tip="tip.buddyAi">i</span></div>
+          <div class="seg" role="group" id="buddyAi" data-i18n-attr="aria-label:set.buddyAi" aria-label="Chat answers">
+            <button data-v="free" aria-pressed="true" data-i18n="buddy.aiFree">Free</button><button data-v="byok" aria-pressed="false" data-i18n="buddy.aiByok">Own API</button><button data-v="local" aria-pressed="false" data-i18n="buddy.aiLocal">Local AI</button>
+          </div></div>
+        <div class="fold buddy-sub" id="byokFold"><div class="fold-in">
+          <div class="opt"><div><strong data-i18n="buddy.byokProvider">Provider</strong></div>
+            <div class="seg" role="group" id="byokProvider" data-i18n-attr="aria-label:buddy.byokProvider" aria-label="Provider">
+              <button data-v="gemini" aria-pressed="true">Gemini</button><button data-v="openai" aria-pressed="false">OpenAI</button><button data-v="deepseek" aria-pressed="false">DeepSeek</button><button data-v="custom" aria-pressed="false" data-i18n="buddy.byokCustom">Custom</button>
+            </div></div>
+          <div class="opt opt--stack" id="byokUrlRow"><div><strong data-i18n="buddy.byokUrl">Base URL</strong><small data-i18n="buddy.byokUrlHint">OpenAI-compatible, ends before /chat/completions</small></div>
+            <input class="buddy-in" id="byokUrl" type="url" maxlength="200" spellcheck="false" autocomplete="off" placeholder="https://api.example.com/v1" data-i18n-attr="aria-label:buddy.byokUrl" aria-label="Base URL"></div>
+          <div class="opt opt--stack"><div><strong data-i18n="buddy.byokKey">API key</strong><small id="byokKeyState"></small></div>
+            <div class="buddy-keyrow"><input class="buddy-in" id="byokKey" type="password" maxlength="400" spellcheck="false" autocomplete="off" data-i18n-attr="aria-label:buddy.byokKey;placeholder:buddy.byokKeyPh" aria-label="API key"><button class="btn btn--secondary" id="byokShow" data-i18n="buddy.byokShow">Show</button><button class="btn btn--secondary" id="byokSave" data-i18n="buddy.byokSave">Save</button></div>
+            <div class="buddy-keyok" id="byokKeyOk" hidden><span class="buddy-keyok-t"></span><button class="link-danger" id="byokRemove" data-i18n="buddy.byokRemove">Remove key</button></div></div>
+          <div class="opt opt--stack"><div><strong data-i18n="buddy.byokModel">Model</strong></div>
+            <input class="buddy-in" id="byokModel" type="text" maxlength="200" spellcheck="false" autocomplete="off" data-i18n-attr="aria-label:buddy.byokModel" aria-label="Model"></div>
+        </div></div>
+        <div class="fold buddy-sub" id="localFold"><div class="fold-in">
+          <div class="opt opt--stack"><div><strong data-i18n="buddy.localModel">Model</strong><span class="tip buddy-tipwide" tabindex="0" role="note" data-i18n-tip="tip.buddyLocal">i</span></div>
+            <div class="seg buddy-wrap" role="group" id="localModel" data-i18n-attr="aria-label:buddy.localModel" aria-label="Model"></div></div>
+          <div class="buddy-local" id="localInfo" aria-live="polite"></div>
+          <p class="buddy-localnote" data-i18n="buddy.localNote">Local AI sounds less natural: questions with a link get a fixed answer from Chotto's link checker.</p>
+          <div class="buddy-local-act" id="localAct"></div>
+        </div></div>
         </div></div>
         <p class="buddy-note" id="buddyNote" data-i18n="buddy.unsupported" hidden>The taskbar character is only available on Windows.</p>
         <h3 class="h2" data-i18n="buddy.custom" style="font-size:15px">Customize character</h3>

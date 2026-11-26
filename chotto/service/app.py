@@ -362,7 +362,11 @@ def _start_mascot(open_app: Callable[[], None], web: WebUI | None) -> MascotRunn
 
         mascot = MascotRunner(open_app)
         if web is not None:
-            web.on_config_changed = mascot.request_reload
+            def changed() -> None:
+                mascot.request_reload()
+                _stop_local_ai_unless_selected()
+
+            web.on_config_changed = changed
         mascot.start()
         return mascot
     except Exception:  # noqa: BLE001 - phần trang trí không được làm chết agent
@@ -370,14 +374,20 @@ def _start_mascot(open_app: Callable[[], None], web: WebUI | None) -> MascotRunn
         return None
 
 
-def _reset_mascot_on_session_end() -> None:
-    """Tắt máy/đăng xuất: chế độ nhân vật "off" thì đưa công tắc về tắt để lần mở máy sau khớp với thực tế."""
+def _stop_local_ai_unless_selected(force: bool = False) -> None:
+    """Tắt ``llama-server`` của nhân vật khi thoát agent (``force``) hoặc khi chế độ AI không còn là ``local``/đổi model."""
     try:
+        from ..mascot import local_ai
+
         cfg = load_config()
-        if cfg["mascot_startup"] == "off" and cfg["mascot_enabled"]:
-            save_settings({"mascot_enabled": False})
-    except Exception:  # noqa: BLE001 - phiên đang đóng, không có gì để báo lỗi tới
-        _LOG.exception("Không đặt lại công tắc nhân vật khi kết thúc phiên")
+        if force or cfg["mascot_ai_mode"] != "local":
+            local_ai.SERVER.stop()
+        else:
+            for model in local_ai.CATALOG:
+                if model.id != cfg["mascot_local_model"]:
+                    local_ai.SERVER.stop_if_model(model.id)
+    except Exception:  # noqa: BLE001 - chỉ là dọn dẹp
+        _LOG.exception("Không tắt được AI Local")
 
 
 def run_resident(open_settings_after_ms: int | None = None, show_settings_now: bool = False) -> int:
@@ -420,7 +430,6 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
     state: dict[str, Any] = {"busy": False, "handled": False, "settings": None}
     open_flag = threading.Event()                  # nhân vật (luồng Tk riêng) xin mở ứng dụng: luồng chính tự xử lý ở drain
     mascot = _start_mascot(open_flag.set, web)
-    osw.watch_session_end(_reset_mascot_on_session_end)
     handlers = _HandlerCache(window, web, mascot.notify if mascot is not None else None)
 
     def drain() -> None:
@@ -447,6 +456,7 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
     def shutdown() -> None:
         if mascot is not None:
             mascot.stop()
+        _stop_local_ai_unless_selected(force=True)
         if server is not None:
             server.stop()
         if window.winfo_exists():

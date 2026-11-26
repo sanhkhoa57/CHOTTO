@@ -30,9 +30,10 @@ _LOG = logging.getLogger("chotto")
 
 Kind = Literal["normal", "thought", "alert"]
 DEFAULT_API: Final[str] = "https://chotto.id.vn/api/mascot-chat"
-DAILY_LIMIT: Final[int] = 6
+DAILY_LIMIT: Final[int] = 3                    # chế độ "Miễn phí" (máy chủ Chotto); API riêng / AI local không giới hạn
 MIN_LEN: Final[int] = 4
 MAX_LEN: Final[int] = 150
+_SERVER_FALLBACK: Final[str] = "Hôm nay tui soi nhiều link quá nên hơi lag não"   # đầu câu FALLBACK_REPLY của api/mascot-chat.js
 
 LINES: Final[dict[str, str | tuple[str, ...]]] = {
     "hello": "Chào đằng ấy! Tui là Chotto. Bấm đúp vào tui nếu muốn soi link lạ hay hỏi gì về app nha!",
@@ -45,8 +46,15 @@ LINES: Final[dict[str, str | tuple[str, ...]]] = {
     "refuse": ("HỎI LẠC ĐỀ RỒI! Tui là vệ sĩ chống scam của Chotto, không phải trợ lý làm bài tập hay chém gió đâu nha!",
                "Khoan! Câu này không liên quan tới Chotto hay link lừa đảo. Dán thử một đường link nghi ngờ vào đây tui soi cho!",
                "Từ chối tiếp nhận! Tui chỉ rành bóc phốt link bẩn với giải đáp về app Chotto thôi."),
-    "quota": "Nay tui tư vấn hết công suất rồi! Mai quay lại hỏi tiếp nha.",
+    "open_free": "Bạn hỏi tui gì cũng được nha! Hôm nay còn {left}/{limit} lượt hỏi miễn phí.",
+    "quota": "Hết 3 lượt miễn phí hôm nay rồi, mai quay lại nha! Muốn hỏi thêm thì vào Cài đặt chọn API riêng hoặc AI Local.",
     "fail": "Hôm nay tui soi nhiều link quá nên hơi lag não, lát nữa bạn hỏi lại nha!",
+    "server_quota": "Máy chủ Chotto hết lượt AI hôm nay rồi. Mai quay lại, hoặc vào Cài đặt chọn API riêng hay AI Local nha!",
+    "byok_nokey": "Chưa có khóa API nè. Vào Cài đặt > Nhân vật trên taskbar để dán khóa rồi bấm Lưu nha!",
+    "byok_bad_key": "Khóa API bị từ chối (sai khóa hoặc sai tên model). Kiểm tra lại trong Cài đặt nha!",
+    "byok_quota": "Khóa API của bạn hết hạn mức hoặc hết tiền rồi. Nạp thêm hay đổi khóa trong Cài đặt nha!",
+    "local_missing": "Chưa tải model AI Local. Vào Cài đặt > Nhân vật trên taskbar, chọn model rồi bấm Tải nha!",
+    "local_fail": "AI Local chưa chạy được (máy thiếu RAM hoặc file model lỗi). Thử model nhẹ hơn trong Cài đặt nha!",
 }
 
 
@@ -119,8 +127,12 @@ def quota_use() -> None:
         _LOG.warning("Không ghi được hạn mức hỏi đáp của nhân vật", exc_info=True)
 
 
-def ask(message: str, timeout: float = 20.0) -> tuple[str, Kind]:
-    """Hỏi máy chủ; mọi lỗi (mạng, quá hạn, trả lời lạ) đều trả câu chữa cháy, không ném lỗi."""
+def ask_server(message: str, timeout: float = 20.0) -> tuple[str, Kind, bool]:
+    """Hỏi máy chủ Chotto: ``(câu trả lời, kiểu bong bóng, thành công)``. Không ném lỗi.
+
+    "Thành công" = máy chủ có câu trả lời thật của AI (kể cả câu từ chối lạc đề); máy chủ báo ``failed`` (AI lỗi/hết lượt)
+    hay lỗi mạng thì ``False`` để chế độ Miễn phí không trừ lượt.
+    """
     url = os.environ.get("CHOTTO_MASCOT_API") or DEFAULT_API
     try:
         request = urllib.request.Request(url, data=json.dumps({"message": message}).encode("utf-8"),
@@ -129,10 +141,20 @@ def ask(message: str, timeout: float = 20.0) -> tuple[str, Kind]:
             data = json.loads(response.read(8192).decode("utf-8"))
         reply = data["reply"]
         if isinstance(reply, str) and reply.strip():
-            return re.sub(r"[`*_#]", "", reply).strip()[:400], ("alert" if data.get("bubbleType") == "alert" else "normal")
+            kind: Kind = "alert" if data.get("bubbleType") == "alert" else "normal"
+            if data.get("failed") == "quota":
+                return str(LINES["server_quota"]), "normal", False
+            failed = bool(data.get("failed")) or reply.startswith(_SERVER_FALLBACK)   # máy chủ bản cũ chưa có cờ failed
+            return re.sub(r"[`*_#]", "", reply).strip()[:400], kind, not failed
     except Exception:  # noqa: BLE001 - nhân vật không được làm chết agent
         _LOG.info("Hỏi đáp nhân vật thất bại", exc_info=True)
-    return str(LINES["fail"]), "normal"
+    return str(LINES["fail"]), "normal", False
+
+
+def ask(message: str, timeout: float = 20.0) -> tuple[str, Kind]:
+    """Như ``ask_server`` nhưng bỏ cờ thành công."""
+    reply, kind, _ok = ask_server(message, timeout)
+    return reply, kind
 
 
 # ---- hình học + vẽ bong bóng ----

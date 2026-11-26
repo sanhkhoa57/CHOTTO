@@ -113,6 +113,9 @@
     if (document.activeElement !== $("#buddyFps")) fpsShow(s.settings.mascot_fps || 60);          // đang kéo thì không giật thanh về chỗ cũ
     buddySync(s);
     buddyPlaceUI();
+    aiRender();
+    const dl = s.mascot_ai && s.mascot_ai.local && s.mascot_ai.local.download;
+    if (dl && dl.active && !AI.wasActive) { AI.wasActive = true; aiWatch(); }   // mở lại cửa sổ giữa lúc đang tải
   }
   async function refresh() {
     if (!api) return;
@@ -363,6 +366,145 @@
   $("#buddyRandom").addEventListener("click", buddyRandom);
   $("#buddyReset").addEventListener("click", buddyReset);
 
+  // ---------- hỏi đáp của nhân vật: Miễn phí | API riêng (khóa mã hóa DPAPI phía Python) | AI Local (llama.cpp) ----------
+  // Khóa API không bao giờ quay về đây: Python chỉ trả has_api_key. AI Local: tải chạy nền ở Python, trang hỏi lại mỗi 500 ms.
+  const AI = { poll: 0, wasActive: false };
+  const aiOf = () => (state && state.mascot_ai) || { has_api_key: false, presets: {}, local: null };
+  function segMark(sel, v) { $$(`${sel} button`).forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === v)); }
+  function foldSet(sel, open) { const f = $(sel); f.dataset.open = open; f.inert = !open; }
+  function aiRender() {
+    if (!state) return;
+    const st = state.settings, mode = st.mascot_ai_mode || "free", info = aiOf();
+    segMark("#buddyAi", mode);
+    foldSet("#byokFold", mode === "byok");
+    foldSet("#localFold", mode === "local");
+    const prov = st.mascot_byok_provider || "gemini", preset = info.presets[prov] || { url: "", model: "" };
+    segMark("#byokProvider", prov);
+    $("#byokUrlRow").hidden = prov !== "custom";
+    if (document.activeElement !== $("#byokUrl")) $("#byokUrl").value = st.mascot_byok_base_url || "";
+    const model = $("#byokModel");
+    model.placeholder = preset.model || "model-name";
+    if (document.activeElement !== model) model.value = st.mascot_byok_model || "";
+    // đã có khóa: ô xanh "✓ Đã lưu khóa ••••abcd" + nút Xóa khóa; ô nhập ghi khóa đang dùng (không bao giờ có khóa thật ở đây)
+    const has = !!info.has_api_key, hint = info.api_key_hint || "••••";
+    $("#byokKeyState").textContent = t(has ? "buddy.byokSaved" : "buddy.byokNone");
+    $("#byokKeyOk").hidden = !has;
+    $("#byokKeyOk .buddy-keyok-t").innerHTML = esc(t("buddy.byokSavedAs")).replace("{hint}", `<code>${esc(hint)}</code>`);
+    $("#byokKey").placeholder = has ? t("buddy.byokReplacePh", { hint }) : t("buddy.byokKeyPh");
+    localRender();
+  }
+  function localRender() {
+    const L = aiOf().local;
+    if (!L || !state) return;
+    const cur = state.settings.mascot_local_model || "qwen2.5-3b", dl = L.download || {};
+    const box = $("#localModel");
+    if (box.childElementCount !== L.models.length) {
+      box.innerHTML = L.models.map((m) => `<button data-v="${esc(m.id)}" aria-pressed="false">${esc(m.short)}</button>`).join("");
+      $$("button", box).forEach((b) => b.addEventListener("click", () => {
+        if (b.dataset.v === state.settings.mascot_local_model) return;
+        const before = state.settings.mascot_local_model;
+        state.settings.mascot_local_model = b.dataset.v;
+        localRender();
+        save({ mascot_local_model: b.dataset.v }, () => { state.settings.mascot_local_model = before; localRender(); });
+      }));
+    }
+    segMark("#localModel", cur);
+    const m = L.models.find((x) => x.id === cur) || L.models[0];
+    const gb = (n) => `~${n.toLocaleString(I18N.locale(), { maximumFractionDigits: 1 })} GB`;
+    $("#localInfo").innerHTML = `<div><span>${esc(t("buddy.localFormat"))}</span><b>${esc(m.format)} · ${esc(m.quant)}</b></div>`
+      + `<div><span>${esc(t("buddy.localSize"))}</span><b>${gb(m.size_gb)}</b></div>`
+      + `<div><span>${esc(t("buddy.localRam"))}</span><b>${gb(m.ram_gb)}</b></div>`
+      + `<div><span>${esc(t("buddy.localStatus"))}</span><b class="${m.downloaded ? "ok" : ""}">${esc(t(m.downloaded ? "buddy.localReady" : "buddy.localMissing"))}</b></div>`
+      + `<p>${esc(m.name)}: ${esc(t(`buddy.localDesc.${m.id}`))}${!L.engine_ready && !m.downloaded ? ` ${esc(t("buddy.localEngine"))}` : ""}</p>`;
+    const act = $("#localAct");
+    if (dl.active) {
+      const pct = dl.total ? Math.floor((dl.done / dl.total) * 100) : 0, mb = (n) => fmt(Math.round(n / 1048576));
+      const what = t(dl.phase === "engine" ? "buddy.localPhaseEngine" : "buddy.localPhaseModel");
+      const mine = dl.model === m.id ? "" : ` (${esc((L.models.find((x) => x.id === dl.model) || {}).short || dl.model)})`;
+      act.innerHTML = `<div class="buddy-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="--p:${pct}%"></i></div>`
+        + `<small>${esc(what)}${mine}: ${dl.total ? `${pct}% · ${mb(dl.done)} / ${mb(dl.total)} MB` : esc(t("buddy.localStarting"))}</small>`
+        + `<button class="btn btn--secondary" id="localCancel">${esc(t("buddy.localCancel"))}</button>`;
+      $("#localCancel").onclick = async () => { if (api) aiLocal(await api.local_ai_cancel()); };
+    } else if (m.downloaded) {
+      act.innerHTML = `<button class="link-danger" id="localDelete">${esc(t("buddy.localDelete"))}</button>`;
+      $("#localDelete").onclick = async () => {
+        if (!api || !(await ask("delmodel"))) return;
+        const r = await api.local_ai_delete(m.id);
+        aiLocal(r);
+        toast(t(r.ok ? "buddy.localDeleted" : "saveFail"), !r.ok);
+      };
+    } else {
+      act.innerHTML = `<button class="btn btn--secondary" id="localDownload"${L.supported === false ? " disabled" : ""}>${esc(t("buddy.localDownload"))}</button>`;
+      $("#localDownload").onclick = async () => { if (api) { aiLocal(await api.local_ai_download(m.id)); aiWatch(); } };
+    }
+  }
+  function aiLocal(status) {
+    if (!state || !status || !status.models) return;
+    state.mascot_ai = Object.assign({}, aiOf(), { local: status });
+    const dl = status.download || {};
+    if (AI.wasActive && !dl.active) toast(dl.error ? t(`buddy.localErr.${dl.error}`) : t("buddy.localDone"), !!dl.error && dl.error !== "cancelled");
+    AI.wasActive = !!dl.active;
+    localRender();
+  }
+  function aiWatch() {                         // hỏi lại tiến trình tải cho tới khi xong
+    clearInterval(AI.poll);
+    AI.poll = setInterval(async () => {
+      if (!api) return clearInterval(AI.poll);
+      const s = await api.local_ai_status();
+      aiLocal(s);
+      if (!s.download || !s.download.active) clearInterval(AI.poll);
+    }, 500);
+  }
+  function segSave(sel, key, after) {
+    $$(`${sel} button`).forEach((b) => b.addEventListener("click", () => {
+      const before = state ? state.settings[key] : null;
+      if (b.dataset.v === before) return;
+      if (state) state.settings[key] = b.dataset.v;
+      aiRender();
+      if (after) after(b.dataset.v);
+      save({ [key]: b.dataset.v }, () => { if (state) state.settings[key] = before; aiRender(); });
+    }));
+  }
+  segSave("#buddyAi", "mascot_ai_mode", (v) => { if (v === "local" && api) api.local_ai_status().then(aiLocal); });
+  segSave("#byokProvider", "mascot_byok_provider");
+  const URL_OK = /^(https:\/\/[^\s/?#]+|http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?)(\/[^\s?#]*)?$/;
+  $("#byokUrl").addEventListener("change", (e) => {
+    const v = e.target.value.trim().replace(/\/+$/, "");
+    if (v && !URL_OK.test(v)) { toast(t("buddy.byokUrlBad"), true); return; }
+    const before = state ? state.settings.mascot_byok_base_url : "";
+    save({ mascot_byok_base_url: v }, () => { e.target.value = before; });
+  });
+  $("#byokModel").addEventListener("change", (e) => {
+    const before = state ? state.settings.mascot_byok_model : "";
+    save({ mascot_byok_model: e.target.value.trim() }, () => { e.target.value = before; });
+  });
+  $("#byokShow").addEventListener("click", (e) => {
+    const k = $("#byokKey"), show = k.type === "password";
+    k.type = show ? "text" : "password";
+    e.currentTarget.textContent = t(show ? "buddy.byokHide" : "buddy.byokShow");
+  });
+  async function saveKey(value) {
+    if (!api) return;
+    const k = $("#byokKey");
+    try {
+      const r = await api.byok_save_key(value);
+      if (!r.ok) { toast(r.error || t("saveFail"), true); return; }
+      k.value = "";                                   // không giữ khóa trong trang; ô xanh bên dưới cho biết đã lưu khóa nào
+      k.type = "password";
+      $("#byokShow").textContent = t("buddy.byokShow");
+      if (state) state.mascot_ai = Object.assign({}, aiOf(), { has_api_key: r.has_api_key, api_key_hint: r.api_key_hint });
+      aiRender();
+      toast(t(value ? "buddy.byokKeyOk" : "buddy.byokKeyGone"));
+    } catch (err) { toast(t("saveFail"), true); }
+  }
+  $("#byokSave").addEventListener("click", () => {
+    const value = $("#byokKey").value.trim();
+    if (!value) { $("#byokKey").focus(); toast(t("buddy.byokKeyPh"), true); return; }   // ô trống không còn là "xóa": dùng nút Xóa khóa
+    saveKey(value);
+  });
+  $("#byokRemove").addEventListener("click", async () => { if (await ask("delkey")) saveKey(""); });
+  $("#byokKey").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#byokSave").click(); } });
+
   // Hộp xác nhận tự vẽ: mặc định focus vào "Giữ lại"; Esc hoặc bấm ra ngoài = hủy.
   function ask(kind = "confirm") {
     const box = $("#sheet"), yes = $("#sheetYes"), no = $("#sheetNo");
@@ -443,7 +585,15 @@
     default_handler: !location.search.includes("off"), blacklist_text: "Scam list updated at 07:42 today",
     settings: { tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
       ui_language: location.search.includes("vi") ? "vi" : "en",
-      mascot_enabled: true, mascot_startup: "login", mascot_fps: 60, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"] },
+      mascot_enabled: true, mascot_startup: "login", mascot_fps: 60, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"],
+      mascot_ai_mode: /ai=(free|byok|local)/.test(location.search) ? location.search.match(/ai=(\w+)/)[1] : "local",
+      mascot_byok_provider: "gemini", mascot_byok_base_url: "", mascot_byok_model: "", mascot_local_model: "qwen2.5-3b" },
+    mascot_ai: { has_api_key: location.search.includes("key"), api_key_hint: "••••x7Qa", presets: { gemini: { url: "", model: "gemini-3.5-flash-lite" }, openai: { url: "", model: "gpt-5-mini" },
+      deepseek: { url: "", model: "deepseek-flash" }, custom: { url: "", model: "" } },
+      local: { supported: true, engine_ready: false, download: { active: location.search.includes("dl"), model: "qwen2.5-3b", phase: "model", done: 880803840, total: 1929903264, error: "" },
+        models: [["qwen2.5-0.5b", "Qwen2.5-0.5B-Instruct", "Qwen 0.5B", 0.4, 1, false], ["qwen2.5-1.5b", "Qwen2.5-1.5B-Instruct", "Qwen 1.5B", 1.1, 2, true],
+          ["qwen2.5-3b", "Qwen2.5-3B-Instruct", "Qwen 3B", 2, 3.5, false], ["gemma-2-2b", "Gemma-2-2B-it", "Gemma 2B", 1.6, 3, false]]
+          .map(([id, name, short, size_gb, ram_gb, downloaded]) => ({ id, name, short, format: "GGUF", quant: "Q4_K_M", size_gb, ram_gb, downloaded })) } },
     summary: { total: 128, safe: 121, warned: 7, closed: 6, blocked: 2 },
     recent: [
       { ts: now - 3600, host: "xacthuc-tk.top", level: "BLOCKED", decision: "cancel" },
