@@ -95,6 +95,7 @@ dependencies = [
     { name = "pyinstaller", marker = "sys_platform == 'win32'" },
     { name = "pywebview" },
     { name = "setuptools" },
+    { name = "zxing-cpp", marker = "sys_platform == 'win32'" },
 ]
 
 [package.metadata]
@@ -105,6 +106,7 @@ requires-dist = [
     { name = "pyinstaller", marker = "sys_platform == 'win32'", specifier = ">=6.10" },
     { name = "pywebview", specifier = ">=6.0" },
     { name = "setuptools", specifier = ">=70" },
+    { name = "zxing-cpp", marker = "sys_platform == 'win32'", specifier = ">=2.3" },
 ]
 
 [[package]]
@@ -488,4 +490,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f6/cc/6253133b5bb138fc3306cebfbda2c520f545d36b5be2c7255cc528bb45d6/typing_extensions-4.16.0.tar.gz", hash = "sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5", size = 113555, upload-time = "2026-07-02T08:40:05.92Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl", hash = "sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8", size = 45571, upload-time = "2026-07-02T08:40:04.659Z" },
+]
+
+[[package]]
+name = "zxing-cpp"
+version = "3.2.0.post1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/df/d4ca3cdd0d6846045713e46d4012589ad7476b3dc58fcb217f852e228ed1/zxing_cpp-3.2.0.post1.tar.gz", hash = "sha256:3100a9abf498eeca4f271c7033ea66ed3e936983ed4bf8ace72a3e1efd2062de", size = 1446246, upload-time = "2026-11-26T10:05:23.919Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/32/d766f90d188b11d53610bd3ab5d7e4b30b17bceeb397e40cad5d8c316429/zxing_cpp-3.2.0.post1-cp312-abi3-win_amd64.whl", hash = "sha256:b516f8d8c585e8494e9e86a20fd7ed50465f2440147be2d13361857e2db7d403", size = 1207281, upload-time = "2026-11-26T10:05:01.026Z" },
+    { url = "https://files.pythonhosted.org/packages/63/7c/b08987b722585d9e5fb852f97717b8952d4da8aea06e4eb224c58472d0f2/zxing_cpp-3.2.0.post1-cp312-abi3-win_arm64.whl", hash = "sha256:db65e2041e469ed44ca8ab0f1533e0fbfe54eb5e442caeea656d962cbfe16320", size = 1327917, upload-time = "2026-11-26T10:05:02.484Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/02/634c976b80b43ade2f9c17438e79291f315b2aa3c0bc652fd62d16f97057/zxing_cpp-3.2.0.post1-cp315-cp315t-win_amd64.whl", hash = "sha256:f55c03ca3d221f4daa933e5817977640ea31119ed6d51dce79c802c9049c6db8", size = 1240608, upload-time = "2026-11-26T10:05:20.657Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/ca/c8614f9e894505007318e34939de15a0d38c26d093084d0d8338392b0daa/zxing_cpp-3.2.0.post1-cp315-cp315t-win_arm64.whl", hash = "sha256:56dab06cbe8bc184bd2191394a5834f49527f1f584646b4fe797021ec0265eff", size = 1369337, upload-time = "2026-11-26T10:05:22.141Z" },
 ]

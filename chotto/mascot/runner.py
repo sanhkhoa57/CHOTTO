@@ -29,8 +29,9 @@ _STOP_TIMEOUT_S = 2.0
 class MascotRunner:
     """Giữ một ``TaskbarMascot`` chạy trên luồng nền có ``tk.Tk`` riêng. Mọi phương thức công khai đều không ném lỗi."""
 
-    def __init__(self, open_app: Callable[[], None]) -> None:
+    def __init__(self, open_app: Callable[[], None], open_link: Callable[[str], None] | None = None) -> None:
         self._open_app = open_app
+        self._open_link = open_link                 # gọi từ luồng nhân vật: chỉ được xếp hàng, không đụng Tk luồng chính
         self._mascot: TaskbarMascot | None = None
         self._root: Any = None
         self._ready = threading.Event()
@@ -52,7 +53,7 @@ class MascotRunner:
 
             root = tk.Tk()
             root.withdraw()
-            mascot = TaskbarMascot(root, self._open_app)
+            mascot = TaskbarMascot(root, self._open_app, self._open_link)
             self._root, self._mascot = root, mascot
             mascot.start()
         except Exception:  # noqa: BLE001 - phần trang trí không được làm chết agent

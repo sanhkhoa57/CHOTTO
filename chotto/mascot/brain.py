@@ -45,7 +45,9 @@ class MascotBrain:
     unit: float = 1.0                        # tỉ lệ so với bản thiết kế (khoảng cách/tốc độ nhân với hệ số này)
     reduced_motion: bool = False
     rng: random.Random = field(default_factory=random.Random)
-    nap_range: tuple[float, float] = (15.0, 15.0)
+    nap_range: tuple[float, float] = (15.0, 15.0)   # giấc ngủ khi chưa tuần tra
+    rest_seconds: float = REST_SECONDS       # nghỉ giữa hai lượt chạy lúc đang tuần tra
+    run_seconds: float = RUN_SECONDS         # mỗi lượt chạy
     speed: float = 300.0                     # điểm ảnh/giây theo kích thước bản thiết kế (nhân ``unit``)
     state: State = field(default="sleep", init=False)
     t: float = field(default=0.0, init=False)
@@ -82,14 +84,23 @@ class MascotBrain:
         self.state = state
         self.t = 0.0
         if state == "sleep":
-            self._until = REST_SECONDS if self.patrol else self.rng.uniform(*self.nap_range)
+            self._until = self.rest_seconds if self.patrol else self.rng.uniform(*self.nap_range)
         elif state == "run":
             if not self.patrol:                  # bắt đầu tuần tra: hướng về mép xa hơn cho có đường chạy dài
                 self.patrol = True
                 self.direction = -1 if self.x - self.left > self.right - self.x else 1
-            self._until = RUN_SECONDS
+            self._until = self.run_seconds
         elif state == "alert":
             self._until = ALERT_SECONDS
+
+    def set_timing(self, sleep_s: float, run_s: float) -> None:
+        """Người dùng đổi thời gian ngủ/chạy: mọi giấc ngủ đều dài ``sleep_s``; giấc/lượt đang dở tính theo số mới."""
+        self.nap_range = (sleep_s, sleep_s)
+        self.rest_seconds, self.run_seconds = sleep_s, run_s
+        if self.state == "sleep":
+            self._until = sleep_s
+        elif self.state == "run":
+            self._until = run_s
 
     # ---- sự kiện ----
     def warning_opened(self) -> None:

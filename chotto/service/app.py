@@ -352,15 +352,17 @@ class _HandlerCache:
         return self.get().cfg
 
 
-def _start_mascot(open_app: Callable[[], None], web: WebUI | None) -> MascotRunner | None:
+def _start_mascot(open_app: Callable[[], None], web: WebUI | None,
+                  open_link: Callable[[str], None] | None = None) -> MascotRunner | None:
     """Nhân vật taskbar (tự ẩn/hiện theo ``mascot_enabled``) trên luồng Tk riêng; lỗi bất kỳ chỉ ghi log, agent chạy tiếp.
 
-    ``open_app`` được gọi từ luồng nhân vật nên chỉ được đặt cờ (không đụng Tk của luồng chính).
+    ``open_app`` và ``open_link`` (link từ mã QR người dùng xác nhận mở) được gọi từ luồng nhân vật nên chỉ được đặt cờ/xếp hàng
+    (không đụng Tk của luồng chính).
     """
     try:
         from ..mascot import MascotRunner
 
-        mascot = MascotRunner(open_app)
+        mascot = MascotRunner(open_app, open_link)
         if web is not None:
             def changed() -> None:
                 mascot.request_reload()
@@ -429,7 +431,11 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
         web.start()                    # giữ sẵn: màn hình đệm sau hiện trong khoảng 0,2 giây
     state: dict[str, Any] = {"busy": False, "handled": False, "settings": None}
     open_flag = threading.Event()                  # nhân vật (luồng Tk riêng) xin mở ứng dụng: luồng chính tự xử lý ở drain
-    mascot = _start_mascot(open_flag.set, web)
+    # Link từ mã QR đi cùng hàng đợi với link bấm thật (force: luôn kiểm tra, link rủi ro vẫn hiện màn hình cảnh báo).
+    def open_scanned(url: str) -> None:
+        core.submit(agent_mod.LinkRequest(url, None, True))
+
+    mascot = _start_mascot(open_flag.set, web, open_scanned)
     handlers = _HandlerCache(window, web, mascot.notify if mascot is not None else None)
 
     def drain() -> None:

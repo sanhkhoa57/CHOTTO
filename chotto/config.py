@@ -41,6 +41,8 @@ UI_LANGUAGES: Final[tuple[str, ...]] = ("en", "vi")
 MascotStartup = Literal["login", "zalo"]
 MASCOT_STARTUPS: Final[tuple[str, ...]] = ("login", "zalo")   # "off" (Thủ công) đã bỏ: cấu hình cũ về "login"
 MASCOT_FPS_RANGE: Final[tuple[int, int]] = (10, 240)       # số khung hình/giây của nhân vật taskbar (thanh kéo trong Cài đặt)
+MASCOT_SLEEP_RANGE: Final[tuple[int, int]] = (1, 300)      # số giây mỗi giấc ngủ giữa hai lượt chạy (thanh kéo)
+MASCOT_RUN_RANGE: Final[tuple[int, int]] = (1, 60)         # số giây mỗi lượt chạy (thanh kéo)
 # Màu mặc định của 6 nhóm nhân vật taskbar (Tóc, Mắt, Da, Áo choàng, Váy, Giày/phụ kiện): khớp ``D.def`` của
 # design/chotto_mascot_customizer.html và ``chotto/mascot/assets/palette.json`` (có test kiểm tra).
 MASCOT_DEFAULT_COLORS: Final[tuple[str, ...]] = ("#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f")
@@ -80,6 +82,8 @@ class Config(TypedDict):
     mascot_pinned: bool
     mascot_pos: float
     mascot_fps: int
+    mascot_sleep_s: int
+    mascot_run_s: int
     mascot_ai_mode: MascotAIMode
     mascot_byok_provider: str
     mascot_byok_base_url: str
@@ -110,6 +114,8 @@ DEFAULTS: Final[Config] = {
     "mascot_pinned": False,         # Cố định nhân vật tại một chỗ (không chạy qua lại)
     "mascot_pos": 0.85,             # Vị trí cố định: tỉ lệ 0 (trái) .. 1 (phải) trên chiều ngang màn hình
     "mascot_fps": 60,               # Khung hình/giây của nhân vật, 10..240 (cao hơn = mượt hơn nhưng tốn CPU hơn)
+    "mascot_sleep_s": 3,            # Giây ngủ giữa hai lượt chạy
+    "mascot_run_s": 3,              # Giây mỗi lượt chạy
     "mascot_ai_mode": "free",       # Hỏi đáp: "free" | "byok" | "local"
     "mascot_byok_provider": "gemini",   # Nhà cung cấp của khóa riêng: gemini | openai | deepseek | custom
     "mascot_byok_base_url": "",     # Chỉ dùng khi provider = custom (OpenAI-compatible, https hoặc http://localhost)
@@ -120,13 +126,14 @@ DEFAULTS: Final[Config] = {
 # Các khóa người dùng được xem và sửa từ cửa sổ ứng dụng / cài đặt (các khóa khác như trình duyệt đã lưu thì không).
 SETTINGS_KEYS: Final[tuple[str, ...]] = (
     "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
-    "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos", "mascot_fps",
+    "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos", "mascot_fps", "mascot_sleep_s", "mascot_run_s",
     "mascot_ai_mode", "mascot_byok_provider", "mascot_byok_base_url", "mascot_byok_model", "mascot_local_model",
 )
 
 # Miền giá trị hợp lệ cho các khóa số: (nhỏ nhất, lớn nhất).
 _INT_RANGES: Final[dict[str, tuple[int, int]]] = {"friction_seconds": (3, 15), "log_retention_days": (1, 3650),
-                                                  "mascot_fps": MASCOT_FPS_RANGE}
+                                                  "mascot_fps": MASCOT_FPS_RANGE,
+                                                  "mascot_sleep_s": MASCOT_SLEEP_RANGE, "mascot_run_s": MASCOT_RUN_RANGE}
 _FLOAT_RANGES: Final[dict[str, tuple[float, float]]] = {
     "tier3_timeout": (0.5, 3.0), "cache_ttl_hours": (24.0, 72.0), "mascot_pos": (0.0, 1.0),
 }

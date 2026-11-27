@@ -19,8 +19,10 @@ __all__ = [
     "center_on_screen",
     "enable_snap",
     "fade",
+    "force_foreground",
     "foreground_window",
     "make_tool_window",
+    "virtual_screen_origin",
     "monitor_work_rect",
     "native_hwnd",
     "set_foreground",
@@ -512,6 +514,19 @@ def foreground_window() -> int:
     import ctypes
 
     return int(ctypes.windll.user32.GetForegroundWindow() or 0)
+
+
+def virtual_screen_origin() -> tuple[int, int]:
+    """Góc trái trên của màn hình ảo (gộp mọi màn hình); âm nếu có màn hình phụ ở bên trái hoặc phía trên màn hình chính."""
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    return int(user32.GetSystemMetrics(76)), int(user32.GetSystemMetrics(77))   # SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN
+
+
+def force_foreground(hwnd: int) -> None:
+    """Giành foreground cho cửa sổ của mình (để nhận phím Esc); chỉ gọi ngay sau thao tác của người dùng."""
+    _force_foreground(hwnd)
 
 
 def set_foreground(hwnd: int) -> None:

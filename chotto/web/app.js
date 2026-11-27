@@ -110,7 +110,7 @@
     });
     $$("#seconds button").forEach((b) => b.setAttribute("aria-pressed", Number(b.dataset.s) === s.settings.friction_seconds));
     $$("#buddyStartup button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === (s.settings.mascot_startup || "login")));
-    if (document.activeElement !== $("#buddyFps")) fpsShow(s.settings.mascot_fps || 60);          // đang kéo thì không giật thanh về chỗ cũ
+    SLIDERS.forEach((x) => { if (document.activeElement !== x.input) x.show(s.settings[x.key] || x.fallback); });   // đang kéo thì không giật thanh về chỗ cũ
     buddySync(s);
     buddyPlaceUI();
     aiRender();
@@ -202,19 +202,28 @@
     $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === b));
     save({ mascot_startup: b.dataset.v }, () => $$("#buddyStartup button").forEach((x) => x.setAttribute("aria-pressed", x === before)));
   }));
-  // thanh kéo FPS: kéo thì cập nhật số ngay, thả tay mới lưu (agent đọc lại và đổi nhịp ngay, không cần khởi động lại)
-  const fps = $("#buddyFps");
-  function fpsShow(v) {
-    fps.value = v;
-    fps.style.setProperty("--p", `${((fps.value - fps.min) / (fps.max - fps.min)) * 100}%`);
-    $("#buddyFpsOut").textContent = `${fps.value} fps`;
+  // thanh kéo của nhân vật: kéo thì cập nhật số ngay, thả tay mới lưu (agent đọc lại và áp ngay, không cần khởi động lại)
+  function slider(id, key, fallback, label) {
+    const input = $(id);
+    const show = (v) => {
+      input.value = v;
+      input.style.setProperty("--p", `${((input.value - input.min) / (input.max - input.min)) * 100}%`);
+      $(`${id}Out`).textContent = label(Number(input.value));
+    };
+    input.addEventListener("input", () => show(input.value));
+    input.addEventListener("change", () => {
+      const before = state && state.settings[key] || fallback;
+      save({ [key]: Number(input.value) }, () => show(before));
+    });
+    show(fallback);
+    return { input, key, fallback, show };
   }
-  fps.addEventListener("input", () => fpsShow(fps.value));
-  fps.addEventListener("change", () => {
-    const before = state && state.settings.mascot_fps || 60;
-    save({ mascot_fps: Number(fps.value) }, () => fpsShow(before));
-  });
-  fpsShow(60);
+  const duration = (s) => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ""}`);
+  const SLIDERS = [
+    slider("#buddyFps", "mascot_fps", 60, (v) => `${v} fps`),
+    slider("#buddySleep", "mascot_sleep_s", 3, duration),
+    slider("#buddyRun", "mascot_run_s", 3, duration),
+  ];
   $$("[data-lang-switch] button").forEach((b) => b.addEventListener("click", () => {
     const before = I18N.lang;
     if (b.dataset.lang === before) return;
@@ -585,7 +594,7 @@
     default_handler: !location.search.includes("off"), blacklist_text: "Scam list updated at 07:42 today",
     settings: { tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
       ui_language: location.search.includes("vi") ? "vi" : "en",
-      mascot_enabled: true, mascot_startup: "login", mascot_fps: 60, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"],
+      mascot_enabled: true, mascot_startup: "login", mascot_fps: 60, mascot_sleep_s: 3, mascot_run_s: 3, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"],
       mascot_ai_mode: /ai=(free|byok|local)/.test(location.search) ? location.search.match(/ai=(\w+)/)[1] : "local",
       mascot_byok_provider: "gemini", mascot_byok_base_url: "", mascot_byok_model: "", mascot_local_model: "qwen2.5-3b" },
     mascot_ai: { has_api_key: location.search.includes("key"), api_key_hint: "••••x7Qa", presets: { gemini: { url: "", model: "gemini-3.5-flash-lite" }, openai: { url: "", model: "gpt-5-mini" },

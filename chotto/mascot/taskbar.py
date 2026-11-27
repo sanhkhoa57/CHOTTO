@@ -21,10 +21,12 @@ from ..platforms import any_process_running
 from ..platforms import win32_window as w32
 from ..platforms import window as osw
 from ..util import clamp as _clamp
-from . import speech
+from . import qr, speech
 from .brain import POSE_INDEX, WARNING_LEVELS, Frame, MascotBrain
 from .bubble import SpeechBubble
+from .panel import ActionPanel, Button
 from .recolor import POSES, normalize_colors, recolored_pose, source_poses
+from .scan import QrScan
 
 if TYPE_CHECKING:
     import tkinter as tk
@@ -130,8 +132,8 @@ def place_flag_set() -> bool:
     except OSError:
         return False
 _DUST_RGBA: Final[tuple[int, int, int, int]] = (216, 210, 200, 255)
-_MENU: Final[dict[str, tuple[str, str, str]]] = {"en": ("Open Chotto", "Hide character", "Ask Chotto"),
-                                                 "vi": ("Mở CHOTTO", "Ẩn nhân vật", "Hỏi Chotto")}
+_MENU: Final[dict[str, tuple[str, str]]] = {"en": ("Open Chotto", "Hide character"),
+                                            "vi": ("Mở CHOTTO", "Ẩn nhân vật")}   # hai mục còn lại lấy chữ ở ``qr.TEXT``
 _GREET_GAP: Final[float] = 30.0                 # giây tối thiểu giữa hai lời chào
 _IDLE_RANGE: Final[tuple[float, float]] = (480.0, 900.0)   # giây giữa hai lần nhân vật tự nói khi rảnh
 
@@ -148,10 +150,16 @@ class _Dust:
 class TaskbarMascot:
     """Cửa sổ nhân vật trên luồng Tk của agent. Mọi phương thức công khai đều không ném lỗi."""
 
-    def __init__(self, root: tk.Tk, open_app: Callable[[], None]) -> None:
-        """Gắn vào cửa sổ gốc ``root`` (ẩn) của agent; ``open_app`` mở cửa sổ ứng dụng CHOTTO."""
+    def __init__(self, root: tk.Tk, open_app: Callable[[], None], open_link: Callable[[str], None] | None = None) -> None:
+        """Gắn vào cửa sổ gốc ``root`` (ẩn) của agent; ``open_app`` mở cửa sổ ứng dụng CHOTTO.
+
+        ``open_link`` đưa một link vào luồng chặn link của agent (có màn hình cảnh báo); thiếu thì kết quả QR không có nút mở.
+        """
         self._root = root
         self._open_app = open_app
+        self._open_link = open_link
+        self._panel: ActionPanel | None = None
+        self._scan: QrScan | None = None
         self._events: collections.deque[tuple[str, str]] = collections.deque()
         self._reload = threading.Event()
         self._broken = False
@@ -160,6 +168,7 @@ class TaskbarMascot:
         self._startup = "login"
         self._frame_s = 1 / 60                  # nhịp khung hình theo cài đặt mascot_fps (bù thời gian dựng khung để nhịp không lệch)
         self._zalo_names: tuple[str, ...] = ()
+        self._timing: tuple[float, float] = (3.0, 3.0)          # (giây ngủ, giây chạy) theo cài đặt
         self._colors: tuple[str, ...] = tuple(MASCOT_DEFAULT_COLORS)
         self._lang = "en"
         self._stamp: tuple[int, int] | None = None
@@ -240,6 +249,14 @@ class TaskbarMascot:
         except Exception:  # noqa: BLE001
             pass
         self._loop_id = None
+        scan, self._scan = self._scan, None
+        panel, self._panel = self._panel, None
+        for gone in (scan.cancel if scan is not None else None, panel.destroy if panel is not None else None):
+            if gone is not None:
+                try:
+                    gone()
+                except Exception:  # noqa: BLE001
+                    pass
         bubble, self._bubble = self._bubble, None
         if bubble is not None:
             bubble.destroy()
@@ -284,6 +301,11 @@ class TaskbarMascot:
         self._startup = cfg["mascot_startup"]
         self._frame_s = 1 / _clamp(float(cfg["mascot_fps"]), *map(float, MASCOT_FPS_RANGE))
         self._zalo_names = tuple(cfg["zalo_processes"])
+        timing = (float(cfg["mascot_sleep_s"]), float(cfg["mascot_run_s"]))
+        if timing != self._timing:                              # lưu cài đặt khác không được làm lại giấc ngủ đang dở
+            self._timing = timing
+            if self._brain is not None:
+                self._brain.set_timing(*timing)
         self._reconcile()
         self._sync_pin()
 
@@ -351,7 +373,7 @@ class TaskbarMascot:
         brain = self._brain
         if brain is None:
             return
-        brain.set_pinned(self._pinned or self._placing or self._chatting())
+        brain.set_pinned(self._pinned or self._placing or self._chatting() or self._panel_open())
         if self._pinned and not self._placing and not self._dragging:
             brain.drag_to(brain.left + _clamp(self._pos) * (brain.right - brain.left))
 
@@ -403,6 +425,7 @@ class TaskbarMascot:
     def _hide(self) -> None:
         self._enabled = False
         self._set_fine(False)
+        self._cancel_scan()
         if self._bubble is not None:
             self._bubble.close_chat()
             self._bubble.hide()
@@ -426,7 +449,7 @@ class TaskbarMascot:
         canvas = tk.Canvas(window, width=width, height=height, highlightthickness=0, bd=0)       # chỉ để nhận chuột; hình vẽ qua LayeredSurface
         canvas.pack()
         canvas.bind("<Button-3>", lambda e: self._safe(lambda: self._menu(e.x_root, e.y_root)))
-        canvas.bind("<Double-Button-1>", lambda e: None if self._placing else self._safe(self._open_chat))
+        canvas.bind("<Double-Button-1>", lambda e: None if self._placing else self._safe(self._open_choices))
         canvas.bind("<ButtonPress-1>", lambda e: self._safe(lambda: self._press(e)))
         canvas.bind("<B1-Motion>", lambda e: self._safe(lambda: self._motion(e)))
         canvas.bind("<ButtonRelease-1>", lambda e: self._safe(lambda: self._release(e)))
@@ -438,7 +461,10 @@ class TaskbarMascot:
         self._window, self._canvas = window, canvas
         self._size = (width, height)
         self._brain = MascotBrain(0, 1, unit=self._unit, reduced_motion=not w32.animations_enabled())
+        self._brain.set_timing(*self._timing)
         self._bubble = SpeechBubble(self._root, dpi, self._on_chat_change)
+        self._panel = ActionPanel(self._root, dpi, self._on_panel_change)
+        self._scan = QrScan(self._root, dpi, self._safe, self._on_capturing, self._on_qr_reading, self._on_qr_report)
 
     def _place_bounds(self) -> None:
         self._area = w32.taskbar_work_area()
@@ -453,9 +479,11 @@ class TaskbarMascot:
     def _menu(self, x: int, y: int) -> None:
         import tkinter as tk
 
-        open_label, hide_label, ask_label = _MENU.get(self._lang, _MENU["en"])
+        open_label, hide_label = _MENU.get(self._lang, _MENU["en"])
+        words = qr.texts(self._lang)
         menu = tk.Menu(self._window, tearoff=0)
-        menu.add_command(label=ask_label, command=lambda: self._safe(self._open_chat))
+        menu.add_command(label=words["scan"], command=lambda: self._safe(self._start_scan))
+        menu.add_command(label=words["ask"], command=lambda: self._safe(self._open_chat))
         menu.add_command(label=open_label, command=lambda: self._safe(self._open_app))
         menu.add_command(label=hide_label, command=lambda: self._safe(self._hide_by_user))
         try:
@@ -468,8 +496,8 @@ class TaskbarMascot:
         return self._bubble is not None and self._bubble.chatting
 
     def _say(self, kind: speech.Kind, text: str) -> None:
-        """Nói một câu (bỏ qua khi đang chat); đặt lại đồng hồ "rảnh rỗi"."""
-        if self._bubble is None or not self._enabled or self._chatting():
+        """Nói một câu (bỏ qua khi đang chat, đang mở bảng nút hoặc đang chụp); đặt lại đồng hồ "rảnh rỗi"."""
+        if self._bubble is None or not self._enabled or self._chatting() or self._panel_open() or self._capturing():
             return
         self._idle_due = time.monotonic() + random.uniform(*_IDLE_RANGE)
         self._bubble.say(kind, text)
@@ -479,13 +507,105 @@ class TaskbarMascot:
         now = time.monotonic()
         if not self._idle_due:
             self._idle_due = now + random.uniform(*_IDLE_RANGE)
-        elif now >= self._idle_due and self._brain is not None and not self._brain.warning and self._bubble is not None                 and not self._bubble.visible:
+        elif now >= self._idle_due and self._brain is not None and not self._brain.warning and self._bubble is not None                 and not self._bubble.visible and not self._panel_open():
             self._say("thought", speech.pick("idle"))
 
     def _open_chat(self) -> None:
         if self._bubble is not None and self._enabled and not self._placing:
+            self._cancel_scan()
             self._bubble.open_chat()
             self._schedule(0)                                            # đặt chỗ bong bóng + ô chat ngay ở khung hình tới
+
+    # ---- thanh chọn nhanh + quét QR (panel.py, scan.py) ----
+    def _panel_open(self) -> bool:
+        return self._panel is not None and self._panel.visible
+
+    def _capturing(self) -> bool:
+        return self._scan is not None and self._scan.capturing
+
+    def _cancel_scan(self) -> None:
+        """Hủy lượt quét đang dở và đóng bảng nút (lớp phủ không được che cửa sổ khác)."""
+        if self._scan is not None:
+            self._scan.cancel()
+        if self._panel is not None:
+            self._panel.close()
+
+    def _clear_bubble(self) -> None:
+        if self._bubble is not None:
+            self._bubble.close_chat()
+            self._bubble.hide()
+
+    def _open_choices(self) -> None:
+        """Nhấn đúp: hai ô "Quét QR" và "Hỏi Chotto"."""
+        if self._panel is None or not self._enabled or self._placing or self._capturing():
+            return
+        self._cancel_scan()
+        self._clear_bubble()
+        words = qr.texts(self._lang)
+        self._panel.show("normal", words["choose"], [Button("scan", words["scan"], True), Button("ask", words["ask"])],
+                         lambda key: self._safe(lambda: self._choose(key)), big=True, modal=True)
+        self._schedule(0)
+
+    def _choose(self, key: str) -> None:
+        if self._panel is not None:
+            self._panel.close()
+        if key == "scan":
+            self._start_scan()
+        elif key == "ask":
+            self._open_chat()
+
+    def _start_scan(self) -> None:
+        if self._scan is None or not self._enabled or self._placing or self._capturing():
+            return
+        self._cancel_scan()
+        self._clear_bubble()
+        self._scan.start(self._lang)
+
+    def _on_panel_change(self, on: bool) -> None:
+        self._on_chat_change(on or self._chatting())
+
+    def _on_capturing(self, on: bool) -> None:
+        """Giấu nhân vật trong lúc chụp và chọn vùng. Đẩy khung trong suốt thay vì ``withdraw``: hiện lại bằng Tk sẽ cướp focus."""
+        if on and self._surface is not None:
+            width, height = self._size
+            self._surface.update(bytes(width * height * 4), self._area[0], self._area[3] - height)
+        self._presented = None
+        self._schedule(0)
+
+    def _on_qr_reading(self) -> None:
+        if self._bubble is not None and self._enabled:
+            self._bubble.say("thought", qr.texts(self._lang)["reading"], keep=True)
+            self._schedule(0)
+
+    def _on_qr_report(self, report: qr.QrReport) -> None:
+        if not self._enabled or self._panel is None or self._chatting():
+            return
+        self._idle_due = time.monotonic() + random.uniform(*_IDLE_RANGE)
+        if not report.payload:                                          # không thấy mã / lỗi: chỉ báo nhẹ, tự ẩn
+            self._say(report.kind, report.message)
+            return
+        self._clear_bubble()
+        self._show_report(report, copied=False)
+        self._schedule(0)
+
+    def _show_report(self, report: qr.QrReport, copied: bool) -> None:
+        assert self._panel is not None
+        words = qr.texts(self._lang)
+        buttons = [Button("copy", words["copied" if copied else "copy"])]
+        if report.link and self._open_link is not None:
+            buttons.append(Button("open", words["open"], primary=report.level == "SAFE"))
+        self._panel.show(report.kind, report.message, buttons,
+                         lambda key: self._safe(lambda: self._report_action(report, key)))
+
+    def _report_action(self, report: qr.QrReport, key: str) -> None:
+        if key == "copy":
+            self._root.clipboard_clear()
+            self._root.clipboard_append(report.payload)
+            self._show_report(report, copied=True)
+        elif key == "open" and report.link and self._open_link is not None:
+            if self._panel is not None:
+                self._panel.close()
+            self._open_link(report.link)                                # qua đúng luồng chặn link: link rủi ro vẫn hiện cảnh báo
 
     def _on_chat_change(self, on: bool) -> None:
         if self._brain is not None:
@@ -536,6 +656,7 @@ class TaskbarMascot:
         while self._events:
             event, level = self._events.popleft()
             if event == "warning_open" and level in WARNING_LEVELS:
+                self._cancel_scan()                           # lớp phủ/bảng nút không được che màn hình cảnh báo
                 brain.warning_opened()
                 self._say("alert", speech.pick("warn"))
             elif event == "warning_closed":
@@ -545,6 +666,10 @@ class TaskbarMascot:
         dt, self._last = now - self._last, now
         brain.tick(dt)
         frame = brain.frame()
+        if self._capturing():                                       # đang chụp/chọn vùng: không vẽ lại nhân vật
+            self._set_fine(False)
+            self._schedule(_SLOW_MS)
+            return
         if self._poses is not None and self._poses[frame.pose] is not None:
             self._draw(frame, dt)
         moving = brain.animating or bool(self._dust) or self._dragging or (brain.state == "sleep" and not brain.reduced_motion)
@@ -661,9 +786,11 @@ class TaskbarMascot:
                 packed.paste(tile, (tx, ty))
             surface.update(packed.tobytes("raw", "BGRa"), win_x, bottom - height)
             self._presented = present
+        sprite_top = bottom + round(frame.dy) - self._sprite_h
         if self._bubble is not None and self._bubble.visible:
-            sprite_top = bottom + round(frame.dy) - self._sprite_h
             self._bubble.place(round(frame.x + frame.dx), sprite_top, self._area)
+        if self._panel is not None:                            # luôn báo chỗ để bảng vừa mở hiện đúng vị trí ngay
+            self._panel.place(round(frame.x + frame.dx), sprite_top, self._area)
 
     def _step_dust(self, dt: float) -> None:
         """Bụi nhẹ sau gót khi chạy: sinh hạt mới và cho các hạt cũ bay, lớn dần, tàn đi."""

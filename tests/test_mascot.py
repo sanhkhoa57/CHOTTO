@@ -437,6 +437,38 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
             self.assertAlmostEqual(m._frame_s, 1 / fps)
             m.stop()
 
+    def test_sleep_and_run_time_settings(self) -> None:
+        from chotto.config import SETTINGS_KEYS
+
+        for key, default, high in (("mascot_sleep_s", 3, 300), ("mascot_run_s", 3, 60)):
+            self.assertIn(key, SETTINGS_KEYS)
+            self.assertEqual(validate_config({})[key], default)  # type: ignore[literal-required]
+            self.assertEqual(validate_config({key: 0})[key], 1)  # type: ignore[literal-required]
+            self.assertEqual(validate_config({key: 9999})[key], high)  # type: ignore[literal-required]
+        m, _calls = self._start_with(mascot_enabled=True, mascot_sleep_s=40, mascot_run_s=12)
+        with patch.object(mascot.taskbar, "any_process_running", return_value=False):
+            m._poll()
+        self.assertEqual(m._timing, (40.0, 12.0))
+        m.stop()
+
+    def test_brain_follows_sleep_and_run_time(self) -> None:
+        brain = mascot.MascotBrain(0, 100000)
+        brain.set_timing(2.0, 5.0)
+        seen: list[tuple[str, float]] = []
+        for _ in range(200):                                     # 20 giây, bước 0,1 giây
+            state, t = brain.state, brain.t
+            brain.tick(0.1)
+            if brain.state != state:
+                seen.append((state, round(t + 0.1, 1)))
+        self.assertEqual([s for s, _ in seen[:4]], ["sleep", "run", "sleep", "run"])
+        for state, lasted in seen[:4]:
+            self.assertAlmostEqual(lasted, 2.0 if state == "sleep" else 5.0, delta=0.11)
+        brain.set_timing(1.0, 1.0)                               # đổi giữa chừng: giấc/lượt đang dở theo số mới
+        before = brain.state
+        for _ in range(11):
+            brain.tick(0.1)
+        self.assertNotEqual(brain.state, before)
+
     def test_startup_validation(self) -> None:
         self.assertEqual(validate_config({})["mascot_startup"], "login")
         self.assertEqual(validate_config({"mascot_startup": "bogus"})["mascot_startup"], "login")

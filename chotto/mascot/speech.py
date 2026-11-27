@@ -36,7 +36,7 @@ MAX_LEN: Final[int] = 150
 _SERVER_FALLBACK: Final[str] = "Hôm nay tui soi nhiều link quá nên hơi lag não"   # đầu câu FALLBACK_REPLY của api/mascot-chat.js
 
 LINES: Final[dict[str, str | tuple[str, ...]]] = {
-    "hello": "Chào đằng ấy! Tui là Chotto. Bấm đúp vào tui nếu muốn soi link lạ hay hỏi gì về app nha!",
+    "hello": "Chào đằng ấy! Tui là Chotto. Bấm đúp vào tui để quét mã QR hay hỏi gì về link lạ nha!",
     "warn": "KHOAN ĐÃ! Link này nhìn sai sai, đọc kỹ cảnh báo trước khi bấm nha!",
     "closed": "Ổn áp! Lần sau có link lạ cứ bấm đúp vào tui, tui soi giùm.",
     "idle": ("Đang soi code xem uy tín không đúng hông? Sạch 100%, không giấu malware đâu mà lo...",
