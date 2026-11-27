@@ -22,22 +22,33 @@
   } catch {
     // A private browsing session can still chat without storage.
   }
-  name.placeholder = "Khách " + client.slice(0,4).toUpperCase();
+  // Same hash as the server: others only ever see this, never the UUID itself.
+  let me = "";
+  const identified = crypto.subtle.digest("SHA-256", new TextEncoder().encode(client)).then((hash) => {
+    me = Array.from(new Uint8Array(hash,0,16), (byte) => byte.toString(16).padStart(2,"0")).join("");
+    name.placeholder = "Khách " + me.slice(0,4).toUpperCase();
+  });
+  const rejected = {
+    link:"Phòng chat không cho gửi link hay tên miền.",
+    reserved_name:"Tên này dành cho quản trị. Hãy chọn tên khác.",
+    invalid_message:"Tin nhắn không có nội dung hợp lệ.",
+    daily_limit:"Mạng của bạn đã hết lượt gửi hôm nay."
+  };
 
   let after = "", timer, syncing = false, sending = false, connected = false;
-  let onScreen = false, failures = 0, retry = null;
+  let onScreen = false, failures = 0, idle = 0, retry = null;
 
   function append(messages) {
     const atBottom = log.scrollHeight-log.scrollTop-log.clientHeight < 32;
     const previousHeight = log.scrollHeight;
     const rows = document.createDocumentFragment();
-    for (const { id, client: author, name: nickname, text } of messages) {
+    for (const { id, author, name: nickname, text } of messages) {
       const row = document.createElement("article");
-      row.className = author === client ? "chat-message mine" : "chat-message";
+      row.className = author === me ? "chat-message mine" : "chat-message";
       const meta = document.createElement("div");
       meta.className = "chat-meta";
       const label = document.createElement("strong");
-      label.textContent = author === client ? nickname + " (bạn)" : nickname;
+      label.textContent = author === me ? nickname + " (bạn)" : nickname;
       const time = document.createElement("time");
       const sentAt = new Date(Number(id.split("-")[0]));
       time.dateTime = sentAt.toISOString();
@@ -84,12 +95,15 @@
         next = 30000;
       } else {
         if (!response.ok) throw new Error("Chat unavailable");
+        await identified;
         append(data.messages);
         if (!after) after = "0-0";
         connected = true;
         failures = 0;
         connection("connected", "Đã kết nối");
-        if (data.more) next = 0;
+        // A quiet room is polled less and less often, down to every 15 seconds.
+        idle = data.messages.length ? 0 : Math.min(idle+1,8);
+        next = data.more ? 0 : Math.min(15000,next*1.25**idle);
       }
     } catch {
       connected = false;
@@ -121,7 +135,11 @@
         method:"POST", headers:{ "Content-Type":"application/json" },
         body:JSON.stringify(retry), signal:AbortSignal.timeout(7500)
       });
-      if (response.status === 429) {
+      const refusal = response.status === 400 || response.status === 429
+        ? (await response.json()).error : "";
+      if (Object.hasOwn(rejected,refusal)) {
+        notice.textContent = rejected[refusal];
+      } else if (response.status === 429) {
         notice.textContent = "Bạn gửi hơi nhanh. Thử lại sau vài giây.";
       } else {
         if (!response.ok) throw new Error("Send failed");
@@ -130,6 +148,7 @@
         if (input.value === draft) input.value = "";
         retry = null;
         log.scrollTop = log.scrollHeight;
+        idle = 0;
         schedule(0);
       }
     } catch {
@@ -147,6 +166,7 @@
     toggle.textContent = open ? "Đóng phòng chat" : "Mở phòng chat";
     if (open) {
       room.inert = false;
+      idle = 0;
       close.focus({ preventScroll:true });
     } else {
       toggle.focus({ preventScroll:true });

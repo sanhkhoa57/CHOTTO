@@ -32,16 +32,24 @@ function memoryStore() {
     append(message, nonce, source) {
       const now = Math.max(Date.now(), lastTime);
       const recent = history.find(({ message: item, nonce: saved, time }) =>
-        item.client === message.client && saved === nonce && now-time < 3600000);
+        item.author === message.author && saved === nonce && now-time < 3600000);
       if (recent) return recent.message.id;
-      if (history.some(({ message: item, time }) => item.client === message.client && now-time < 1000)) return null;
-      if (history.filter((row) => row.source === source && now-row.time < 10000).length >= 24) return null;
+      if (history.some(({ message: item, time }) => item.author === message.author && now-time < 1000)) return null;
+      // Same limits as the Redis script in api/community-chat.js.
+      if (history.filter((row) => row.source === source && now-row.time < 10000).length >= 5) return null;
+      if (history.filter((row) => row.source === source && now-row.time < 86400000).length >= 200) return 'day';
       sequence = now === lastTime ? sequence+1 : 0;
       lastTime = now;
       const id = `${now}-${sequence}`;
       history.push({ message:{ ...message,id }, time:now, order:sequence, nonce, source });
       if (history.length > 1000) history.shift();
       return id;
+    },
+    remove(id) {
+      const index = history.findIndex(({ message }) => message.id === id);
+      if (index < 0) return 0;
+      history.splice(index, 1);
+      return 1;
     }
   };
 }
