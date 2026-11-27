@@ -129,6 +129,8 @@ a{color:var(--k6);text-decoration:none}a:hover{color:var(--k3)}
 .bar:hover{background:var(--k20)}
 .navl{font-size:14px;font-weight:500;color:var(--k21);letter-spacing:.2px;transition:color .15s}
 .navl:hover{color:var(--k3)}
+.community-mobile{display:none}
+@media (max-width:760px){.community-mobile{display:inline-block;margin-left:14px}}
 
 /* chuyển ngôn ngữ */
 .langbtn{height:38px;padding:0 9px 0 11px;display:inline-flex;align-items:center;gap:7px;border:0;border-radius:10px;background:var(--k22);color:var(--k23);font:500 13px/1 "Onest","Segoe UI",system-ui,sans-serif;letter-spacing:.3px;cursor:pointer;box-shadow:inset 0 0 0 1px var(--k17);transition:background .2s,color .2s}
@@ -235,6 +237,7 @@ details[open] summary::after{transform:rotate(45deg)}
         <a class="navl" href="#cach-hoat-dong" data-nav="cach-hoat-dong" data-t="navHow"></a>
         <a class="navl" href="#cai-dat" data-nav="cai-dat" data-t="navInstall"></a>
         <a class="navl" href="#hoi-dap" data-nav="hoi-dap" data-t="navFaq"></a>
+        <a class="navl" href="community.html" data-t="navCommunity">Cộng đồng</a>
       </nav>
       <div style="flex: 1 1 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px">
         <button class="themebtn" id="themeBtn" type="button" role="switch" aria-checked="false" data-ta="aria-label:themeLabel"><span class="tt-sky" aria-hidden="true"><i class="tt-star" style="left:10px;top:7px"></i><i class="tt-star" style="left:19px;top:20px;transform:scale(.7)"></i><i class="tt-star" style="left:26px;top:9px;transform:scale(.55)"></i><i class="tt-cloud" style="right:6px;bottom:4px"></i><i class="tt-cloud" style="right:15px;bottom:-3px;transform:scale(.8)"></i></span><span class="tt-knob" aria-hidden="true"><i></i><i></i><i></i></span></button>
@@ -263,7 +266,7 @@ details[open] summary::after{transform:rotate(45deg)}
         </a>
         <a class="btn btn-o" href="#tai-xuong" data-t="otherVer" style="height: 48px; padding: 0 22px; font-size: 16px"></a>
       </div>
-      <p class="fade mono" style="margin: 18px 0 0; font-size: 13px; animation-delay: .8s"><a href="#tai-xuong" style="color: var(--k55); text-decoration: underline; text-underline-offset: 3px">x86 · ARM</a></p>
+      <p class="fade mono" style="margin: 18px 0 0; font-size: 13px; animation-delay: .8s"><a href="#tai-xuong" style="color: var(--k55); text-decoration: underline; text-underline-offset: 3px">x86 · ARM</a><a class="navl community-mobile" href="community.html" data-t="navCommunity">Cộng đồng</a></p>
     </div>
 
     <div class="wrap" style="position: relative; z-index: 2; margin-top: 76px">
@@ -434,10 +437,10 @@ details[open] summary::after{transform:rotate(45deg)}
   function dict(lang) {
     if (lang === 'en') {
       return {
-        navLabel: 'Main', navHow: 'How it works', navDl: 'Download', navInstall: 'Install', navFaq: 'FAQ', langLabel: 'Language', themeLabel: 'Switch light or dark theme',
+        navLabel: 'Main', navHow: 'How it works', navDl: 'Download', navInstall: 'Install', navFaq: 'FAQ', navCommunity: 'Community', langLabel: 'Language', themeLabel: 'Switch light or dark theme',
         hero: 'Think before you click',
         heroSub: 'Chotto checks every link you tap in Zalo before it opens',
-        otherVer: 'Other versions', archs: 'Available for x86 (64-bit) and ARM.', heroMeta: 'Version 1.4.0 · Free · No account needed',
+        otherVer: 'Other versions', archs: 'Available for x86 (64-bit) and ARM.', heroMeta: 'Version 1.5.0 · Free · No account needed',
         dlWin: 'Download for Windows', dlMac: 'Download for macOS', dlAndroid: 'Download for Android (beta)',
         mockAria: 'Chotto checks one link after another and gives a verdict',
         resultsLbl: 'Check results', openLink: 'Open link', close: 'Close',
@@ -470,7 +473,7 @@ details[open] summary::after{transform:rotate(45deg)}
         fmt: 'Format', req: 'Requires', size: 'App size', beta: 'Beta',
         linuxNote: 'On Linux or iPhone? Chotto isn’t available there yet. The Android app is a beta: it works, but has been tested on only a few phones.',
         plat: {
-          win: { name: 'Windows', desc: 'Protects links opened from the Zalo app on PC.', format: '.zip (installer + guide)', req: 'Windows 10 or later, 64-bit', size: '41 MB', cta: 'Download for Windows', href: 'downloads/CHOTTO-Windows.zip' },
+          win: { name: 'Windows', desc: 'Protects links opened from the Zalo app on PC.', format: '.zip (installer + guide)', req: 'Windows 10 or later, 64-bit', size: '25 MB', cta: 'Download for Windows', href: 'downloads/CHOTTO-Windows.zip' },
           mac: { name: 'macOS', desc: 'For Macs with Apple silicon (M1 and later).', format: '.zip (disk image + guide)', req: 'macOS 12+, Apple silicon', size: '60 MB', cta: 'Download for macOS', href: 'downloads/CHOTTO-macOS.zip' },
           ext: { name: 'Browser extension', desc: 'For Zalo Web on Chrome and Edge.', format: '.zip, manual install', req: 'Latest Chrome or Edge', size: '0.9 MB', cta: 'Download extension', href: 'downloads/chotto-extension-chrome.zip' },
           android: { name: 'Android', desc: 'Checks links you tap in the Zalo app on your phone.', format: '.zip (APK + guide)', req: 'Android 8.0+, Chrome installed', size: '1.9 MB', cta: 'Download for Android', href: 'downloads/CHOTTO-Android.zip' }
@@ -494,10 +497,10 @@ details[open] summary::after{transform:rotate(45deg)}
       };
     }
     return {
-      navLabel: 'Mục chính', navHow: 'Cách hoạt động', navDl: 'Tải xuống', navInstall: 'Cài đặt', navFaq: 'Hỏi đáp', langLabel: 'Ngôn ngữ', themeLabel: 'Đổi giao diện sáng hoặc tối',
+      navLabel: 'Mục chính', navHow: 'Cách hoạt động', navDl: 'Tải xuống', navInstall: 'Cài đặt', navFaq: 'Hỏi đáp', navCommunity: 'Cộng đồng', langLabel: 'Ngôn ngữ', themeLabel: 'Đổi giao diện sáng hoặc tối',
       hero: 'Chậm một nhịp, rồi hãy bấm',
       heroSub: 'Chotto kiểm tra mọi link bạn bấm trong Zalo trước khi mở',
-      otherVer: 'Các phiên bản khác', archs: 'Có bản x86 (64-bit) và ARM.', heroMeta: 'Phiên bản 1.4.0 · Miễn phí · Không cần tài khoản',
+      otherVer: 'Các phiên bản khác', archs: 'Có bản x86 (64-bit) và ARM.', heroMeta: 'Phiên bản 1.5.0 · Miễn phí · Không cần tài khoản',
       dlWin: 'Tải cho Windows', dlMac: 'Tải cho macOS', dlAndroid: 'Tải cho Android (beta)',
       mockAria: 'Chotto kiểm tra lần lượt từng link và đưa ra kết luận',
       resultsLbl: 'Kết quả kiểm tra', openLink: 'Mở link', close: 'Đóng',
@@ -530,7 +533,7 @@ details[open] summary::after{transform:rotate(45deg)}
       fmt: 'Định dạng', req: 'Yêu cầu', size: 'Dung lượng app', beta: 'Beta',
       linuxNote: 'Dùng Linux hoặc iPhone? Chotto chưa có bản cho các nền tảng này. Bản Android là bản beta: đã chạy được nhưng mới thử trên ít máy.',
       plat: {
-        win: { name: 'Windows', desc: 'Bảo vệ link mở từ ứng dụng Zalo trên PC.', format: '.zip (bộ cài + hướng dẫn)', req: 'Windows 10 trở lên, 64-bit', size: '41 MB', cta: 'Tải cho Windows', href: 'downloads/CHOTTO-Windows.zip' },
+        win: { name: 'Windows', desc: 'Bảo vệ link mở từ ứng dụng Zalo trên PC.', format: '.zip (bộ cài + hướng dẫn)', req: 'Windows 10 trở lên, 64-bit', size: '25 MB', cta: 'Tải cho Windows', href: 'downloads/CHOTTO-Windows.zip' },
         mac: { name: 'macOS', desc: 'Cho máy Mac chip Apple (M1 trở lên).', format: '.zip (ảnh đĩa + hướng dẫn)', req: 'macOS 12+, chip Apple', size: '60 MB', cta: 'Tải cho macOS', href: 'downloads/CHOTTO-macOS.zip' },
         ext: { name: 'Tiện ích trình duyệt', desc: 'Cho Zalo Web trên Chrome và Edge.', format: '.zip, cài thủ công', req: 'Chrome hoặc Edge mới nhất', size: '0.9 MB', cta: 'Tải tiện ích', href: 'downloads/chotto-extension-chrome.zip' },
         android: { name: 'Android', desc: 'Kiểm tra link bạn bấm trong ứng dụng Zalo trên điện thoại.', format: '.zip (APK + hướng dẫn)', req: 'Android 8.0+, có Chrome', size: '1.9 MB', cta: 'Tải cho Android', href: 'downloads/CHOTTO-Android.zip' }

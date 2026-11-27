@@ -1,0 +1,38 @@
+# Cập nhật lá của community.html mỗi ngày theo Phishing.Database:
+# tên miền mới -> lá mới; tên miền rời danh sách ACTIVE -> lá rụng (nằm đất 2 ngày rồi xóa).
+# Đẩy commit lên main; nếu Vercel nối với repo thì trang tự triển khai lại.
+name: community-leaves
+
+on:
+  schedule:
+    - cron: "17 1 * * *"   # 08:17 giờ Việt Nam
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: community-leaves
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dựng lại dữ liệu lá
+        run: python tools/build_community_leaves.py --download
+      - name: Commit nếu có thay đổi
+        run: |
+          git add community-leaves.js community-data data/community-registry.tsv.gz
+          if git diff --cached --quiet; then
+            echo "Không có thay đổi."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Cộng đồng: cập nhật lá theo Phishing.Database ($(date -u +%F))"
+          git push
