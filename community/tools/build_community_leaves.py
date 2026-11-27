@@ -1,18 +1,18 @@
-"""Dựng dữ liệu lá cho community.html: mỗi lá = một tên miền đang hoạt động của Phishing.Database.
+"""Dựng dữ liệu lá cho community/index.html: mỗi lá = một tên miền đang hoạt động của Phishing.Database.
 
 Chạy hằng ngày (GitHub Actions, .github/workflows/community-leaves.yml) để cây sống theo danh sách:
 - Tên miền mới xuất hiện trong danh sách ACTIVE -> thêm lá (lá mới nằm cuối thứ tự).
 - Tên miền rời danh sách ACTIVE (Phishing.Database kiểm tra lại và thấy đã chết) -> lá rụng,
   ghi thời điểm; lá rụng nằm trên mặt đất 7 ngày rồi bị xóa hẳn.
-Sổ ghi giữa các lần chạy: data/community-registry.tsv.gz (tên miền, lúc thêm, lúc rụng), KHÔNG đăng web.
+Sổ ghi giữa các lần chạy: community/registry.tsv.gz (tên miền, lúc thêm, lúc rụng), KHÔNG đăng web.
 
 Ghi ra:
-- community-leaves.js: số lá, số lá mới trong 24 giờ, thời điểm dựng, nguồn.
-- community-data/leaves-NNN.txt.gz: tên miền đang sống, theo thứ tự thêm vào (cũ trước).
-- community-data/fallen.json: tên miền rụng trong 7 ngày qua kèm thời điểm rụng.
+- community/community-leaves.js: số lá, số lá mới trong 24 giờ, thời điểm dựng, nguồn.
+- community/leaves/leaves-NNN.txt.gz: tên miền đang sống, theo thứ tự thêm vào (cũ trước).
+- community/leaves/fallen.json: tên miền rụng trong 7 ngày qua kèm thời điểm rụng.
 Chỉ dùng Phishing.Database (danh sách mở); KHÔNG đăng lại dữ liệu PhishTank/ChongLuaDao.
 
-    python tools/build_community_leaves.py [--download]
+    python community/tools/build_community_leaves.py [--download]
 """
 
 from __future__ import annotations
@@ -27,20 +27,20 @@ import time
 import urllib.request
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent  # thư mục community/
 SOURCE_NAME = "Phishing.Database"
 SOURCE_URL = "https://raw.githubusercontent.com/mitchellkrogza/Phishing.Database/master/phishing-domains-ACTIVE.txt"
 SOURCE_PAGE = "https://github.com/mitchellkrogza/Phishing.Database"
 SHARD = 4000
 FALLEN_DAYS = 7
-OUT_DIR = ROOT / "community-data"
-REGISTRY = ROOT / "data" / "community-registry.tsv.gz"
+OUT_DIR = ROOT / "leaves"
+REGISTRY = ROOT / "registry.tsv.gz"
 DOMAIN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z0-9-]{2,63}$")
 
 
 def cached_source() -> str | None:
     """Bản danh sách app CHOTTO đã tải trên máy này, tìm theo URL trong file .json đi kèm."""
-    sys.path.insert(0, str(ROOT))
+    sys.path.insert(0, str(ROOT.parent))
     from chotto.config import data_dir
 
     for meta in (data_dir() / "sources").glob("*.json"):
@@ -116,7 +116,7 @@ def main() -> None:
         "built": now, "date": datetime.datetime.fromtimestamp(now, datetime.UTC).date().isoformat(),
     }
     (ROOT / "community-leaves.js").write_text(
-        "// Sinh bởi tools/build_community_leaves.py — đừng sửa tay.\n"
+        "// Sinh bởi community/tools/build_community_leaves.py — đừng sửa tay.\n"
         f"const leafSource = {json.dumps(meta, ensure_ascii=False)};\n",
         encoding="utf-8", newline="\n")
     REGISTRY.parent.mkdir(exist_ok=True)

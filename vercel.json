@@ -3,20 +3,14 @@
     { "src": "api/mascot-chat.js", "use": "@vercel/node", "config": { "maxDuration": 25 } },
     { "src": "api/community-chat.js", "use": "@vercel/node" },
     { "src": "index.html", "use": "@vercel/static" },
-    { "src": "community.html", "use": "@vercel/static" },
-    { "src": "community.js", "use": "@vercel/static" },
-    { "src": "community-chat.js", "use": "@vercel/static" },
-    { "src": "community-paint.js", "use": "@vercel/static" },
-    { "src": "community-art-points.js", "use": "@vercel/static" },
-    { "src": "community-gl.js", "use": "@vercel/static" },
-    { "src": "community-terrain.js", "use": "@vercel/static" },
-    { "src": "community-leaves.js", "use": "@vercel/static" },
-    { "src": "community-data/*", "use": "@vercel/static" },
-    { "src": "assets/community-bark.webp", "use": "@vercel/static" },
-    { "src": "assets/community-foliage.webp", "use": "@vercel/static" },
-    { "src": "assets/community-leaf.webp", "use": "@vercel/static" },
-    { "src": "assets/community-crater.webp", "use": "@vercel/static" },
-    { "src": "assets/community-panorama.webp", "use": "@vercel/static" },
+    { "src": "community/index.html", "use": "@vercel/static" },
+    { "src": "community/*.js", "use": "@vercel/static" },
+    { "src": "community/leaves/*", "use": "@vercel/static" },
+    { "src": "community/assets/community-bark.webp", "use": "@vercel/static" },
+    { "src": "community/assets/community-foliage.webp", "use": "@vercel/static" },
+    { "src": "community/assets/community-leaf.webp", "use": "@vercel/static" },
+    { "src": "community/assets/community-crater.webp", "use": "@vercel/static" },
+    { "src": "community/assets/community-panorama.webp", "use": "@vercel/static" },
     { "src": "favicon.png", "use": "@vercel/static" },
     { "src": "icon.png", "use": "@vercel/static" },
     { "src": "chotto_anime_promo_voiced.mp4", "use": "@vercel/static" },
@@ -27,6 +21,8 @@
   ],
   "routes": [
     { "src": "/api/mascot-chat", "dest": "/api/mascot-chat.js" },
-    { "src": "/api/community-chat", "dest": "/api/community-chat.js" }
+    { "src": "/api/community-chat", "dest": "/api/community-chat.js" },
+    { "src": "/community(\\.html)?", "status": 308, "headers": { "Location": "/community/" } },
+    { "src": "/community/", "dest": "/community/index.html" }
   ]
 }

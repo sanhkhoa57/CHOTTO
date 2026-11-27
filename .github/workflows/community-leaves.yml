@@ -1,4 +1,4 @@
-# Cập nhật lá của community.html mỗi ngày theo Phishing.Database:
+# Cập nhật lá của community/index.html mỗi ngày theo Phishing.Database:
 # tên miền mới -> lá mới; tên miền rời danh sách ACTIVE -> lá rụng (nằm đất 7 ngày rồi xóa).
 # Đẩy commit lên main; nếu Vercel nối với repo thì trang tự triển khai lại.
 name: community-leaves
@@ -24,10 +24,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Dựng lại dữ liệu lá
-        run: python tools/build_community_leaves.py --download
+        run: python community/tools/build_community_leaves.py --download
       - name: Commit nếu có thay đổi
         run: |
-          git add community-leaves.js community-data data/community-registry.tsv.gz
+          git add community/community-leaves.js community/leaves community/registry.tsv.gz
           if git diff --cached --quiet; then
             echo "Không có thay đổi."
             exit 0

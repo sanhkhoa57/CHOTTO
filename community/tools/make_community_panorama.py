@@ -1,8 +1,8 @@
-"""Dựng dải núi lặp liền mạch cho community.html từ tranh miệng núi lửa (cần Pillow).
+"""Dựng dải núi lặp liền mạch cho community/index.html từ tranh miệng núi lửa (cần Pillow).
 
 Lấy phần giữa tranh (hai vách sát mép quá cao, không nối được). Trên đá, đường nối
 đi theo nơi hai bên giống nhau nhất nên không chồng bóng; trên trời thì hòa dần.
-Chạy lại khi đổi tranh: python tools/make_community_panorama.py
+Chạy lại khi đổi tranh: python community/tools/make_community_panorama.py
 """
 
 from pathlib import Path

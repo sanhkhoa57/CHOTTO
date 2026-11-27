@@ -1,4 +1,4 @@
-"""tools/build_community_leaves.py: thêm lá mới, lá rụng khi tên miền rời danh sách, xóa sau 7 ngày."""
+"""community/tools/build_community_leaves.py: thêm lá mới, lá rụng khi tên miền rời danh sách, xóa sau 7 ngày."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from types import ModuleType
 from unittest import mock
 
-TOOL = Path(__file__).resolve().parent.parent / "tools" / "build_community_leaves.py"
+TOOL = Path(__file__).resolve().parent.parent / "community" / "tools" / "build_community_leaves.py"
 
 
 def load_tool(root: Path) -> ModuleType:
@@ -21,8 +21,8 @@ def load_tool(root: Path) -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     setattr(module, "ROOT", root)
-    setattr(module, "OUT_DIR", root / "community-data")
-    setattr(module, "REGISTRY", root / "data" / "community-registry.tsv.gz")
+    setattr(module, "OUT_DIR", root / "leaves")
+    setattr(module, "REGISTRY", root / "registry.tsv.gz")
     return module
 
 
@@ -49,12 +49,12 @@ class CommunityLeavesTest(unittest.TestCase):
 
     def alive(self) -> list[str]:
         names: list[str] = []
-        for pack in sorted((self.root / "community-data").glob("leaves-*.txt.gz")):
+        for pack in sorted((self.root / "leaves").glob("leaves-*.txt.gz")):
             names += gzip.decompress(pack.read_bytes()).decode("utf-8").split("\n")
         return names
 
     def fallen(self) -> list[list[object]]:
-        data = json.loads((self.root / "community-data" / "fallen.json").read_text(encoding="utf-8"))
+        data = json.loads((self.root / "leaves" / "fallen.json").read_text(encoding="utf-8"))
         result: list[list[object]] = data["leaves"]
         return result
 

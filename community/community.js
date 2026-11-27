@@ -363,7 +363,7 @@ const packs = new Map();
 function domainOf(id) {
   const n = Math.floor((id-1)/leafSource.shard);
   if (!packs.has(n)) {
-    packs.set(n,fetch(`community-data/leaves-${String(n).padStart(3,"0")}.txt.gz`)
+    packs.set(n,fetch(`leaves/leaves-${String(n).padStart(3,"0")}.txt.gz`)
       .then((response) => { if (!response.ok) throw new Error(response.status); return response.arrayBuffer(); })
       .then(async (data) => {
         const bytes = new Uint8Array(data);
@@ -746,7 +746,7 @@ function refresh() {
 }
 
 // Leaves on the ground: domains that left the active list in the last seven days
-// (community-data/fallen.json, rebuilt daily). Each leaf lies at a spot under the crown
+// (community/leaves/fallen.json, rebuilt daily). Each leaf lies at a spot under the crown
 // fixed by its name, browns with age, and is removed here when its time expires.
 const groundLife = 7*86400;
 const groundFadeTime = 12*3600;
@@ -775,7 +775,7 @@ function pruneGround() {
 const seenKey = "chotto-community-fallen-seen";
 const knownFallen = new Set();
 function loadFallen() {
-  fetch("community-data/fallen.json?"+Math.floor(Date.now()/600000), { cache:"no-cache" })
+  fetch("leaves/fallen.json?"+Math.floor(Date.now()/600000), { cache:"no-cache" })
     .then((response) => response.ok ? response.json() : { leaves:[] })
     .then(({ leaves }) => {
       let seen = 0;

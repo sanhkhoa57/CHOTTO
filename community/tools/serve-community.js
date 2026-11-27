@@ -5,10 +5,10 @@ const { createReadStream } = require('node:fs');
 const { stat } = require('node:fs/promises');
 const { pipeline } = require('node:stream/promises');
 const { resolve, extname } = require('node:path');
-const chat = require('../api/community-chat');
-const config = require('../vercel.json');
+const chat = require('../../api/community-chat');
+const config = require('../../vercel.json');
 
-const root = resolve(__dirname, '..');
+const root = resolve(__dirname, '..', '..');
 const port = Number(process.argv[2] || 3000);
 const publicFiles = config.builds.filter(({ use }) => use === '@vercel/static')
   .map(({ src }) => src.split('*'));
@@ -82,7 +82,11 @@ async function serve(req, res) {
     res.setHeader('Allow', 'GET, HEAD');
     return json(res, 405, { error:'method' });
   }
-  const path = url.pathname === '/' ? 'community.html' : url.pathname.slice(1);
+  if (url.pathname === '/' || url.pathname === '/community' || url.pathname === '/community.html') {
+    res.writeHead(302, { Location:'/community/' });
+    return res.end();
+  }
+  const path = url.pathname.endsWith('/') ? url.pathname.slice(1)+'index.html' : url.pathname.slice(1);
   const isPublic = publicFiles.some(([prefix,suffix]) => suffix === undefined ? path === prefix :
     path.startsWith(prefix) && path.endsWith(suffix) &&
     /^[\w.-]+$/.test(path.slice(prefix.length,path.length-suffix.length)));
@@ -104,6 +108,6 @@ const server = createServer((req,res) => {
   });
 });
 server.listen(port,'127.0.0.1',() => {
-  console.log(`Community preview: http://localhost:${server.address().port}/community.html`);
+  console.log(`Community preview: http://localhost:${server.address().port}/community/`);
   console.log('Local chat messages are stored in memory until this process stops.');
 });

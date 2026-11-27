@@ -3,7 +3,7 @@
 class PaintedCrater {
   constructor(image,panorama) {
     this.image=image;
-    // Seamless strip cut from the same painting by tools/make_community_panorama.py.
+    // Seamless strip cut from the same painting by community/tools/make_community_panorama.py.
     this.panorama=panorama;
     this.radius=860;
     this.floor=document.createElement("canvas");
