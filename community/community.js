@@ -543,8 +543,14 @@ function draw(now) {
   ctx.drawImage(scene,0,0,view.width,view.height);
   drawMovingShadow(sky,minute,key);
   drawCompass(sky);
+  const lamp = lantern.pose(seconds,animateWind);
+  if (sky.lamp) lantern.drawPool(ctx,sky.lamp);
   drawTree(Math.min(treeImage.height,Math.max(0,split)));
-  lit(sky,(pen) => painting.drawAccents(pen,seconds,animateWind));
+  lit(sky,(pen) => {
+    painting.drawAccents(pen,seconds,animateWind);
+    lantern.drawBody(pen,lamp);
+  });
+  if (sky.lamp) lantern.drawLight(ctx,lamp,sky.lamp,seconds,animateWind);
   if (selected?.ground) {
     const hit = groundHits.find((h) => h.leaf === selected);
     if (hit) {
@@ -695,6 +701,8 @@ function render() {
 }
 
 const crater = new PaintedCrater(byId("crater-art"),byId("panorama-art"));
+// boughs[0] is the lowest limb on the right; the lantern hangs two thirds of the way out.
+const lantern = new HangingLantern(boughs[0][2].map((v,axis) => axis===1 ? v-16 : v));
 const painting = new PaintedTree(byId("wood-art"),byId("foliage-art"),crowns,leafCount,mesh,[...groundFragments(),...crater.ledges()]);
 for (const asset of [crater.image,crater.panorama]) asset.addEventListener("load",()=>{ sceneKey=""; render(); });
 const scene=document.createElement("canvas");

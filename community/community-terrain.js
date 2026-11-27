@@ -30,6 +30,8 @@ class PaintedCrater {
     const stretch=1.12-.24*height;
     return {
       ...this.daylight(hour), day, azimuth, bearing, height,
+      // The lantern warms up over half an hour at dusk and goes out after daybreak.
+      lamp:Math.max(0,Math.min(1,(hour-17.6)/.5),Math.min(1,(6.4-hour)/.5)),
       elevation:.1+.68*height,
       // Moonlight casts only a faint shadow.
       strength:Math.min(1,height/.3)*(day ? 1 : .45),
