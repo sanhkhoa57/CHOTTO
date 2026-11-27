@@ -147,7 +147,10 @@ class PaintedCrater {
     shade.save();
     shade.translate(size/2,size/2);
     shade.scale(pixels,pixels);
-    const cast=([x,y,z])=>[x-y*light[0]/light[1],z-y*light[2]/light[1]];
+    // Stylised cast: the crown is spread wider than life and the reach is tuned so the long
+    // shadow still lands on the painted floor instead of fading out past its edge.
+    const spread=1.35, reach=.62;
+    const cast=([x,y,z])=>[x*spread-y*reach*light[0]/light[1],z*spread-y*reach*light[2]/light[1]];
     for(const stone of tree.ground) {
       if(!stone.sprite) continue;
       const [x,,z]=stone.vertices[0];
@@ -158,7 +161,7 @@ class PaintedCrater {
     shade.lineCap="round";
     for(const limb of [trunk,...boughs]) {
       for(let i=1;i<limb.length;i++) {
-        shade.lineWidth=(limb===trunk ? 73 : 28)*(1-.55*i/limb.length);
+        shade.lineWidth=spread*(limb===trunk ? 73 : 28)*(1-.55*i/limb.length);
         shade.beginPath();
         shade.moveTo(...cast(limb[i-1]));
         shade.lineTo(...cast(limb[i]));
@@ -172,7 +175,7 @@ class PaintedCrater {
       shade.translate(x,z);
       shade.rotate(layer.rotation);
       shade.scale(layer.flip,1);
-      shade.drawImage(tree.foliage,-layer.width/2,-layer.height/2,layer.width,layer.height);
+      shade.drawImage(tree.foliage,-layer.width*spread/2,-layer.height*spread/2,layer.width*spread,layer.height*spread);
       shade.restore();
     }
     shade.restore();
@@ -189,7 +192,7 @@ class PaintedCrater {
     brush.filter="blur(2px)";
     brush.drawImage(this.shadow,0,0);
     brush.restore();
-    const fade=brush.createRadialGradient(size/2,size/2,size*.33,size/2,size/2,size*.5);
+    const fade=brush.createRadialGradient(size/2,size/2,size*.42,size/2,size/2,size*.5);
     fade.addColorStop(0,"#000");
     fade.addColorStop(1,"transparent");
     brush.save();
