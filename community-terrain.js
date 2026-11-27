@@ -223,9 +223,9 @@ class PaintedCrater {
     pen.fillStyle=air;
     pen.fillRect(0,0,view.width,horizon+2);
 
-    // The sun creeps along a low arc, about one degree every ten seconds.
-    const sun=at(.30+seconds*.0018,.60+.04*Math.sin(seconds*.021));
-    if (sun) this.drawSun(pen,view,sun,seconds);
+    // Keep the sun low enough to catch a gap in the canopy at the opening angle.
+    const sun=at(.22+seconds*.0018,.19+.015*Math.sin(seconds*.021));
+    if (sun) this.drawSun(pen,sun);
 
     // Soft cumulus, painted once into sprites. Each drifts with the wind at its own pace.
     if (!this.clouds) this.clouds=this.paintClouds();
@@ -239,9 +239,8 @@ class PaintedCrater {
     pen.globalAlpha=1;
   }
 
-  // A bright core that blooms into the sky, a warm inner halo, faint shimmering rays and a
-  // few lens ghosts on the line through the middle of the view.
-  drawSun(pen,view,sun,seconds) {
+  // Atmospheric haze spreads much farther than the small, bright solar disc.
+  drawSun(pen,sun) {
     const size=sun.scale;
     const layer=(radius,stops)=>{
       const glow=pen.createRadialGradient(sun.x,sun.y,0,sun.x,sun.y,radius);
@@ -249,41 +248,18 @@ class PaintedCrater {
       pen.fillStyle=glow;
       pen.fillRect(sun.x-radius,sun.y-radius,2*radius,2*radius);
     };
-    layer(size*.9,[[0,"rgba(214,236,250,.55)"],[.4,"rgba(170,212,242,.25)"],[1,"rgba(170,212,242,0)"]]);
-    pen.save();
-    pen.globalCompositeOperation="lighter";
-    layer(size*.16,[[0,"rgba(255,246,220,.85)"],[.3,"rgba(255,232,180,.35)"],[1,"rgba(255,226,170,0)"]]);
-    // Thin rays turn very slowly and breathe.
-    pen.translate(sun.x,sun.y);
-    pen.rotate(seconds*.012);
-    for (let i=0;i<22;i++) {
-      const angle=i*fullTurn/22+.13*Math.sin(i*2.7);
-      const breathe=.65+.35*Math.sin(seconds*.7+i*1.9);
-      const reach=size*(.14+.2*((i*7)%5)/5)*breathe, spread=.008+.006*((i*3)%4)/4;
-      const ray=pen.createLinearGradient(0,0,Math.cos(angle)*reach,Math.sin(angle)*reach);
-      ray.addColorStop(0,`rgba(255,248,226,${.32*breathe})`);
-      ray.addColorStop(1,"rgba(255,248,226,0)");
-      pen.fillStyle=ray;
-      pen.beginPath();
-      pen.moveTo(0,0);
-      pen.lineTo(Math.cos(angle-spread)*reach,Math.sin(angle-spread)*reach);
-      pen.lineTo(Math.cos(angle+spread)*reach,Math.sin(angle+spread)*reach);
-      pen.fill();
-    }
-    pen.setTransform(view.dpr,0,0,view.dpr,0,0);
-    // Blinding core.
-    layer(size*.035,[[0,"#ffffff"],[.45,"rgba(255,255,250,.98)"],[.7,"rgba(255,250,232,.5)"],[1,"rgba(255,246,220,0)"]]);
-    // Lens ghosts mirror the sun through the centre of the frame.
-    const cx=view.width/2, cy=view.height/2;
-    for (const [t,r,colour] of [[.35,.012,"rgba(255,214,150,.16)"],[.7,.028,"rgba(170,220,255,.10)"],[1.25,.018,"rgba(200,255,210,.10)"],[1.6,.05,"rgba(255,200,170,.07)"]]) {
-      const x=sun.x+(cx-sun.x)*t*2, y=sun.y+(cy-sun.y)*t*2, radius=size*r;
-      const ghost=pen.createRadialGradient(x,y,radius*.6,x,y,radius);
-      ghost.addColorStop(0,colour);
-      ghost.addColorStop(1,"rgba(255,255,255,0)");
-      pen.fillStyle=ghost;
-      pen.beginPath(); pen.arc(x,y,radius,0,fullTurn); pen.fill();
-    }
-    pen.restore();
+    layer(size*.28,[
+      [0,"rgba(236,244,251,.42)"],[.28,"rgba(219,236,250,.23)"],
+      [.63,"rgba(203,228,247,.07)"],[1,"rgba(203,228,247,0)"]
+    ]);
+    layer(size*.10,[
+      [0,"rgba(255,254,245,.91)"],[.18,"rgba(255,253,242,.53)"],
+      [.44,"rgba(255,247,225,.20)"],[.74,"rgba(255,243,218,.04)"],[1,"rgba(255,243,218,0)"]
+    ]);
+    layer(size*.026,[
+      [0,"#fffefa"],[.78,"#fffdf2"],
+      [.9,"rgba(255,252,236,.78)"],[1,"rgba(255,250,232,0)"]
+    ]);
   }
 
   paintClouds() {
