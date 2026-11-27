@@ -1,101 +1,178 @@
 <!doctype html>
-<html lang="vi">
+<html lang="vi" data-type="software">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#fbf6f1">
+  <meta name="theme-color" content="#f5f3ec">
+  <meta name="page-type" content="software">
+  <meta name="site-kind" content="software">
   <title>Cây Canh Gác · Chotto</title>
   <link rel="stylesheet" href="chotto/web/fonts/fonts.css">
   <style>
-    /* Same light palette as index.html (data-theme="light"). */
-    :root { color-scheme: light; --accent:#f28a3a; --accent-deep:#d96a1c; --ink:#3a2547; --ink-strong:#2a1a35;
-      --muted:#675a69; --line:rgba(58,37,71,.12); --card:#ffffff; --soft:rgba(58,37,71,.06); --paper:#fbf6f1;
-      --shadow:inset 0 0 0 1px rgba(58,37,71,.07),0 14px 34px -18px rgba(90,50,80,.28) }
+    :root {
+      color-scheme:light;
+      --page:#f5f3ec;
+      --surface:#fffdf7;
+      --soft:#eeeee5;
+      --ink:#202a23;
+      --muted:#515d53;
+      --line:#d9ddd1;
+      --accent:#f4ad72;
+      --accent-hover:#f7bd8d;
+      --accent-ink:#351b0b;
+      --focus:#1b6747;
+      --green:#2c704c;
+      --amber:#96601b;
+      --error:#913d27;
+      --gutter:clamp(12px,2.5vw,36px);
+      --inset:clamp(12px,2.2vw,30px);
+      --radius:14px;
+      --ease-out:cubic-bezier(.23,1,.32,1);
+      --ease-drawer:cubic-bezier(.32,.72,0,1);
+      --shade:0 12px 30px -16px #151d16a6;
+      font:16px/1.45 "Onest","Segoe UI",system-ui,sans-serif;
+    }
     * { box-sizing:border-box }
-    body { margin:0; color:var(--ink); font:16px/1.45 "Onest","Segoe UI",system-ui,sans-serif;
-      background:radial-gradient(90% 900px at 100% 0%,#ffe3cf,transparent 60%),radial-gradient(80% 900px at 0% 0%,#ebe3fb,transparent 62%),#fbf6f1 }
-    .community-scene { min-height:100svh; display:grid; grid-template-rows:auto minmax(520px,1fr) auto }
-    header, footer { display:flex; align-items:center; justify-content:space-between; padding:14px clamp(16px,4vw,56px); gap:16px }
-    header { border-bottom:1px solid var(--line); min-height:65px }
-    .chat-toggle { color:#8b410e; font-weight:700 }
-    @media(max-width:500px) { header>.label { display:none } }
-    a { color:inherit; text-decoration:none }
-    a:hover { color:var(--accent) }
-    .home { display:flex; align-items:center; gap:10px; font-weight:800; color:var(--ink-strong) }
-    .home img { width:26px; height:26px; border-radius:7px }
-    .label { color:#a84d0c; font:700 12px/1.4 "Onest","Segoe UI",system-ui,sans-serif; letter-spacing:.12em; text-transform:uppercase }
-    .stage { position:relative; overflow:hidden; isolation:isolate; min-height:520px; margin:0 clamp(8px,1.6vw,20px); border-radius:22px; box-shadow:var(--shadow); background:linear-gradient(180deg,#2a73c6 0%,#bfe0ef 55%,#c3beb3 100%) }
+    body { margin:0; color:var(--ink); background:var(--page) }
+    ::selection { color:var(--ink); background:#f6c69e }
+    a { color:inherit; text-decoration-thickness:1px; text-underline-offset:3px }
+    button,input { font:inherit }
+    :focus-visible { outline:2px solid var(--focus); outline-offset:3px }
+
+    .community-scene { min-height:100svh; display:grid; grid-template-rows:auto minmax(520px,1fr) auto; margin-inline:var(--gutter) }
+    .site-header { display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:70px; padding-block:8px }
+    .identity { display:flex; align-items:center; gap:clamp(9px,1.5vw,17px); min-width:0 }
+    .home { display:flex; align-items:center; gap:8px; font-weight:700; text-decoration:none }
+    .home img { width:28px; height:28px; border-radius:7px }
+    .section-name { border-left:1px solid var(--line); padding-left:clamp(9px,1.5vw,17px); color:var(--muted); font-size:13px }
+    button {
+      min-width:44px; min-height:44px; padding:6px 13px; border:1px solid var(--line); border-radius:9px;
+      background:var(--surface); color:var(--ink); font-size:13px; font-weight:650; cursor:pointer;
+      transition:transform 140ms var(--ease-out),background-color 140ms ease,border-color 140ms ease;
+    }
+    button:disabled { opacity:.56; cursor:default }
+    button:not(:disabled):active { transform:scale(.97); transition-duration:100ms }
+    .primary { border-color:transparent; background:var(--accent); color:var(--accent-ink) }
+    .chat-toggle { min-width:130px }
+    .chat-toggle[aria-expanded="true"] { border-color:var(--ink); background:var(--ink); color:var(--surface) }
+    @media (hover:hover) and (pointer:fine) {
+      .home:hover { text-decoration:underline }
+      button:not(:disabled):hover { border-color:#b3bdb0; background:var(--soft) }
+      button:not(:disabled):hover:not(:active) { transform:translateY(-1px) }
+      .primary:not(:disabled):hover { border-color:transparent; background:var(--accent-hover) }
+      .chat-toggle[aria-expanded="true"]:hover { border-color:#435247; background:#435247 }
+    }
+
+    .stage { position:relative; overflow:hidden; isolation:isolate; min-width:0; min-height:520px; border-radius:var(--radius); background:linear-gradient(#276ab8,#bfe0ef 55%,#c3beb3) }
     .landscape { position:absolute; inset:0; transform-origin:0 0; pointer-events:none; background:inherit }
     .landscape::before { content:""; position:absolute; inset:0; background:url("assets/community-crater.webp") center 58% / cover no-repeat }
-    /* A soft deep-blue wash at the top-left keeps the white title readable on bright sky. */
-    .story, .zoom, .info { z-index:2 }
-    canvas { position:absolute; width:100%; height:100%; inset:0; touch-action:none; cursor:grab }
+    canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:grab }
     canvas:active { cursor:grabbing }
-    /* Clouds drift behind the title, so it sits on its own frosted card. */
-    .story { position:absolute; top:clamp(16px,3vw,32px); left:clamp(16px,3vw,40px); pointer-events:none; padding:18px 22px 20px; border-radius:20px; background:rgba(255,255,255,.86); color:var(--ink); box-shadow:var(--shadow); backdrop-filter:blur(8px) }
-    h1 { margin:6px 0 10px; color:var(--ink-strong); font:800 clamp(32px,4.2vw,60px)/.98 "Onest","Segoe UI",system-ui,sans-serif; letter-spacing:-.03em }
-    .story p { margin:0; max-width:250px; color:var(--muted) }
-    .info { position:absolute; right:clamp(16px,3vw,40px); bottom:24px; width:min(290px,calc(100% - 32px)); padding:16px 18px; border-radius:18px; background:rgba(255,255,255,.94); color:var(--ink); box-shadow:var(--shadow); backdrop-filter:blur(8px) }
-    .info strong, .info code { display:block; margin:5px 0; overflow-wrap:anywhere; color:var(--ink-strong) }
-    .info code { color:var(--muted); font-size:13px }
-    .info .src { margin:8px 0 0; font-size:12px; line-height:1.4; color:var(--muted) }
-    .info .src a { color:#a84d0c; text-decoration:underline }
-    .info [hidden] { display:none }
-    .zoom { display:flex; flex-wrap:wrap; gap:6px; position:absolute; left:clamp(16px,3vw,40px); bottom:24px }
-    button { appearance:none; border:0; border-radius:999px; background:rgba(255,255,255,.92); color:var(--ink); padding:8px 16px; min-height:42px; min-width:42px; font:500 14px/1 "Onest","Segoe UI",system-ui,sans-serif; cursor:pointer; box-shadow:inset 0 0 0 1px rgba(58,37,71,.08),0 6px 16px -10px rgba(90,50,80,.35); transition:background-color 130ms ease,transform 130ms cubic-bezier(.23,1,.32,1) }
-    button:disabled { opacity:.5; cursor:default }
-    @media(hover:hover) and (pointer:fine) { button:not(:disabled):hover { background:#fff; transform:translateY(-1px) } }
-    button:not(:disabled):active { transform:translateY(1px) }
-    :focus-visible { outline:2px solid var(--accent); outline-offset:3px }
-    canvas:focus-visible { outline-offset:-3px }
-    .counts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px }
-    .counts span { font-size:14px; color:var(--muted) }
-    .counts b { color:var(--ink-strong); font-variant-numeric:tabular-nums }
-    .counts i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:#1f8a56 }
-    .counts span:nth-child(2) i { background:#f28a3a }
-    .counts span:nth-child(3) i { background:#a89aa8 }
-    .primary { background:var(--accent); color:#2b1400; font-weight:600; box-shadow:0 12px 24px -12px rgba(242,138,58,.8) }
-    @media(hover:hover) and (pointer:fine) { .primary:not(:disabled):hover { background:#f59a52 } }
-    @media(max-width:650px) {
-      .stage { min-height:590px; margin:0 6px; border-radius:18px }
-      .landscape::before { bottom:13%; background-position:56% 74%; mask-image:linear-gradient(#000 82%,transparent) }
-      .story br { display:none }
-      .story p { max-width:100%; font-size:14px }
-      .info { bottom:66px; left:16px; right:auto; padding:10px 12px; width:min(310px,calc(100% - 32px)) }
-      .zoom { bottom:12px; right:16px; gap:4px }
-      .zoom button { min-width:35px; padding-inline:8px }
+    canvas:focus-visible { outline:3px solid var(--surface); outline-offset:-5px }
+
+    .story { position:absolute; inset:var(--inset) auto auto var(--inset); z-index:1; width:min(365px,calc(100% - 2 * var(--inset))); pointer-events:none; color:var(--surface) }
+    .story::before {
+      content:""; position:absolute; z-index:-1; inset:calc(-1 * var(--inset)) -140px -88px calc(-1 * var(--inset));
+      background:radial-gradient(ellipse 100% 100% at 0 0,#121e18f5 15%,#17221fc9 46%,#17221f00 100%);
     }
-    @media(prefers-reduced-motion:reduce) { button { transition:none } button:not(:disabled):is(:hover,:active) { transform:none } }
-    .chat { position:absolute; z-index:3; inset:0 0 0 auto; width:min(410px,100%); display:flex; flex-direction:column; overflow:auto; padding:clamp(14px,2.4vw,22px); border-radius:16px 0 0 16px; background:var(--card); box-shadow:-10px 0 32px -12px rgba(58,37,71,.34); transition:transform 260ms cubic-bezier(.32,.72,0,1) }
-    .chat[inert] { transform:translateX(calc(100% + 32px)); pointer-events:none }
+    h1 { margin:0; font:500 clamp(45px,5.6vw,77px)/.89 "Newsreader",Georgia,serif; letter-spacing:-.035em }
+    .story p { max-width:25ch; margin:12px 0 0; color:#fffdf4; font-size:14px; line-height:1.45; text-shadow:0 1px 4px #101813 }
+
+    .zoom,.info { position:absolute; z-index:2; border-radius:var(--radius); background:var(--surface); box-shadow:var(--shade) }
+    .zoom { inset:auto auto var(--inset) var(--inset); display:flex; align-items:center; gap:2px; padding:4px }
+    .zoom button { display:grid; place-items:center; padding-inline:9px; border-color:transparent; background:transparent; white-space:nowrap }
+    .zoom button:disabled { opacity:.38 }
+    .view-icon { position:relative; display:block; width:16px; height:16px }
+    .view-icon::before,.view-icon::after { content:""; position:absolute }
+    .icon-minus::before,.icon-plus::before,.icon-plus::after { inset:7px 1px; background:currentColor; border-radius:1px }
+    .icon-plus::after { transform:rotate(90deg) }
+    .icon-turn::before { inset:2px 1px 0; border:1.6px solid currentColor; border-radius:50%; border-bottom-color:transparent; transform:rotate(-18deg) }
+    .icon-turn::after { inset:1px auto auto 0; width:5px; height:5px; border:solid currentColor; border-width:0 0 1.6px 1.6px }
+    #right .icon-turn { transform:scaleX(-1) }
+
+    .info { inset:auto var(--inset) var(--inset) auto; width:min(316px,calc(100% - 2 * var(--inset))); padding:14px 16px }
+    .info strong { display:block; font-size:16px; line-height:1.25 }
+    .record { margin-top:4px; color:var(--muted); font-size:12px; font-weight:650 }
+    .info code { display:block; margin-top:7px; font-size:13px }
+    .info code,.info strong { overflow-wrap:anywhere }
+    .info .src { margin:8px 0 0; font-size:12px; line-height:1.42; color:var(--muted) }
+    .info a { color:#285a3f }
+    .info [hidden],.chat [hidden] { display:none }
+
+    .counts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding-block:12px; color:var(--muted); font-size:13px }
+    .counts > span { min-width:0; padding-inline:clamp(6px,1.7vw,22px); border-left:1px solid var(--line); overflow-wrap:anywhere }
+    .counts > span:first-child { padding-left:0; border-left:0 }
+    .counts b { color:var(--ink); font-size:15px; font-variant-numeric:tabular-nums }
+    .counts small { font:inherit }
+    .counts i { display:inline-block; width:7px; height:7px; margin-right:6px; border-radius:50%; background:var(--green) }
+    .counts span:nth-child(2) i { background:var(--amber) }
+    .counts span:nth-child(3) i { background:#7c8076 }
+
+    .chat {
+      position:absolute; z-index:3; inset:0 0 0 auto; width:min(390px,100%); display:flex; flex-direction:column;
+      overflow:auto; overscroll-behavior:contain; padding:clamp(12px,2.3vw,23px);
+      border-radius:var(--radius) 0 0 var(--radius); background:var(--surface); box-shadow:-12px 0 30px -18px #17221fc0;
+      transition:transform 240ms var(--ease-drawer);
+    }
+    .chat[inert] { transform:translateX(calc(100% + 32px)); pointer-events:none; transition-duration:190ms; transition-timing-function:var(--ease-out) }
+    .chat[data-instant] { transition:none }
     .chat-heading { display:flex; align-items:center; justify-content:space-between; gap:8px }
-    .chat h2 { margin:0; color:var(--ink-strong); font-size:clamp(19px,3vw,24px); line-height:1.15; letter-spacing:-.025em }
-    .chat-close { background:var(--soft); box-shadow:none; flex-shrink:0 }
+    .chat h2 { margin:0; font-size:clamp(18px,2vw,23px); line-height:1.2; letter-spacing:-.025em }
+    .chat-close { flex-shrink:0; background:var(--surface) }
     .chat-status,.chat-empty,.chat-note { color:var(--muted); font-size:13px }
-    .chat-status { margin:3px 0 0 }
-    .chat-history { position:relative; flex:1; min-height:100px; margin:12px 0; background:#faf6f9; border-radius:12px }
-    .chat-log { position:absolute; inset:0; overflow:auto; overscroll-behavior:contain; padding:12px; scrollbar-color:#ad98aa transparent }
+    .chat-status { display:flex; align-items:center; gap:6px; margin:3px 0 0 }
+    .chat-status::before { content:""; flex:none; width:7px; height:7px; border-radius:50%; background:var(--amber) }
+    .chat-status[data-state="connected"]::before { background:var(--green) }
+    .chat-status[data-state="unavailable"]::before { background:var(--error) }
+    .chat-history { position:relative; flex:1; min-height:92px; margin:14px 0; border-radius:10px; background:var(--soft) }
+    .chat-log { position:absolute; inset:0; overflow:auto; overscroll-behavior:contain; padding:12px; scrollbar-color:#8e9b8e transparent }
     .chat-log:focus-visible { outline-offset:-2px }
     .chat-empty { position:absolute; inset:0; display:grid; place-items:center; margin:0; padding:14px; text-align:center; pointer-events:none }
-    .chat [hidden] { display:none }
-    .chat-message { max-width:90%; width:fit-content; margin:0 0 8px; padding:8px 12px; border-radius:10px; background:var(--card); overflow-wrap:anywhere }
-    .chat-message.mine { margin-left:auto; background:#fbe4d0 }
+    .chat-message { width:fit-content; max-width:90%; margin:0 0 8px; padding:8px 11px; border-radius:9px; background:var(--surface); overflow-wrap:anywhere }
+    .chat-message.mine { margin-left:auto; background:#fce1c8 }
     .chat-meta { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; color:var(--muted); font-size:12px }
-    .chat-meta strong { color:var(--ink-strong) }
-    .chat-body { margin:2px 0 0; white-space:pre-wrap }
-    .chat-form { display:flex; flex-wrap:wrap; align-items:end; gap:8px }
-    .chat-field { display:grid; gap:4px; min-width:0; font-size:13px; font-weight:700 }
-    .chat-name { flex:0 1 100% }
-    .chat-text { flex:1 1 0 }
-    .chat-field input { width:100%; min-height:42px; padding:8px 10px; border:1px solid #cbbcc8; border-radius:9px; color:var(--ink-strong); background:var(--card); font:inherit; font-size:16px; font-weight:400 }
+    .chat-meta strong { color:var(--ink) }
+    .chat-body { margin:2px 0 0; white-space:pre-wrap; font-size:14px }
+    .chat-form { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:8px }
+    .chat-field { display:grid; gap:4px; min-width:0; font-size:13px; font-weight:650 }
+    .chat-name { grid-column:1/-1 }
+    .chat-field input { width:100%; min-height:44px; padding:8px 10px; border:1px solid #aeb7ab; border-radius:9px; color:var(--ink); background:var(--surface); font-size:16px; font-weight:400; caret-color:var(--focus) }
     .chat-field input::placeholder { color:var(--muted) }
-    .chat-note { margin:10px 0 0 }
-    .chat-notice { min-height:1.45em; margin:5px 0 0; color:#88350e; font-size:13px; overflow-wrap:anywhere }
-    @media(max-width:650px) {
-      .chat { inset:auto 0 0; width:100%; height:min(100%,475px); border-radius:16px 16px 0 0; box-shadow:0 -10px 32px -12px rgba(58,37,71,.34) }
+    .chat-field input:focus-visible { outline-offset:1px }
+    .chat-note { margin:9px 0 0 }
+    .chat-notice { min-height:1.4em; margin:2px 0 0; color:var(--error); font-size:13px; overflow-wrap:anywhere }
+
+    @media (max-width:760px) {
+      .info { inset:auto auto calc(var(--inset) + 60px) var(--inset) }
+    }
+    @media (max-width:680px) {
+      .community-scene { grid-template-rows:auto minmax(525px,1fr) auto }
+      .site-header { min-height:60px }
+      .stage { min-height:525px }
+      canvas { touch-action:pan-y pinch-zoom }
+      .landscape::before { bottom:13%; background-position:56% 74%; mask-image:linear-gradient(#000 82%,transparent) }
+      .story { width:min(315px,calc(100% - 2 * var(--inset))) }
+      .story::before { inset:calc(-1 * var(--inset)) -150px -60px calc(-1 * var(--inset)) }
+      .story p { max-width:31ch; margin-top:6px }
+      h1 br { display:none }
+      .zoom { inset:auto var(--inset) var(--inset); display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) repeat(2,minmax(0,1.45fr)); gap:0 }
+      .zoom button { min-width:0; padding-inline:2px }
+      .info { padding:10px 12px }
+      .counts { row-gap:0; font-size:11px }
+      .counts b { font-size:13px }
+      .counts small { display:block; margin-inline-start:13px }
+      .chat { inset:auto 0 0; width:100%; height:min(100%,465px); border-radius:var(--radius) var(--radius) 0 0; box-shadow:0 -12px 30px -18px #17221fc0 }
       .chat[inert] { transform:translateY(calc(100% + 32px)) }
     }
-    @media(prefers-reduced-motion:reduce) { .chat { transition:none } }
+    @media (max-width:365px) {
+      .section-name { display:none }
+      .zoom { grid-template-columns:repeat(3,minmax(0,1fr)) }
+      .info { bottom:calc(var(--inset) + 104px) }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      button,.chat,.chat[inert] { transition:none }
+      button:not(:disabled):active,button:not(:disabled):hover:not(:active) { transform:none }
+    }
   </style>
   <script src="community-art-points.js" defer></script>
   <script src="community-leaves.js" defer></script>
@@ -106,46 +183,49 @@
   <script src="community-chat.js" defer></script>
 </head>
 <body>
-  <img id="crater-art" hidden src="assets/community-crater.webp" alt="">
-  <img id="panorama-art" hidden src="assets/community-panorama.webp" alt="">
-  <img id="wood-art" hidden src="assets/community-bark.webp" alt="">
-  <img id="foliage-art" hidden src="assets/community-foliage.webp" alt="">
-  <img id="leaf-art" hidden src="assets/community-leaf.webp" alt="">
+  <img id="crater-art" hidden src="assets/community-crater.webp" width="1672" height="941" alt="">
+  <img id="panorama-art" hidden src="assets/community-panorama.webp" width="1034" height="941" alt="">
+  <img id="wood-art" hidden src="assets/community-bark.webp" width="86" height="299" alt="">
+  <img id="foliage-art" hidden src="assets/community-foliage.webp" width="740" height="386" alt="">
+  <img id="leaf-art" hidden src="assets/community-leaf.webp" width="256" height="99" alt="">
   <main>
-    <div class="community-scene">
-    <header>
-      <a class="home" href="index.html"><img src="icon.png" alt="">Chotto</a>
-      <span class="label">Cộng đồng</span>
-      <button id="chat-toggle" class="chat-toggle" type="button" aria-expanded="false" aria-controls="community-chat">Phòng chat</button>
-    </header>
-    <section class="stage" aria-labelledby="title">
-      <div id="landscape" class="landscape" aria-hidden="true"></div>
-      <canvas tabindex="0" aria-keyshortcuts="Enter" aria-label="Kéo ngang để xoay cây, cuộn để thu phóng, chạm vào lá hoặc nhấn Enter để xem hồ sơ">Trình duyệt cần hỗ trợ canvas để xem cây.</canvas>
-      <div class="story">
-        <div class="label">Hồ sơ lừa đảo</div>
-        <h1 id="title">Cây Canh<br> Gác</h1>
-        <p>Kéo ngang nửa khung cảnh để xem mặt sau cây. Cuộn để thu phóng, chạm lá để xem hồ sơ.</p>
+  <section class="hero wrap community-scene" aria-labelledby="title">
+    <header class="site-header">
+      <div class="identity">
+        <a class="home" href="index.html"><img src="icon.png" width="28" height="28" alt="">Chotto</a>
+        <span class="section-name">Cộng đồng</span>
       </div>
-      <div class="zoom" aria-label="Góc nhìn">
-        <button id="left" aria-label="Xoay trái">↶</button>
-        <button id="right" aria-label="Xoay phải">↷</button>
-        <button id="out" aria-label="Thu nhỏ">−</button>
-        <button id="in" aria-label="Phóng to">+</button>
+      <button id="chat-toggle" class="primary chat-toggle" type="button" aria-expanded="false" aria-controls="community-chat">Mở phòng chat</button>
+    </header>
+    <div class="stage">
+      <div id="landscape" class="landscape" aria-hidden="true"></div>
+      <canvas class="hero__stage" tabindex="0" aria-keyshortcuts="Enter" aria-label="Kéo ngang để xoay cây, cuộn để thu phóng, chạm vào lá hoặc nhấn Enter để xem hồ sơ">Trình duyệt cần hỗ trợ canvas để xem cây.</canvas>
+      <div class="story hero__over">
+        <h1 id="title">Cây Canh<br> Gác</h1>
+        <p class="hero__lead">Kéo ngang để xoay cây. Chạm vào lá để xem hồ sơ tên miền.</p>
+      </div>
+      <div class="zoom" role="group" aria-label="Góc nhìn">
+        <button id="left" aria-label="Xoay trái"><span class="view-icon icon-turn" aria-hidden="true"></span></button>
+        <button id="right" aria-label="Xoay phải"><span class="view-icon icon-turn" aria-hidden="true"></span></button>
+        <button id="out" aria-label="Thu nhỏ"><span class="view-icon icon-minus" aria-hidden="true"></span></button>
+        <button id="in" aria-label="Phóng to"><span class="view-icon icon-plus" aria-hidden="true"></span></button>
         <button id="fit">Toàn cây</button>
         <button id="roots">Cận gốc</button>
       </div>
       <aside class="info" aria-label="Hồ sơ lá">
-        <div class="label" id="record">Blacklist · Phishing.Database</div>
-        <strong id="status">Khám phá tán cây</strong>
-        <code id="domain" hidden></code>
-        <p class="src">Mỗi lá là một tên miền lừa đảo thật trong <a href="https://github.com/mitchellkrogza/Phishing.Database" target="_blank" rel="noopener">Phishing.Database</a>, cập nhật mỗi ngày. Tên miền ngừng hoạt động thì lá rụng xuống đất và nằm đó 2 ngày.</p>
+        <div aria-live="polite" aria-atomic="true">
+          <strong id="status">Khám phá tán cây</strong>
+          <div class="record" id="record">Danh sách chặn · Phishing.Database</div>
+          <code id="domain" hidden></code>
+        </div>
+        <p class="src">Mỗi lá là một tên miền lừa đảo thật trong <a href="https://github.com/mitchellkrogza/Phishing.Database" target="_blank" rel="noopener">Phishing.Database</a>, cập nhật mỗi ngày. Tên miền ngừng hoạt động thì lá rụng xuống đất và nằm đó 7 ngày.</p>
       </aside>
       <section id="community-chat" class="chat" aria-labelledby="chat-title" inert>
         <div class="chat-heading">
           <h2 id="chat-title">Phòng chat cộng đồng</h2>
           <button id="chat-close" class="chat-close" type="button" aria-label="Đóng phòng chat">Đóng</button>
         </div>
-        <p id="chat-status" class="chat-status" role="status">Đang kết nối…</p>
+        <p id="chat-status" class="chat-status" role="status" data-state="connecting">Đang kết nối…</p>
         <div class="chat-history">
           <div id="chat-log" class="chat-log" role="log" aria-labelledby="chat-title" tabindex="0"></div>
           <p id="chat-empty" class="chat-empty" hidden>Chưa có tin nhắn. Gửi lời chào đầu tiên nhé!</p>
@@ -162,15 +242,13 @@
         <p class="chat-note">Tin nhắn trong phòng này hiển thị công khai.</p>
         <p id="chat-notice" class="chat-notice" role="status"></p>
       </section>
-    </section>
-    <footer>
-      <div class="counts" aria-live="polite">
-        <span><i></i><b id="live"></b> còn hoạt động</span>
-        <span><i></i><b id="fresh"></b> mới thêm 24 giờ</span>
-        <span><i></i><b id="dead"></b> đã rụng 2 ngày qua</span>
-      </div>
-    </footer>
     </div>
+    <footer class="counts" aria-live="polite">
+      <span><i></i><b id="live"></b> <small>còn hoạt động</small></span>
+      <span><i></i><b id="fresh"></b> <small>mới thêm 24 giờ</small></span>
+      <span><i></i><b id="dead"></b> <small>đã rụng 7 ngày qua</small></span>
+    </footer>
+  </section>
   </main>
 </body>
 </html>

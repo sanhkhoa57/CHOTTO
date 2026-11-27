@@ -1,5 +1,5 @@
 /* CHOTTO – trang cài đặt của tiện ích. Giao diện lấy y nguyên từ cửa sổ ứng dụng Desktop (app.css, sinh bởi
-   tools/sync_extension_data.py); file này chỉ thêm phần riêng của tiện ích: khung điện thoại và mục Guardian. */
+   tools/sync_extension_data.py); file này chỉ thêm phần riêng của tiện ích: khung điện thoại. */
 
 body { background: var(--bg); overflow: hidden; display: grid; place-items: center; min-height: 100vh; }
 /* Khung điện thoại: không kéo dài hết màn hình, nằm giữa trang. */
@@ -25,20 +25,6 @@ body { background: var(--bg); overflow: hidden; display: grid; place-items: cent
 .opt .num:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 .note { color: var(--muted); font-size: 13px; line-height: 1.4; margin: 0 0 12px; overflow-wrap: anywhere; user-select: text; }
 .group .btn { width: 100%; margin: 4px 0 12px; }
-
-/* Chế độ người giám hộ (chỉ đọc) */
-.gstate { margin: 6px 0 10px; font-weight: 600; font-size: 15px; line-height: 1.4; }
-.gstate[data-mode="ok"] { color: var(--ok); }
-.gstate[data-mode="misconfigured"] { color: var(--danger-ink); }
-dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 4px 0 12px; font-size: 14px; user-select: text; }
-dl.kv dt { color: var(--muted); }
-dl.kv dd { margin: 0; overflow-wrap: anywhere; }
-ul.warnings { margin: 0 0 12px; padding-left: 20px; color: var(--warn-ink); font-size: 14px; }
-.gimport label { display: block; margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
-.gimport textarea { width: 100%; min-height: 96px; padding: 12px 16px; border: 0; border-radius: 20px; background: var(--bg); color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--line-strong); font: 13px/1.4 ui-monospace, Consolas, monospace; resize: vertical; user-select: text; }
-.gimport textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
-.gimport .note { margin: 8px 0 0; }
 
 @media (max-height: 700px) { .guard { padding-top: 130px; } }
 

@@ -27,9 +27,6 @@
     "page": "src/ui/options.html",
     "open_in_tab": true
   },
-  "storage": {
-    "managed_schema": "src/guardian/managed_schema.json"
-  },
   "permissions": [
     "storage",
     "alarms",
@@ -46,7 +43,7 @@
   "content_scripts": [
     {
       "matches": ["https://chat.zalo.me/*"],
-      "js": ["src/ui/shield-css.js", "src/ui/shield.js", "src/ui/guardian-css.js", "src/vendor/qrcode-generator.js", "src/ui/guardian-ui.js", "src/ui/friction.js", "src/content.js"],
+      "js": ["src/ui/shield-css.js", "src/ui/shield.js", "src/ui/friction.js", "src/content.js"],
       "run_at": "document_start",
       "all_frames": true,
       "match_about_blank": true

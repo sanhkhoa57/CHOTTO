@@ -463,17 +463,29 @@ function canopyOffset(y) {
 }
 
 function drawTree(split) {
+  const width = treeImage.width/view.dpr;
+  const height = treeImage.height/view.dpr;
   if (!sway || !split) {
-    ctx.drawImage(treeImage,0,0,view.width,view.height);
+    ctx.drawImage(treeImage,0,0,width,height);
     return;
   }
-  const upper = split/treeImage.height*view.height;
+  // Keep both clips on the same device-pixel row and sample the full texture on each side.
+  // Cropping the source into two images leaves a thin seam when the upper image is skewed.
+  const upper = split/view.dpr;
   ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,width,upper);
+  ctx.clip();
   ctx.transform(1,0,-sway,1,swayBase*sway,0);
-  ctx.drawImage(treeImage,0,0,treeImage.width,split,0,0,view.width,upper);
+  ctx.drawImage(treeImage,0,0,width,height);
   ctx.restore();
   if (split < treeImage.height) {
-    ctx.drawImage(treeImage,0,split,treeImage.width,treeImage.height-split,0,upper,view.width,view.height-upper);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,upper,width,height-upper);
+    ctx.clip();
+    ctx.drawImage(treeImage,0,0,width,height);
+    ctx.restore();
   }
 }
 
@@ -520,7 +532,7 @@ function draw(now) {
   const seconds = windClock(now,animateWind);
   const horizon = view.y-view.distance*view.scale*Math.tan(view.pitch);
   const split = Math.round(horizon*view.dpr);
-  swayBase = treeImage.height ? split/treeImage.height*view.height : 0;
+  swayBase = split/view.dpr;
   sway = animateWind ? .010*Math.sin(seconds*.85)+.003*Math.sin(seconds*1.7) : 0;
   crater.drawSky(ctx,view,seconds);
   ctx.drawImage(scene,0,0,view.width,view.height);
@@ -706,7 +718,7 @@ function refresh() {
   byId("dead").textContent = groundLeaves.length.toLocaleString("vi-VN");
   byId("domain").hidden = !selected;
   if (!selected) {
-    byId("record").textContent = "Blacklist · " + leafSource.source;
+    byId("record").textContent = "Danh sách chặn · " + leafSource.source;
     byId("status").textContent = "Khám phá tán cây";
     render();
     return;
@@ -733,11 +745,11 @@ function refresh() {
   render();
 }
 
-// Leaves on the ground: domains that left the active list in the last two days
+// Leaves on the ground: domains that left the active list in the last seven days
 // (community-data/fallen.json, rebuilt daily). Each leaf lies at a spot under the crown
-// fixed by its name, browns with age, and is gone after
-// two days, checked against the clock here rather than waiting for the next rebuild.
-const groundDays = 2;
+// fixed by its name, browns with age, and is removed here when its time expires.
+const groundLife = 7*86400;
+const groundFadeTime = 12*3600;
 let groundLeaves = [], groundHits = [], groundVersion = 0;
 function addGroundLeaf(entry) {
   const key = entry.domain;
@@ -750,7 +762,7 @@ function addGroundLeaf(entry) {
   groundVersion++;
 }
 function pruneGround() {
-  const cutoff = Date.now()/1000-groundDays*86400, before = groundLeaves.length;
+  const cutoff = Date.now()/1000-groundLife, before = groundLeaves.length;
   groundLeaves = groundLeaves.filter((leaf) => leaf.t > cutoff);
   if (groundLeaves.length === before) return;
   groundVersion++;
@@ -800,16 +812,18 @@ setInterval(() => { pruneGround(); loadFallen(); },10*60*1000);
 // Flat on the floor, fresh yellow turning brown, fading over the last half day.
 function drawGroundLeaves(pen) {
   groundHits = [];
-  const now = Date.now()/1000, life = groundDays*86400;
+  const now = Date.now()/1000;
   const lying = groundLeaves.slice().sort((a,b) => a.t-b.t).slice(-2500);
   for (const leaf of lying) {
     if (leaf.landing) continue;
     const p = project([leaf.x,groundHeight(leaf.x,leaf.z)+.6,leaf.z]);
     if (p.x < -20 || p.y < -20 || p.x > view.width+20 || p.y > view.height+20) continue;
-    const age = Math.min(1,Math.max(0,(now-leaf.t)/life)), r = leaf.size*p.factor*1.5;
+    const elapsed = Math.max(0,now-leaf.t);
+    const age = Math.min(1,elapsed/groundLife), r = leaf.size*p.factor*1.5;
+    const fade = Math.min(1,Math.max(0,(elapsed-(groundLife-groundFadeTime))/groundFadeTime));
     const tone = [201+(138-201)*age,176+(90-176)*age,74+(50-74)*age].map(Math.round);
     pen.save();
-    pen.globalAlpha = age > .75 ? 1-(age-.75)*2.8 : 1;
+    pen.globalAlpha = 1-.7*fade;
     pen.translate(p.x,p.y);
     pen.scale(1,.42);
     pen.rotate(leaf.turn);

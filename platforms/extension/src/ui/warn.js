@@ -39,11 +39,6 @@ async function main() {
     parent: document.body,
     decide: (/** @type {string} */ choice, /** @type {boolean} */ trusted) =>
       ask({ type: "decide", token: answer.token, choice, trusted }),
-    guardian: answer.guardian ? {
-      request: () => ask({ type: "guardian-request", token: answer.token }),
-      submit: (/** @type {string} */ code) => ask({ type: "guardian-submit", token: answer.token, code }),
-      name: typeof answer.guardianName === "string" ? answer.guardianName : null,
-    } : undefined,
   });
 }
 

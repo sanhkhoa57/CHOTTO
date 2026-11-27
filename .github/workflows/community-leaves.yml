@@ -1,5 +1,5 @@
 # Cập nhật lá của community.html mỗi ngày theo Phishing.Database:
-# tên miền mới -> lá mới; tên miền rời danh sách ACTIVE -> lá rụng (nằm đất 2 ngày rồi xóa).
+# tên miền mới -> lá mới; tên miền rời danh sách ACTIVE -> lá rụng (nằm đất 7 ngày rồi xóa).
 # Đẩy commit lên main; nếu Vercel nối với repo thì trang tự triển khai lại.
 name: community-leaves
 

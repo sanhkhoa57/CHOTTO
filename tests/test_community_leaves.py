@@ -1,4 +1,4 @@
-"""tools/build_community_leaves.py: thêm lá mới, lá rụng khi tên miền rời danh sách, xóa sau 2 ngày."""
+"""tools/build_community_leaves.py: thêm lá mới, lá rụng khi tên miền rời danh sách, xóa sau 7 ngày."""
 
 from __future__ import annotations
 
@@ -73,13 +73,15 @@ class CommunityLeavesTest(unittest.TestCase):
         self.assertEqual(sorted(d for d, _ in self.fallen()), sorted(self.base[:10]))
         self.assertTrue(all(t == 1001 * day for _, t in self.fallen()))
 
-        # Ngày 3: lá rụng vẫn nằm đất (chưa quá 2 ngày); một lá rụng sống lại.
+        # Ngày 3: lá rụng vẫn nằm đất; một lá rụng sống lại.
         self.run_day([self.base[0]] + self.base[10:] + new, 1002 * day)
         self.assertEqual(len(self.fallen()), 9)
         self.assertIn(self.base[0], self.alive())
 
-        # Ngày 4 + 1 giây: quá 2 ngày kể từ lúc rụng -> xóa hẳn.
-        self.run_day([self.base[0]] + self.base[10:] + new, 1003 * day + 1)
+        # Còn giữ đến sát mốc 7 ngày và xóa ngay khi đủ 7 ngày.
+        self.run_day([self.base[0]] + self.base[10:] + new, 1008 * day - 1)
+        self.assertEqual(len(self.fallen()), 9)
+        self.run_day([self.base[0]] + self.base[10:] + new, 1008 * day)
         self.assertEqual(self.fallen(), [])
 
     def test_broken_source_keeps_old_data(self) -> None:

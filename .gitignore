@@ -28,15 +28,6 @@ CHOTTO.spec
 # Dữ liệu thu thập khoảng trống zero-day (CSDL lớn, sinh lại được; chỉ đẩy báo cáo tổng hợp trong docs/)
 .zero-day/
 
-# Guardian mode: KHÔNG bao giờ commit khóa bí mật / secret của người giám hộ
-*.pem
-*.key
-guardian-keys/
-guardian.keys.json
-.chotto-guardian/
-CHOTTO-Guardian/
-*.guardian-secret
-
 # Khóa API của mascot chat: KHÔNG bao giờ commit (chỉ .env.example được phép)
 .env
 .env.*

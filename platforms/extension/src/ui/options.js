@@ -131,67 +131,13 @@ function rowsHTML(rows) {
 }
 
 /**
- * Trạng thái Guardian, chỉ đọc (nguồn: ``chrome.storage.managed`` + chính sách ký đã xác minh).
- * @param {any} g
- */
-function renderGuardian(g) {
-  const state = $("#guardian-state");
-  const details = $("#guardian-details");
-  const warnings = $("#guardian-warnings");
-  state.dataset.mode = g.mode;
-  details.replaceChildren();
-  warnings.replaceChildren();
-  $("#guardian-import").hidden = g.mode === "off";
-  if (g.mode === "off") {
-    state.textContent = "Đang tắt. Chế độ người giám hộ chỉ bật bằng chính sách quản lý của máy (Administrator).";
-    details.hidden = true;
-    warnings.hidden = true;
-    return;
-  }
-  state.textContent = g.mode === "ok"
-    ? "Đang bật bởi chính sách quản lý (managed storage)."
-    : "Đang bật nhưng cấu hình quản lý thiếu/hỏng bí mật: mọi link nguy hiểm bị chặn và không ai mở khóa được cho tới khi sửa.";
-  const policy = g.policySource === "signed"
-    ? `Chính sách đã ký hợp lệ, phiên bản ${g.policyVersion}`
-    : "Mặc định nghiêm nhất (không có chính sách ký hợp lệ)";
-  /** @type {[string, string][]} */
-  const rows = [
-    ["Chính sách", policy],
-    ["Phiên bản tối thiểu (managed)", String(g.minPolicyVersion)],
-    ["Mức cần xin phép", g.requireLevels.map((/** @type {string} */ l) => /** @type {Record<string, string>} */ (LEVEL_NAMES)[l] ?? l).join(", ")],
-    ["Tên miền luôn cho phép", g.allowDomains.length ? g.allowDomains.join(", ") : "không có"],
-    ["Hạn thử thách", `${Math.round(g.ttlSeconds / 60)} phút`],
-    ["Thử thách đang chờ", String(g.pending)],
-    ["Khóa tạm", g.lockedUntil ? `đến ${formatTime(g.lockedUntil)}` : "không"],
-  ];
-  if (g.policyProblem) rows.splice(1, 0, ["Chính sách ký bị bỏ qua", g.policyProblem]);
-  for (const [name, value] of rows) {
-    const dt = document.createElement("dt");
-    dt.textContent = name;
-    const dd = document.createElement("dd");
-    dd.textContent = value;
-    details.append(dt, dd);
-  }
-  details.hidden = false;
-  for (const w of g.warnings) {
-    const item = document.createElement("li");
-    item.textContent = `${formatTime(w.ts)}: ${w.msg}`;
-    warnings.append(item);
-  }
-  warnings.hidden = g.warnings.length === 0;
-}
-
-/**
  * Thẻ trạng thái ở Tổng quan.
  * @param {any} status
  */
 function renderGuard(status) {
-  const mode = status.guardian.mode;
-  const bad = mode === "misconfigured";
-  $("#guard").classList.toggle("off", bad);
-  $("#guardTitle").textContent = bad ? "Cấu hình người giám hộ bị lỗi" : "Zalo Web đang được bảo vệ";
-  $("#guardBadge").hidden = mode !== "ok";
-  $("#guardIco").innerHTML = BURST + (bad ? GLYPH.warn : GLYPH.ok);
+  $("#guard").classList.remove("off");
+  $("#guardTitle").textContent = "Zalo Web đang được bảo vệ";
+  $("#guardIco").innerHTML = BURST + GLYPH.ok;
   const bl = status.blacklist;
   $("#guardText").textContent = bl ? `${bl.count.toLocaleString("vi-VN")} link lừa đảo trong danh sách, cập nhật ${when(bl.builtAt).toLowerCase()}` : "Chưa có danh sách lừa đảo.";
 }
@@ -200,7 +146,6 @@ function renderGuard(status) {
 async function refreshStatus() {
   const status = await ask({ type: "status" });
   $("#version").textContent = status.version;
-  renderGuardian(status.guardian);
   renderGuard(status);
   for (const sw of $$(".switch[data-key]")) sw.setAttribute("aria-checked", String(Boolean(status.settings[sw.dataset.key ?? ""])));
   for (const input of $$("input.num[data-key]")) /** @type {HTMLInputElement} */ (input).value = String(status.settings[input.dataset.key ?? ""]);
@@ -307,20 +252,6 @@ $("#updateNow").addEventListener("click", async (event) => {
   } finally {
     button.disabled = false;
     button.textContent = "Cập nhật danh sách";
-  }
-});
-
-$("#guardian-import").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const out = $("#guardian-import-status");
-  const box = /** @type {HTMLTextAreaElement} */ ($("#guardian-policy"));
-  try {
-    const answer = await ask({ type: "guardian-import", text: box.value });
-    out.textContent = answer.ok ? `Đã nhận chính sách phiên bản ${answer.version}.` : `Không nhận: ${answer.error}`;
-    if (answer.ok) box.value = "";
-    await refreshStatus();
-  } catch (error) {
-    out.textContent = `Không nhập được: ${message(error)}`;
   }
 });
 

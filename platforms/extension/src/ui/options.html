@@ -32,7 +32,6 @@
           <path class="frown" d="M92 138q11-10 22 0" fill="none" stroke="#43305f" stroke-width="3.2" stroke-linecap="round"/>
         </svg>
         <span class="guard-ico" id="guardIco" aria-hidden="true"></span>
-        <span class="chip ok guard-badge" id="guardBadge" hidden>Người giám hộ đang bật</span>
         <h2 id="guardTitle">Zalo Web đang được bảo vệ</h2>
         <p id="guardText"></p>
       </div>
@@ -85,19 +84,6 @@
         <p class="note" id="blacklist">…</p>
         <p class="note" id="update"></p>
         <button class="btn btn--secondary" id="updateNow" type="button">Cập nhật danh sách</button>
-      </div>
-      <div class="group card" id="guardian">
-        <h2 class="h2">Chế độ người giám hộ</h2>
-        <p class="gstate" id="guardian-state" role="status">Đang đọc…</p>
-        <dl class="kv" id="guardian-details" hidden></dl>
-        <ul class="warnings" id="guardian-warnings" hidden></ul>
-        <p class="note" id="guardian-note">Chỉ đọc: bật/tắt, khóa công khai, bí mật và phiên bản tối thiểu do chính sách quản lý của máy (registry, chỉ Administrator ghi) đặt; trang này không thể đổi chúng.</p>
-        <form class="gimport" id="guardian-import" hidden>
-          <label for="guardian-policy">Nhập chính sách đã ký của người giám hộ (JSON từ <code>guardian.py sign-policy</code>)</label>
-          <textarea id="guardian-policy" rows="4" spellcheck="false" autocomplete="off"></textarea>
-          <button class="btn btn--secondary" type="submit">Nhập chính sách</button>
-          <p class="note" id="guardian-import-status" role="status"></p>
-        </form>
       </div>
       <div class="credit" id="credit">Phiên bản <span id="version">…</span> · Được phát triển bởi <b>AECCUS</b></div>
     </section>

@@ -3,13 +3,13 @@
 Chạy hằng ngày (GitHub Actions, .github/workflows/community-leaves.yml) để cây sống theo danh sách:
 - Tên miền mới xuất hiện trong danh sách ACTIVE -> thêm lá (lá mới nằm cuối thứ tự).
 - Tên miền rời danh sách ACTIVE (Phishing.Database kiểm tra lại và thấy đã chết) -> lá rụng,
-  ghi thời điểm; lá rụng nằm trên mặt đất 2 ngày rồi bị xóa hẳn.
+  ghi thời điểm; lá rụng nằm trên mặt đất 7 ngày rồi bị xóa hẳn.
 Sổ ghi giữa các lần chạy: data/community-registry.tsv.gz (tên miền, lúc thêm, lúc rụng), KHÔNG đăng web.
 
 Ghi ra:
 - community-leaves.js: số lá, số lá mới trong 24 giờ, thời điểm dựng, nguồn.
 - community-data/leaves-NNN.txt.gz: tên miền đang sống, theo thứ tự thêm vào (cũ trước).
-- community-data/fallen.json: tên miền rụng trong 2 ngày qua kèm thời điểm rụng.
+- community-data/fallen.json: tên miền rụng trong 7 ngày qua kèm thời điểm rụng.
 Chỉ dùng Phishing.Database (danh sách mở); KHÔNG đăng lại dữ liệu PhishTank/ChongLuaDao.
 
     python tools/build_community_leaves.py [--download]
@@ -32,7 +32,7 @@ SOURCE_NAME = "Phishing.Database"
 SOURCE_URL = "https://raw.githubusercontent.com/mitchellkrogza/Phishing.Database/master/phishing-domains-ACTIVE.txt"
 SOURCE_PAGE = "https://github.com/mitchellkrogza/Phishing.Database"
 SHARD = 4000
-FALLEN_DAYS = 2
+FALLEN_DAYS = 7
 OUT_DIR = ROOT / "community-data"
 REGISTRY = ROOT / "data" / "community-registry.tsv.gz"
 DOMAIN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z0-9-]{2,63}$")
@@ -94,8 +94,8 @@ def main() -> None:
     for domain, (added, died) in list(entries.items()):
         if domain not in active and not died:
             entries[domain] = (added, now)
-        elif died and now - died > FALLEN_DAYS * 86400:
-            del entries[domain]  # rụng quá 2 ngày: xóa hẳn
+        elif died and now - died >= FALLEN_DAYS * 86400:
+            del entries[domain]
 
     alive = sorted((d for d, (_, died) in entries.items() if not died), key=lambda d: (entries[d][0], d))
     fallen = sorted(((d, died) for d, (_, died) in entries.items() if died), key=lambda item: -item[1])

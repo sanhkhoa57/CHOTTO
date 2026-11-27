@@ -64,6 +64,11 @@
     if (!room.inert && onScreen && !document.hidden) timer = setTimeout(sync,delay);
   }
 
+  function connection(state, label) {
+    status.dataset.state = state;
+    if (status.textContent !== label) status.textContent = label;
+  }
+
   async function sync() {
     if (syncing || room.inert || document.hidden || !onScreen) return;
     syncing = true;
@@ -75,7 +80,7 @@
       const data = await response.json();
       if (data.error === "unconfigured") {
         connected = false;
-        status.textContent = "Phòng chat chưa được kết nối.";
+        connection("unavailable", "Phòng chat chưa được kết nối.");
         next = 30000;
       } else {
         if (!response.ok) throw new Error("Chat unavailable");
@@ -83,12 +88,12 @@
         if (!after) after = "0-0";
         connected = true;
         failures = 0;
-        if (status.textContent !== "Đã kết nối") status.textContent = "Đã kết nối";
+        connection("connected", "Đã kết nối");
         if (data.more) next = 0;
       }
     } catch {
       connected = false;
-      status.textContent = "Đang thử kết nối lại…";
+      connection("connecting", "Đang thử kết nối lại…");
       next = Math.min(30000,3000*2**Math.min(++failures,4));
     } finally {
       syncing = false;
@@ -136,8 +141,10 @@
     }
   });
 
-  function setOpen(open) {
+  function setOpen(open, instant) {
+    room.toggleAttribute("data-instant", instant);
     toggle.setAttribute("aria-expanded",String(open));
+    toggle.textContent = open ? "Đóng phòng chat" : "Mở phòng chat";
     if (open) {
       room.inert = false;
       close.focus({ preventScroll:true });
@@ -148,12 +155,12 @@
     schedule(0);
   }
 
-  toggle.addEventListener("click",()=>setOpen(room.inert));
-  close.addEventListener("click",()=>setOpen(false));
+  toggle.addEventListener("click",(event)=>setOpen(room.inert,event.detail === 0));
+  close.addEventListener("click",(event)=>setOpen(false,event.detail === 0));
   document.addEventListener("keydown",(event)=>{
-    if (event.key === "Escape" && !room.inert && !event.defaultPrevented) {
+    if (event.key === "Escape" && !event.isComposing && !room.inert && !event.defaultPrevented) {
       event.preventDefault();
-      setOpen(false);
+      setOpen(false,true);
     }
   });
   document.addEventListener("visibilitychange",()=>schedule(0));

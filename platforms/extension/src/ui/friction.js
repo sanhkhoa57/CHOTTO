@@ -26,7 +26,6 @@
     "wrong-tab": "Phiên kiểm tra không thuộc tab này. Hãy bấm vào liên kết lần nữa.",
     untrusted: "Chỉ chấp nhận cú bấm chuột thật.",
     unavailable: "CHOTTO đang khởi động lại. Hãy đóng và bấm vào liên kết lần nữa.",
-    guardian: "Link này cần người giám hộ cho phép. Hãy bấm “Nhờ người giám hộ xem giúp”.",
   };
 
   const STYLE = `
@@ -73,8 +72,7 @@
     const root = host.attachShadow({ mode: "closed" });
     const style = document.createElement("style");
     const shieldCss = /** @type {any} */ (globalThis).CHOTTO_SHIELD_CSS;
-    const guardianCss = /** @type {any} */ (globalThis).CHOTTO_GUARDIAN_CSS;
-    style.textContent = `${typeof shieldCss === "string" ? shieldCss : ""}\n${typeof guardianCss === "string" ? guardianCss : ""}\n${STYLE}`;
+    style.textContent = `${typeof shieldCss === "string" ? shieldCss : ""}\n${STYLE}`;
     root.append(style);
     parent.append(host);
     return { host, root };
@@ -87,20 +85,14 @@
    * @param {number} options.lockMs Thời gian khóa nút "vẫn mở".
    * @param {(choice: "proceed" | "back", trusted: boolean) => Promise<{ok: boolean, reason?: string}>} options.decide
    * @param {Element} [options.parent] Nơi gắn (mặc định ``document.documentElement``).
-   * @param {{request: () => Promise<any>, submit: (code: string) => Promise<any>, name?: string | null}} [options.guardian]
-   *   Guardian mode: chỉ hai nút ("Đóng" và "Nhờ người giám hộ xem giúp"); chỉ mã mở khóa của người giám hộ mới mở được link.
-   *   ``name`` là tên người giám hộ (tùy chọn, đã lọc ở service worker và lọc lại ở giao diện).
-   * @param {boolean} [options.noProceed] Ẩn hẳn nút "vẫn mở" (không có đường nào để mở).
    * @returns {{close: () => void}}
    */
-  function show({ view, lockMs, decide, parent, guardian, noProceed }) {
+  function show({ view, lockMs, decide, parent }) {
     const { host, root } = mountHost(parent ?? document.documentElement);
     const dialog = /** @type {HTMLDialogElement} */ (el("dialog"));
     root.append(dialog);
-    const GuardianUI = /** @type {any} */ (globalThis).ChottoGuardianUI;
-    const guarded = Boolean(guardian && GuardianUI);
     const shield = /** @type {any} */ (globalThis).ChottoShield.mount(
-      dialog, guarded ? GuardianUI.blockView(view, guardian?.name) : view, { idPrefix: "chotto", theme: "light" });
+      dialog, view, { idPrefix: "chotto", theme: "light" });
     dialog.setAttribute("aria-labelledby", shield.headlineId);
     /** @type {HTMLButtonElement} */
     const back = shield.back;
@@ -118,40 +110,13 @@
       const left = unlockAt - performance.now();
       shield.setLock(Math.max(0, Math.ceil(left / 1000)), left / Math.max(1, unlockAt - startedAt));
     };
-    /** @type {ReturnType<typeof setInterval> | null} */
-    let timer = null;
-    /** @type {{open: () => Promise<void>, destroy: () => void} | null} */
-    let panel = null;
-    if (guardian && guarded) {
-      // Guardian mode: không có đếm ngược và không có đường "vẫn mở" nào khác ngoài mã của người giám hộ.
-      proceed.classList.add("sh-ask");
-      proceed.querySelector(".sh-ring")?.remove();
-      proceed.removeAttribute("aria-label");
-      proceed.setAttribute("aria-disabled", "false");
-      proceed.tabIndex = 0;
-      GuardianUI.arrange(shield, guardian.name);
-      panel = GuardianUI.mount(shield.root, {
-        request: guardian.request, submit: guardian.submit, name: guardian.name,
-        onOpened: () => close(),
-        onClose: () => submit("back", true),
-      });
-      proceed.addEventListener("click", (event) => {
-        if (!event.isTrusted) return;
-        GuardianUI.setStep(shield, 2);   // màn hình 2: ẩn hết phần của màn hình 1 (kể cả dòng "Đã chép địa chỉ…" cũ)
-        panel?.open();
-      });
-    } else if (guardian || noProceed) {
-      proceed.style.display = "none";   // (thuộc tính hidden bị .sh-proceed{display} ghi đè) không có đường nào để mở (Guardian bật nhưng không dựng được giao diện xin phép)
-    } else {
-      render();
-      timer = setInterval(render, TICK_MS);
-    }
+    render();
+    const timer = setInterval(render, TICK_MS);
 
     const close = () => {
       if (closed) return;
       closed = true;
-      if (timer !== null) clearInterval(timer);
-      panel?.destroy();
+      clearInterval(timer);
       try {
         if (dialog.open) dialog.close();
       } catch (error) {
@@ -185,22 +150,20 @@
       event.preventDefault();
       submit("back", true);
     });
-    if (!guardian && !noProceed) {
-      proceed.addEventListener("pointerdown", (event) => {
-        if (event.isTrusted) pointerDownAt = performance.now();
-      });
-      proceed.addEventListener("keydown", (event) => event.preventDefault());
-      proceed.addEventListener("click", (event) => {
-        // detail = 0: click sinh từ bàn phím hoặc từ script; isTrusted = false: click giả.
-        if (!event.isTrusted || event.detail === 0) return;
-        const now = performance.now();
-        if (now < unlockAt || pointerDownAt < unlockAt) {
-          shield.note(REASON_TEXT.locked);
-          return;
-        }
-        submit("proceed", true);
-      });
-    }
+    proceed.addEventListener("pointerdown", (event) => {
+      if (event.isTrusted) pointerDownAt = performance.now();
+    });
+    proceed.addEventListener("keydown", (event) => event.preventDefault());
+    proceed.addEventListener("click", (event) => {
+      // detail = 0: click sinh từ bàn phím hoặc từ script; isTrusted = false: click giả.
+      if (!event.isTrusted || event.detail === 0) return;
+      const now = performance.now();
+      if (now < unlockAt || pointerDownAt < unlockAt) {
+        shield.note(REASON_TEXT.locked);
+        return;
+      }
+      submit("proceed", true);
+    });
 
     try {
       dialog.showModal();
