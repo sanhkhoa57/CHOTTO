@@ -400,22 +400,22 @@ function polygon(points, color, pen) {
   pen.fill();
 }
 
-function drawFallingLeaf(leaf,point,t) {
+function drawFallingLeaf(pen,leaf,point,t) {
   const r=point.factor*leaf.size;
-  ctx.save();
-  ctx.translate(point.x,point.y);
-  ctx.rotate(leaf.angle+t*7);
+  pen.save();
+  pen.translate(point.x,point.y);
+  pen.rotate(leaf.angle+t*7);
   if (leaf.id%11===0 && painting.leafArt.naturalWidth) {
     const w=r*2.25, h=w*painting.leafArt.naturalHeight/painting.leafArt.naturalWidth;
-    ctx.drawImage(painting.leafArt,-w/2,-h/2,w,h);
+    pen.drawImage(painting.leafArt,-w/2,-h/2,w,h);
   } else {
-    ctx.scale(r,r*(.56+.30*Math.cos(t*9)));
-    ctx.fillStyle="#d9a35a"; ctx.fill(leaf.profile.outline);
-    ctx.fillStyle="#ffe0a0"; ctx.fill(leaf.profile.crease);
-    ctx.strokeStyle="#694f31"; ctx.lineWidth=.045; ctx.stroke(leaf.profile.outline);
-    if (r>6) { ctx.lineWidth=.03; ctx.stroke(veins); }
+    pen.scale(r,r*(.56+.30*Math.cos(t*9)));
+    pen.fillStyle="#d9a35a"; pen.fill(leaf.profile.outline);
+    pen.fillStyle="#ffe0a0"; pen.fill(leaf.profile.crease);
+    pen.strokeStyle="#694f31"; pen.lineWidth=.045; pen.stroke(leaf.profile.outline);
+    if (r>6) { pen.lineWidth=.03; pen.stroke(veins); }
   }
-  ctx.restore();
+  pen.restore();
 }
 
 function inkFace(item, eye, pen) {
@@ -508,9 +508,12 @@ function draw(now) {
   ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
   ctx.clearRect(0,0,view.width,view.height);
   if (!painting.ready) return;
-  // Ground leaves brown with age, so the scene is also repainted every ten minutes.
+  const minute = clockMinute();
+  const sky = crater.skyState(minute/60);
+  // Ground leaves brown with age, so the scene is also repainted every ten minutes,
+  // and again whenever the light of the hour changes.
   const key = [view.yaw,view.pitch,view.scale,view.x,view.y,view.distance,canvas.width,canvas.height,
-    groundVersion,Math.floor(Date.now()/600000)].join("|");
+    groundVersion,Math.floor(Date.now()/600000),sky.wash].join("|");
   if (key !== sceneKey) {
     sceneKey = key;
     scene.width=canvas.width;
@@ -525,6 +528,8 @@ function draw(now) {
     const treePen=treeImage.getContext("2d");
     treePen.setTransform(view.dpr,0,0,view.dpr,0,0);
     shown=painting.draw(treePen,view);
+    applyLight(pen,sky);
+    applyLight(treePen,sky);
     visible=null;
     painting.prepareAccents(painting.targets(shown,view,true));
   }
@@ -534,12 +539,12 @@ function draw(now) {
   const split = Math.round(horizon*view.dpr);
   swayBase = split/view.dpr;
   sway = animateWind ? .010*Math.sin(seconds*.85)+.003*Math.sin(seconds*1.7) : 0;
-  crater.drawSky(ctx,view,seconds);
+  crater.drawSky(ctx,view,seconds,sky);
   ctx.drawImage(scene,0,0,view.width,view.height);
-  drawMovingShadow(seconds,key);
-  drawCompass(crater.sunState(seconds));
+  drawMovingShadow(sky,minute,key);
+  drawCompass(sky);
   drawTree(Math.min(treeImage.height,Math.max(0,split)));
-  painting.drawAccents(ctx,seconds,animateWind);
+  lit(sky,(pen) => painting.drawAccents(pen,seconds,animateWind));
   if (selected?.ground) {
     const hit = groundHits.find((h) => h.leaf === selected);
     if (hit) {
@@ -559,6 +564,12 @@ function draw(now) {
     ctx.arc(x,point.y,Math.max(9, selected.size*point.factor+3),0,Math.PI*2);
     ctx.stroke();
   }
+  if (falling.length) lit(sky,(pen) => drawFalls(pen,now));
+  if (falling.length) render();
+  else if (animateWind && !document.hidden) { render(); idle = true; }
+}
+
+function drawFalls(pen,now) {
   for (let i = falling.length-1; i >= 0; i--) {
     const { leaf, start, entry } = falling[i];
     if (now < start) continue;
@@ -572,42 +583,78 @@ function draw(now) {
     }
     const point = painting.leafPoint(leaf,view,t);
     point.x += canopyOffset(point.y)*(1-t);
-    ctx.globalAlpha = Math.min(1,(1-t)*5);
+    pen.globalAlpha = Math.min(1,(1-t)*5);
     if (t > .24 && leaf.id%3 === 0) {
       const streak = Math.min(15,leaf.size*point.factor)*t;
-      ctx.strokeStyle = "#253b42a1";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(point.x-streak,point.y-streak*.8);
-      ctx.quadraticCurveTo(point.x-streak*1.1,point.y-streak*1.4,point.x-streak*.8,point.y-streak*2.4);
-      ctx.stroke();
+      pen.strokeStyle = "#253b42a1";
+      pen.lineWidth = 1;
+      pen.beginPath();
+      pen.moveTo(point.x-streak,point.y-streak*.8);
+      pen.quadraticCurveTo(point.x-streak*1.1,point.y-streak*1.4,point.x-streak*.8,point.y-streak*2.4);
+      pen.stroke();
     }
-    drawFallingLeaf(leaf,point,t);
+    drawFallingLeaf(pen,leaf,point,t);
   }
-  ctx.globalAlpha = 1;
-  if (falling.length) render();
-  else if (animateWind && !document.hidden) { render(); idle = true; }
+  pen.globalAlpha = 1;
+}
+
+// The hour of the viewer's own clock, in whole minutes. "?gio=19.5" previews another time.
+const previewHour = Number.parseFloat(new URLSearchParams(location.search).get("gio"));
+function clockMinute() {
+  if (previewHour >= 0 && previewHour < 24) return Math.floor(previewHour*60);
+  const now = new Date();
+  return now.getHours()*60+now.getMinutes();
+}
+// Without wind (reduced motion) nothing else would repaint as the hours pass.
+setInterval(() => { if (!document.hidden) render(); },30000);
+
+// Lays the colour of the hour over whatever is painted on a layer, never over its clear parts.
+function applyLight(pen,sky) {
+  if (!sky.wash) return;
+  pen.save();
+  pen.setTransform(1,0,0,1,0,0);
+  pen.globalCompositeOperation="source-atop";
+  pen.fillStyle=sky.wash;
+  pen.fillRect(0,0,pen.canvas.width,pen.canvas.height);
+  pen.restore();
+}
+
+// Moving leaves are painted every frame: gather them on their own layer so they take the
+// same light as the cached tree.
+const moving=document.createElement("canvas");
+function lit(sky,paint) {
+  if (!sky.wash) return paint(ctx);
+  if (moving.width!==canvas.width || moving.height!==canvas.height) {
+    moving.width=canvas.width;
+    moving.height=canvas.height;
+  }
+  const pen=moving.getContext("2d");
+  pen.setTransform(1,0,0,1,0,0);
+  pen.clearRect(0,0,moving.width,moving.height);
+  pen.setTransform(view.dpr,0,0,view.dpr,0,0);
+  paint(pen);
+  applyLight(pen,sky);
+  ctx.drawImage(moving,0,0,view.width,view.height);
 }
 
 // The tree's shadow follows the sun on its own layer, so the cached scene and the tree
 // are not repainted while it creeps. It is redrawn when the view or the sun step changes.
 const shadowLayer=document.createElement("canvas");
 let shadowKey="";
-function drawMovingShadow(seconds,sceneState) {
-  const step=Math.floor(seconds*10);
-  const next=sceneState+"|"+step;
+function drawMovingShadow(sky,minute,sceneState) {
+  const next=sceneState+"|"+minute;
   if (next!==shadowKey) {
     shadowKey=next;
     shadowLayer.width=canvas.width;
     shadowLayer.height=canvas.height;
     const pen=shadowLayer.getContext("2d");
     pen.setTransform(view.dpr,0,0,view.dpr,0,0);
-    crater.drawShadow(pen,view,painting,crater.sunState(step/10),step);
+    crater.drawShadow(pen,view,painting,sky,minute);
   }
   ctx.drawImage(shadowLayer,0,0,view.width,view.height);
 }
 
-// The compass in the corner turns with the camera; the small sun shows where the sun is.
+// The compass in the corner turns with the camera; its dot is the sun, or the moon at night.
 const compass = byId("compass");
 const compassMarks = [...compass.querySelectorAll("[data-azimuth]")];
 const compassSun = byId("compass-sun");
@@ -615,7 +662,7 @@ const compassNames = ["Bắc","Đông Bắc","Đông","Đông Nam","Nam","Tây N
 let compassKey = "";
 function drawCompass(sun) {
   const heading=Math.PI+frontYaw-view.yaw;
-  const next=Math.round(heading*180/Math.PI)+"|"+Math.round(sun.azimuth*180/Math.PI)+"|"+sun.up;
+  const next=Math.round(heading*180/Math.PI)+"|"+Math.round(sun.azimuth*180/Math.PI)+"|"+sun.day;
   if (next===compassKey) return;
   compassKey=next;
   const place=(node,azimuth,radius)=>{
@@ -624,7 +671,7 @@ function drawCompass(sun) {
   };
   for (const mark of compassMarks) place(mark,Number(mark.dataset.azimuth)*Math.PI/180,27);
   place(compassSun,sun.azimuth,43);
-  compassSun.style.display=sun.up ? "" : "none";
+  compassSun.classList.toggle("moon",!sun.day);
   const sector=((Math.round(heading/(Math.PI/4))%8)+8)%8;
   compass.setAttribute("aria-label","La bàn: đang nhìn về hướng "+compassNames[sector]);
 }
@@ -659,7 +706,7 @@ document.addEventListener("visibilitychange",()=>{
   if (!document.hidden) render();
 });
 for (const asset of [painting.wood,painting.foliage,painting.leafArt]) {
-  asset.addEventListener("load",()=>{ sceneKey=""; render(); });
+  asset.addEventListener("load",()=>{ sceneKey=""; crater.shadowStep=null; render(); });
   if (asset!==painting.leafArt) {
     const failed=()=>{ byId("status").textContent="Chưa tải được hình cây. Hãy tải lại trang."; };
     asset.addEventListener("error",failed);

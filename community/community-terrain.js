@@ -14,27 +14,53 @@ class PaintedCrater {
     this.shadowStep=null;
   }
 
-  // One day takes three minutes: up in the south-east, high over the south, down in the
-  // south-west (a winter sun, so it stays within sight), then a short night.
+  // The scene follows the viewer's own clock (hour 0..24). The sun is up from 05:45 to
+  // 18:15 and the moon takes the night shift. Both rise in the south-east, cross high over
+  // the south and set in the south-west (a winter path, so they stay within sight).
   // Compass bearings grow clockwise; the opening view faces south.
-  sunState(seconds) {
-    const day=180, night=15, sweep=.6*Math.PI;
-    // The page opens in the early afternoon, with the sun a little right of the tree.
-    const t=(seconds+.685*day)%(day+night);
-    const up=t<day;
-    const progress=up ? t/day : (t-day)/night;
-    const height=up ? Math.sin(Math.PI*progress) : 0;
-    // Unseen at night, it swings back to where it rises.
-    const azimuth=Math.PI+sweep*(up ? progress-.5 : .5-progress);
+  skyState(hour) {
+    const rise=5.75, set=18.25, sweep=.6*Math.PI;
+    const day=hour>=rise && hour<set;
+    const progress=day ? (hour-rise)/(set-rise) : ((hour-set+24)%24)/(24-set+rise);
+    const height=Math.sin(Math.PI*progress);
+    const azimuth=Math.PI+sweep*(progress-.5);
     // The same direction as a bearing of the sky and the ground, see drawSky.
     const bearing=azimuth-Math.PI-frontYaw;
     // Shadows are stylised: long even at noon, and never longer than the shadow plane.
     const stretch=1.12-.24*height;
     return {
-      up, azimuth, bearing, height,
+      ...this.daylight(hour), day, azimuth, bearing, height,
       elevation:.1+.68*height,
-      strength:Math.min(1,height/.3),
+      // Moonlight casts only a faint shadow.
+      strength:Math.min(1,height/.3)*(day ? 1 : .45),
       light:[Math.sin(bearing)*stretch,1,-Math.cos(bearing)*stretch]
+    };
+  }
+
+  // Sky colours (top to horizon), the wash laid over the land and tree, and how much of
+  // the night shows, blended between a few hours of the day.
+  daylight(hour) {
+    if (!this.daylightKeys) {
+      const night={ sky:["#040916","#0a1533","#152750","#2b4066"], wash:[16,30,70,.62], night:1 };
+      const dawn={ sky:["#1a2a5e","#4c5f9e","#d18b8e","#ffc08a"], wash:[84,56,92,.32], night:.2 };
+      const morning={ sky:["#1e5aa8","#4a93d8","#a6cfe6","#f4e3cc"], wash:[255,184,120,.08], night:0 };
+      const noon={ sky:["#123f86","#2a73c6","#6aaee0","#bfe0ef"], wash:[255,184,120,0], night:0 };
+      const golden={ sky:["#1d4584","#5686c0","#e3b08a","#ffd190"], wash:[206,116,46,.17], night:0 };
+      const sunset={ sky:["#1b2a5e","#575192","#d9747a","#ffa564"], wash:[96,48,80,.34], night:.2 };
+      this.daylightKeys=[[0,night],[4.75,night],[5.75,dawn],[7.25,morning],[9,noon],[15.5,noon],
+        [17.25,golden],[18.25,sunset],[19.5,night],[24,night]];
+    }
+    const keys=this.daylightKeys;
+    const next=Math.max(1,keys.findIndex(([at])=>at>=hour));
+    const [from,a]=keys[next-1], [to,b]=keys[next];
+    const t=(hour-from)/(to-from);
+    const mix=(x,y)=>x+(y-x)*t;
+    const channel=(hex,i)=>parseInt(hex.slice(1+2*i,3+2*i),16);
+    const wash=a.wash.map((value,i)=>mix(value,b.wash[i]));
+    return {
+      sky:a.sky.map((hex,n)=>"rgb("+[0,1,2].map(i=>Math.round(mix(channel(hex,i),channel(b.sky[n],i)))).join(",")+")"),
+      wash:wash[3]<.005 ? "" : "rgba("+wash.slice(0,3).map(Math.round).join(",")+","+wash[3].toFixed(3)+")",
+      night:mix(a.night,b.night)
     };
   }
 
@@ -231,8 +257,8 @@ class PaintedCrater {
     this.shadowPattern=shade.createPattern(this.shadow,"no-repeat");
   }
 
-  // The moving shadow, projected on its own transparent layer. The sun is sampled ten times
-  // a second; the crown is only cast again when that step changes.
+  // The moving shadow, projected on its own transparent layer. The crown is only cast
+  // again when the clock moves on (once a minute).
   drawShadow(pen,view,tree,sun,step) {
     if(!this.rim) return;
     if(!sun.strength) return;
@@ -275,7 +301,7 @@ class PaintedCrater {
   // Painted sky behind the crater rim: deepening blue, the travelling sun and drifting
   // cumulus. Drawn every frame on its own layer, under the cached scene (whose sky is clear).
   // Sky features sit at fixed bearings and turn with the camera at full speed.
-  drawSky(pen,view,seconds) {
+  drawSky(pen,view,seconds,state) {
     const focal=view.distance*view.scale;
     const horizon=view.y-focal*Math.tan(view.pitch);
     const at=(bearing,elevation)=>{
@@ -285,27 +311,15 @@ class PaintedCrater {
     };
     const elevationY=(e)=>horizon-focal*Math.tan(e);
     const air=pen.createLinearGradient(0,elevationY(1.1),0,horizon);
-    air.addColorStop(0,"#123f86");
-    air.addColorStop(.45,"#2a73c6");
-    air.addColorStop(.8,"#6aaee0");
-    air.addColorStop(1,"#bfe0ef");
+    [0,.45,.8,1].forEach((stop,i)=>air.addColorStop(stop,state.sky[i]));
     pen.fillStyle=air;
     pen.fillRect(0,0,view.width,horizon+2);
 
-    // The sky warms along the horizon while the sun is low, and cools a little at night.
-    const state=this.sunState(seconds);
-    const dusk=1-Math.min(1,state.height/.55);
-    if (dusk) {
-      const glow=pen.createLinearGradient(0,elevationY(.75),0,horizon);
-      glow.addColorStop(0,"rgba(20,34,74,"+(state.up ? 0 : .22*dusk)+")");
-      glow.addColorStop(.6,"rgba(214,128,138,"+.26*dusk+")");
-      glow.addColorStop(1,"rgba(255,170,96,"+.55*dusk+")");
-      pen.fillStyle=glow;
-      pen.fillRect(0,0,view.width,horizon+2);
-    }
-    // It rises and sets behind the crater wall, which is painted over this layer.
-    const sun=state.up && at(state.bearing,state.elevation);
-    if (sun) this.drawSun(pen,sun);
+    if (state.night>.25) this.drawStars(pen,at,seconds,(state.night-.25)/.75);
+    // Sun and moon rise and set behind the crater wall, which is painted over this layer.
+    const body=at(state.bearing,state.elevation);
+    if (body && state.day) this.drawSun(pen,body);
+    else if (body) this.drawMoon(pen,body);
 
     // Soft cumulus, painted once into sprites. Each drifts with the wind at its own pace.
     if (!this.clouds) this.clouds=this.paintClouds();
@@ -313,10 +327,48 @@ class PaintedCrater {
       const c=at(cloud.bearing+seconds*cloud.speed,cloud.elevation);
       if (!c) continue;
       const w=c.scale*cloud.size, h=w*cloud.sprite.height/cloud.sprite.width*cloud.squash;
-      pen.globalAlpha=Math.min(1,.45+cloud.elevation*1.6);
+      // At night only a faint trace of each cloud is left against the dark.
+      pen.globalAlpha=Math.min(1,.45+cloud.elevation*1.6)*(1-.84*state.night);
       pen.drawImage(cloud.sprite,c.x-w/2,c.y-h*.72,w,h);
     }
     pen.globalAlpha=1;
+  }
+
+  drawStars(pen,at,seconds,strength) {
+    if (!this.stars) {
+      let state=52711;
+      const noise=()=>(state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296;
+      this.stars=Array.from({length:520},()=>({
+        bearing:noise()*fullTurn, elevation:.08+noise()*1.0, size:.5+noise()**4*1.7, phase:noise()*fullTurn
+      }));
+    }
+    pen.fillStyle="#eef3ff";
+    for (const star of this.stars) {
+      const p=at(star.bearing,star.elevation);
+      if (!p || p.y<0) continue;
+      pen.globalAlpha=strength*(.62+.38*Math.sin(seconds*1.3+star.phase));
+      pen.fillRect(p.x,p.y,star.size,star.size);
+    }
+    pen.globalAlpha=1;
+  }
+
+  drawMoon(pen,moon) {
+    const radius=moon.scale*.021;
+    const halo=pen.createRadialGradient(moon.x,moon.y,0,moon.x,moon.y,radius*7);
+    halo.addColorStop(0,"rgba(190,208,255,.34)");
+    halo.addColorStop(1,"rgba(190,208,255,0)");
+    pen.fillStyle=halo;
+    pen.fillRect(moon.x-radius*7,moon.y-radius*7,radius*14,radius*14);
+    const disc=(x,y,r,colour)=>{
+      pen.fillStyle=colour;
+      pen.beginPath();
+      pen.arc(moon.x+x*radius,moon.y+y*radius,r*radius,0,fullTurn);
+      pen.fill();
+    };
+    disc(0,0,1,"#eef1f8");
+    disc(-.3,-.2,.26,"#cdd5e6");
+    disc(.32,.22,.18,"#d4dbea");
+    disc(-.05,.48,.13,"#d4dbea");
   }
 
   // Atmospheric haze spreads much farther than the small, bright solar disc.
