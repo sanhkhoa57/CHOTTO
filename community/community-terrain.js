@@ -5,14 +5,37 @@ class PaintedCrater {
     this.image=image;
     // Seamless strip cut from the same painting by community/tools/make_community_panorama.py.
     this.panorama=panorama;
-    // The floor layer must hold the whole cast shadow (it reaches about 2400 units);
-    // the cracked sand only covers the middle of it and melts into the painting.
-    this.radius=2450;
+    // Two ground planes: the cracked sand around the roots (it melts into the painting) and,
+    // over it, the cast shadow, which reaches much farther and moves with the sun.
     this.sandRadius=900;
-    this.floor=document.createElement("canvas");
-    this.floor.width=this.floor.height=2560;
+    this.radius=2450;
     this.shadow=document.createElement("canvas");
-    this.shadow.width=this.shadow.height=this.floor.width;
+    this.shadow.width=this.shadow.height=1536;
+    this.shadowStep=null;
+  }
+
+  // One day takes three minutes: up in the south-east, high over the south, down in the
+  // south-west (a winter sun, so it stays within sight), then a short night.
+  // Compass bearings grow clockwise; the opening view faces south.
+  sunState(seconds) {
+    const day=180, night=15, sweep=.6*Math.PI;
+    // The page opens in the early afternoon, with the sun a little right of the tree.
+    const t=(seconds+.685*day)%(day+night);
+    const up=t<day;
+    const progress=up ? t/day : (t-day)/night;
+    const height=up ? Math.sin(Math.PI*progress) : 0;
+    // Unseen at night, it swings back to where it rises.
+    const azimuth=Math.PI+sweep*(up ? progress-.5 : .5-progress);
+    // The same direction as a bearing of the sky and the ground, see drawSky.
+    const bearing=azimuth-Math.PI-frontYaw;
+    // Shadows are stylised: long even at noon, and never longer than the shadow plane.
+    const stretch=1.12-.24*height;
+    return {
+      up, azimuth, bearing, height,
+      elevation:.1+.68*height,
+      strength:Math.min(1,height/.3),
+      light:[Math.sin(bearing)*stretch,1,-Math.cos(bearing)*stretch]
+    };
   }
 
   ledges() {
@@ -153,10 +176,11 @@ class PaintedCrater {
     return canvas;
   }
 
-  bakeFloor(tree) {
-    const size=this.floor.width, pixels=size/(2*this.radius);
+  bakeShadow(tree,light) {
+    const size=this.shadow.width, pixels=size/(2*this.radius);
     const shade=this.shadow.getContext("2d");
     shade.setTransform(1,0,0,1,0,0);
+    shade.globalCompositeOperation="source-over";
     shade.clearRect(0,0,size,size);
     shade.save();
     shade.translate(size/2,size/2);
@@ -196,30 +220,59 @@ class PaintedCrater {
     shade.globalCompositeOperation="source-in";
     shade.fillStyle="#27363a";
     shade.fillRect(0,0,size,size);
-    shade.globalCompositeOperation="source-over";
-
-    const brush=this.floor.getContext("2d");
-    brush.clearRect(0,0,size,size);
-    const sandWidth=2*this.sandRadius*pixels;
-    brush.drawImage(this.sand,(size-sandWidth)/2,(size-sandWidth)/2,sandWidth,sandWidth);
-    brush.save();
-    brush.globalAlpha=.42;
-    brush.filter="blur(3px)";
-    brush.drawImage(this.shadow,0,0);
-    brush.restore();
     // Only a safety fade at the very edge of the layer, beyond the reach of the shadow.
-    const fade=brush.createRadialGradient(size/2,size/2,size*.47,size/2,size/2,size*.5);
+    const fade=shade.createRadialGradient(size/2,size/2,size*.46,size/2,size/2,size*.5);
     fade.addColorStop(0,"#000");
     fade.addColorStop(1,"transparent");
-    brush.save();
-    brush.globalCompositeOperation="destination-in";
-    brush.fillStyle=fade;
-    brush.fillRect(0,0,size,size);
-    brush.restore();
-    this.pattern=brush.createPattern(this.floor,"no-repeat");
+    shade.globalCompositeOperation="destination-in";
+    shade.fillStyle=fade;
+    shade.fillRect(0,0,size,size);
+    shade.globalCompositeOperation="source-over";
+    this.shadowPattern=shade.createPattern(this.shadow,"no-repeat");
   }
 
-  // Painted sky behind the crater rim: deepening blue, a slowly wandering sun and drifting
+  // The moving shadow, projected on its own transparent layer. The sun is sampled ten times
+  // a second; the crown is only cast again when that step changes.
+  drawShadow(pen,view,tree,sun,step) {
+    if(!this.rim) return;
+    if(!sun.strength) return;
+    if(step!==this.shadowStep) {
+      this.shadowStep=step;
+      this.bakeShadow(tree,sun.light);
+    }
+    pen.save();
+    pen.globalAlpha=.42*sun.strength;
+    this.drawPlane(pen,view,this.shadowPattern,this.shadow.width,this.radius);
+    pen.restore();
+  }
+
+  // A picture lying flat on the ground, centred on the trunk. One row of a horizontal
+  // plane has constant depth and an affine texture mapping.
+  drawPlane(pen,view,pattern,size,radius) {
+    const focal=view.distance*view.scale, units=2*radius/size;
+    pen.fillStyle=pattern;
+    const step=Math.max(1,Math.round(view.dpr*2));
+    // The far edge of a wide plane may sit behind the camera's horizon; clamp it there.
+    const far=project([-radius*view.sinYaw,0,-radius*view.cosYaw]).y;
+    const horizon=view.y-focal*Math.tan(view.pitch);
+    const start=Math.max(0,Math.floor(Math.max(far,horizon+1)*view.dpr));
+    for(let py=start;py<view.height*view.dpr;py+=step) {
+      const y=(py+step*.5)/view.dpr;
+      const slope=(y-view.y)/focal;
+      const depth=view.distance*slope/(view.sinPitch+slope*view.cosPitch);
+      if(depth>radius) break;
+      if(depth< -radius) continue;
+      const perspective=view.distance/(view.distance-depth*view.cosPitch);
+      const across=units*view.scale*perspective;
+      const along=across*perspective*view.sinPitch;
+      const a=across*view.cosYaw,c=-across*view.sinYaw;
+      const b=along*view.sinYaw,d=along*view.cosYaw;
+      pattern.setTransform({a,b,c,d,e:view.x-(a+c)*size/2,f:y-along*depth/units-(b+d)*size/2});
+      pen.fillRect(0,py/view.dpr,view.width,step/view.dpr);
+    }
+  }
+
+  // Painted sky behind the crater rim: deepening blue, the travelling sun and drifting
   // cumulus. Drawn every frame on its own layer, under the cached scene (whose sky is clear).
   // Sky features sit at fixed bearings and turn with the camera at full speed.
   drawSky(pen,view,seconds) {
@@ -239,8 +292,19 @@ class PaintedCrater {
     pen.fillStyle=air;
     pen.fillRect(0,0,view.width,horizon+2);
 
-    // Keep the sun low enough to catch a gap in the canopy at the opening angle.
-    const sun=at(.22+seconds*.0018,.19+.015*Math.sin(seconds*.021));
+    // The sky warms along the horizon while the sun is low, and cools a little at night.
+    const state=this.sunState(seconds);
+    const dusk=1-Math.min(1,state.height/.55);
+    if (dusk) {
+      const glow=pen.createLinearGradient(0,elevationY(.75),0,horizon);
+      glow.addColorStop(0,"rgba(20,34,74,"+(state.up ? 0 : .22*dusk)+")");
+      glow.addColorStop(.6,"rgba(214,128,138,"+.26*dusk+")");
+      glow.addColorStop(1,"rgba(255,170,96,"+.55*dusk+")");
+      pen.fillStyle=glow;
+      pen.fillRect(0,0,view.width,horizon+2);
+    }
+    // It rises and sets behind the crater wall, which is painted over this layer.
+    const sun=state.up && at(state.bearing,state.elevation);
     if (sun) this.drawSun(pen,sun);
 
     // Soft cumulus, painted once into sprites. Each drifts with the wind at its own pace.
@@ -338,7 +402,6 @@ class PaintedCrater {
     if(!this.image.complete || !this.image.naturalWidth) return;
     if(!this.panorama.complete || !this.panorama.naturalWidth) return;
     if(!this.rim) this.prepare(view);
-    if(!this.pattern) this.bakeFloor(tree);
     const w=this.image.naturalWidth, h=this.rim.height;
     const focal=view.distance*view.scale;
     const horizon=view.y-focal*Math.tan(view.pitch);
@@ -375,24 +438,8 @@ class PaintedCrater {
       }
       pen.restore();
     }
-    const size=this.floor.width, units=2*this.radius/size;
-    pen.fillStyle=this.pattern;
-    // One row of a horizontal plane has constant depth and an affine texture mapping.
-    const step=Math.max(1,Math.round(view.dpr*2));
-    const start=Math.max(0,Math.floor(project([ -this.radius*view.sinYaw,0,-this.radius*view.cosYaw ]).y*view.dpr));
-    for(let py=start;py<view.height*view.dpr;py+=step) {
-      const y=(py+step*.5)/view.dpr;
-      const slope=(y-view.y)/focal;
-      const depth=view.distance*slope/(view.sinPitch+slope*view.cosPitch);
-      if(depth>this.radius) break;
-      const perspective=view.distance/(view.distance-depth*view.cosPitch);
-      const across=units*view.scale*perspective;
-      const along=across*perspective*view.sinPitch;
-      const a=across*view.cosYaw,c=-across*view.sinYaw;
-      const b=along*view.sinYaw,d=along*view.cosYaw;
-      this.pattern.setTransform({a,b,c,d,e:view.x-(a+c)*size/2,f:y-along*depth/units-(b+d)*size/2});
-      pen.fillRect(0,py/view.dpr,view.width,step/view.dpr);
-    }
+    if(!this.sandPattern) this.sandPattern=pen.createPattern(this.sand,"no-repeat");
+    this.drawPlane(pen,view,this.sandPattern,this.sand.width,this.sandRadius);
     pen.restore();
   }
 }

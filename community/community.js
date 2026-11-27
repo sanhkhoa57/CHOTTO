@@ -536,6 +536,8 @@ function draw(now) {
   sway = animateWind ? .010*Math.sin(seconds*.85)+.003*Math.sin(seconds*1.7) : 0;
   crater.drawSky(ctx,view,seconds);
   ctx.drawImage(scene,0,0,view.width,view.height);
+  drawMovingShadow(seconds,key);
+  drawCompass(crater.sunState(seconds));
   drawTree(Math.min(treeImage.height,Math.max(0,split)));
   painting.drawAccents(ctx,seconds,animateWind);
   if (selected?.ground) {
@@ -585,6 +587,46 @@ function draw(now) {
   ctx.globalAlpha = 1;
   if (falling.length) render();
   else if (animateWind && !document.hidden) { render(); idle = true; }
+}
+
+// The tree's shadow follows the sun on its own layer, so the cached scene and the tree
+// are not repainted while it creeps. It is redrawn when the view or the sun step changes.
+const shadowLayer=document.createElement("canvas");
+let shadowKey="";
+function drawMovingShadow(seconds,sceneState) {
+  const step=Math.floor(seconds*10);
+  const next=sceneState+"|"+step;
+  if (next!==shadowKey) {
+    shadowKey=next;
+    shadowLayer.width=canvas.width;
+    shadowLayer.height=canvas.height;
+    const pen=shadowLayer.getContext("2d");
+    pen.setTransform(view.dpr,0,0,view.dpr,0,0);
+    crater.drawShadow(pen,view,painting,crater.sunState(step/10),step);
+  }
+  ctx.drawImage(shadowLayer,0,0,view.width,view.height);
+}
+
+// The compass in the corner turns with the camera; the small sun shows where the sun is.
+const compass = byId("compass");
+const compassMarks = [...compass.querySelectorAll("[data-azimuth]")];
+const compassSun = byId("compass-sun");
+const compassNames = ["Bắc","Đông Bắc","Đông","Đông Nam","Nam","Tây Nam","Tây","Tây Bắc"];
+let compassKey = "";
+function drawCompass(sun) {
+  const heading=Math.PI+frontYaw-view.yaw;
+  const next=Math.round(heading*180/Math.PI)+"|"+Math.round(sun.azimuth*180/Math.PI)+"|"+sun.up;
+  if (next===compassKey) return;
+  compassKey=next;
+  const place=(node,azimuth,radius)=>{
+    const angle=azimuth-heading;
+    node.setAttribute("transform","translate("+(Math.sin(angle)*radius).toFixed(2)+" "+(-Math.cos(angle)*radius).toFixed(2)+")");
+  };
+  for (const mark of compassMarks) place(mark,Number(mark.dataset.azimuth)*Math.PI/180,27);
+  place(compassSun,sun.azimuth,43);
+  compassSun.style.display=sun.up ? "" : "none";
+  const sector=((Math.round(heading/(Math.PI/4))%8)+8)%8;
+  compass.setAttribute("aria-label","La bàn: đang nhìn về hướng "+compassNames[sector]);
 }
 
 let windTime = 0, windLast = null;

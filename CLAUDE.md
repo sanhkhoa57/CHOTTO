@@ -132,4 +132,5 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 
 ## Trang cộng đồng (gom vào `community/`, 2026-11-27)
 - `community/index.html` + `community*.js`, ảnh `community/assets/`, dữ liệu lá `community/leaves/` (thay `community-data/`), sổ ghi `community/registry.tsv.gz`, công cụ `community/tools/` (build lá, panorama, `serve-community.js` xem thử: `node community/tools/serve-community.js`).
+- Mặt trời + la bàn (2026-11-27): `PaintedCrater.sunState(giây)` là nguồn duy nhất cho vị trí mặt trời, hướng bóng và chấm trên la bàn (ngày 180 s ĐN→TN, đêm 15 s; góc mở đầu nhìn hướng Nam). Bóng nằm ở lớp riêng (`drawShadow`, dựng lại 10 lần/giây) nên không vẽ lại cảnh/cây; nền gạch (`sandRadius`) và bóng (`radius`) là hai mặt phẳng khác nhau. Chụp trang bằng Edge ẩn thì dùng GPU, KHÔNG ép SwiftShader (CPU 90%).
 - Ở lại chỗ cũ vì bắt buộc: `api/community-chat.js` (Vercel), `.github/workflows/community-leaves.yml`, `tests/test_community_leaves.py`. URL cũ `/community.html` được `vercel.json` chuyển hướng 308 về `/community/`.
