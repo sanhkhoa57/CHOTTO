@@ -5,9 +5,12 @@ class PaintedCrater {
     this.image=image;
     // Seamless strip cut from the same painting by community/tools/make_community_panorama.py.
     this.panorama=panorama;
-    this.radius=860;
+    // The floor layer must hold the whole cast shadow (it reaches about 2400 units);
+    // the cracked sand only covers the middle of it and melts into the painting.
+    this.radius=2450;
+    this.sandRadius=900;
     this.floor=document.createElement("canvas");
-    this.floor.width=this.floor.height=1024;
+    this.floor.width=this.floor.height=2560;
     this.shadow=document.createElement("canvas");
     this.shadow.width=this.shadow.height=this.floor.width;
   }
@@ -52,7 +55,7 @@ class PaintedCrater {
   // from the painting, which left cut corners, smears and mirrored folds when orbiting.
   paintSand() {
     const canvas=document.createElement("canvas");
-    const size=canvas.width=canvas.height=this.floor.width;
+    const size=canvas.width=canvas.height=1024;
     const brush=canvas.getContext("2d");
     let state=71933;
     const noise=()=>(state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296;
@@ -136,6 +139,17 @@ class PaintedCrater {
       brush.ellipse(x,y,r*1.3,r,noise()*Math.PI,0,2*Math.PI);
       brush.fill();
     }
+    // A long, uneven fade: no ring shows where the drawn ground hands over to the painting.
+    const half=size/2;
+    const fade=brush.createRadialGradient(half,half,0,half,half,half);
+    for (const [at,alpha] of [[0,1],[.22,.96],[.42,.72],[.6,.42],[.78,.17],[.9,.05],[1,0]]) {
+      fade.addColorStop(at,"rgba(0,0,0,"+alpha+")");
+    }
+    brush.globalAlpha=1;
+    brush.globalCompositeOperation="destination-in";
+    brush.fillStyle=fade;
+    brush.fillRect(0,0,size,size);
+    brush.globalCompositeOperation="source-over";
     return canvas;
   }
 
@@ -186,13 +200,15 @@ class PaintedCrater {
 
     const brush=this.floor.getContext("2d");
     brush.clearRect(0,0,size,size);
-    brush.drawImage(this.sand,0,0);
+    const sandWidth=2*this.sandRadius*pixels;
+    brush.drawImage(this.sand,(size-sandWidth)/2,(size-sandWidth)/2,sandWidth,sandWidth);
     brush.save();
     brush.globalAlpha=.42;
-    brush.filter="blur(2px)";
+    brush.filter="blur(3px)";
     brush.drawImage(this.shadow,0,0);
     brush.restore();
-    const fade=brush.createRadialGradient(size/2,size/2,size*.42,size/2,size/2,size*.5);
+    // Only a safety fade at the very edge of the layer, beyond the reach of the shadow.
+    const fade=brush.createRadialGradient(size/2,size/2,size*.47,size/2,size/2,size*.5);
     fade.addColorStop(0,"#000");
     fade.addColorStop(1,"transparent");
     brush.save();
