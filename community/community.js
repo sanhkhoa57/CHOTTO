@@ -775,8 +775,9 @@ function refresh() {
     byId("record").textContent = "Lá #" + leaf.id.toLocaleString("vi-VN") + " · " + leafSource.source;
     byId("status").textContent = fresh ? "Còn hoạt động · mới thêm" : "Còn hoạt động";
   }
-  // Defanged so it can never be clicked or auto-linked: example[.]com
-  const show = (name) => { if (selected === leaf) byId("domain").textContent = name ? name.replace(/\./g,"[.]") : "Không có tên miền"; };
+  // A real scam domain: shown as plain text only, never as a link, and CSS keeps it
+  // from being selected or long-pressed into an address bar.
+  const show = (name) => { if (selected === leaf) byId("domain").textContent = name || "Không có tên miền"; };
   if (leaf.domain) show(leaf.domain);
   else {
     byId("domain").textContent = "Đang tải tên miền…";
