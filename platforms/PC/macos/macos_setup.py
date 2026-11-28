@@ -42,7 +42,7 @@ OPTIONS: dict[str, Any] = {
     "py2app": {
         "plist": PLIST,
         "iconfile": "platforms/PC/macos/chotto.icns",
-        "packages": ["chotto", "webview", "PIL", "zxingcpp"],   # chotto/data + chotto/web; PIL: vẽ nhân vật; zxingcpp: quét QR
+        "packages": ["chotto", "webview", "PIL", "zxingcpp", "truststore"],   # chotto/data + chotto/web; PIL: vẽ nhân vật; zxingcpp: quét QR
         "includes": ["tkinter", "PIL.ImageTk", "AppKit", "Quartz"],   # AppKit: cửa sổ nhân vật nổi trên Dock, vùng màn hình
         "argv_emulation": False,   # phải tắt: link http(s) đến qua Apple Event (::tk::mac::LaunchURL), không qua argv
     }

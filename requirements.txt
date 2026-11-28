@@ -10,6 +10,7 @@ setuptools>=70                                   # dùng bởi platforms/PC/maco
 py2app>=0.28;   sys_platform == "darwin"        # đóng gói CHOTTO.app trên macOS
 pyinstaller>=6.10;   sys_platform == "win32"    # đóng gói CHOTTO (thư mục onedir) trên Windows
 mypy==2.4.0                                     # kiểm tra kiểu: mypy --strict main.py chotto
+truststore>=0.10.5                               # HTTPS kiểm chứng chỉ bằng hệ điều hành (Windows mới cài thiếu chứng chỉ gốc)
 pillow>=10                                      # nhân vật taskbar (vẽ, chụp màn hình quét QR) + tools/make_icon.py
 zxing-cpp>=2.3; sys_platform == "win32" or sys_platform == "darwin"        # nhân vật taskbar: giải mã QR (thiếu thì chỉ mất tính năng quét)
 cryptography>=42                                 # chỉ để tools/gen_extension_key.py; lõi Desktop không cần

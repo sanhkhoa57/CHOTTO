@@ -199,10 +199,25 @@ def _run_command(target: str | None, argument: str | None, force: bool, gui: boo
     return 0
 
 
+def _trust_os_certificates() -> None:
+    """HTTPS kiểm chứng chỉ bằng chính hệ điều hành (``truststore``) thay vì chỉ kho có sẵn của OpenSSL.
+
+    Windows mới cài chưa có đủ chứng chỉ gốc (tự tải khi cần, như Edge làm): OpenSSL chỉ đọc kho có sẵn nên tải AI Local,
+    danh sách đen, Tầng 3 báo CERTIFICATE_VERIFY_FAILED. Thiếu gói thì giữ cách cũ.
+    """
+    try:
+        import truststore
+
+        truststore.inject_into_ssl()
+    except Exception:  # noqa: BLE001 - không có truststore: dùng kho chứng chỉ mặc định
+        _LOG.warning("Không bật được truststore, dùng kho chứng chỉ mặc định", exc_info=True)
+
+
 def main(argv: list[str]) -> int:
     """Điểm vào; trả về mã thoát."""
     _configure_streams()
     setup_logging()
+    _trust_os_certificates()
     args, unknown = _build_parser().parse_known_args(argv[1:])
     if unknown:
         _LOG.info("Bỏ qua tham số không biết: %s", [a for a in unknown if not a.lower().startswith("http")])
