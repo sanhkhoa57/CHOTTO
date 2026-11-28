@@ -133,10 +133,17 @@ def uninstall(cfg: Mapping[str, Any] | None = None) -> str:
 
 
 def any_process_running(names: Iterable[str]) -> bool:
-    """Có tiến trình nào trong ``names`` (tên file, không phân biệt hoa thường) đang chạy không. Chỉ Windows; nơi khác ``False``."""
+    """Có tiến trình nào trong ``names`` (tên file, không phân biệt hoa thường) đang chạy không. Windows và macOS; nơi khác ``False``.
+
+    macOS so với tên ứng dụng, tên file chạy và bundle id (bỏ đuôi ``.exe``: ``zalo.exe`` khớp ứng dụng "Zalo").
+    """
+    wanted = {str(n).lower() for n in names}
+    if sys.platform == "darwin":
+        from . import cocoa_overlay
+
+        return bool({n.removesuffix(".exe") for n in wanted} & cocoa_overlay.running_app_names())
     if sys.platform != "win32":
         return False
-    wanted = {str(n).lower() for n in names}
     try:
         return bool(wanted & windows.running_process_names())
     except OSError:

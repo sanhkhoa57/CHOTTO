@@ -24,7 +24,7 @@ from chotto.config import DEFAULTS, friction_seconds_for, load_rules  # noqa: E4
 from chotto.engine import Engine, Result, analysis_failed_result  # noqa: E402
 from chotto.service.webui import WebUI, WebUIError  # noqa: E402
 from chotto.viewmodel import friction_view, reason_text, url_parts  # noqa: E402
-from chotto.webhost import FrictionApi, Host, Wire, _blacklist_text  # noqa: E402
+from chotto.webhost import AppApi, FrictionApi, Host, Wire, _blacklist_text  # noqa: E402
 
 RULES = load_rules()
 
@@ -330,6 +330,19 @@ class HostTests(unittest.TestCase):
         vi = {"view": view_of_vi(inspect("https://vcb-digibanks.top/x")), "lock_s": 5}
         self.host.dispatch({"op": "friction", "id": 9, "payload": vi})
         self.assertEqual(self.webview.windows[-1].kwargs["title"], "Chotto · Khoan đã!")
+
+    def test_saved_theme_is_used_by_new_windows_and_survives_friction_update(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CHOTTO_DATA_DIR": directory}):
+            app = AppApi(self.host)
+            self.assertEqual(app.state()["settings"]["ui_theme"], "light")
+            self.assertTrue(app.save({"ui_theme": "dark"})["ok"])
+            self.assertEqual(app.state()["settings"]["ui_theme"], "dark")
+
+            self.host.open_friction(10, self.payload)
+            self.host.dispatch({"op": "update", "id": 10, "payload": dict(self.payload, lock_s=8)})
+            self.assertEqual(self.api().initial()["theme"], "dark")
+            self.assertEqual(self.webview.windows[-1].kwargs["background_color"], "#0c0a08")
+            self.assertEqual(app.save({"ui_theme": "invalid"})["settings"]["ui_theme"], "light")
 
 
 class LogSummaryTests(unittest.TestCase):

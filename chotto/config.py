@@ -76,6 +76,10 @@ class Config(TypedDict):
     agent_enabled: bool
     auto_update: bool
     ui_language: UILanguage
+    ui_theme: Literal["light", "dark"]
+    guardian_enabled: bool
+    guardian_warn_policy: Literal["pin", "lock"]
+    guardian_contact: str
     mascot_enabled: bool
     mascot_startup: MascotStartup
     mascot_colors: list[str]
@@ -108,6 +112,10 @@ DEFAULTS: Final[Config] = {
     "agent_enabled": True,          # Chạy nền thường trú (mở link nhanh); tắt = mỗi link một tiến trình như bản 1.0
     "auto_update": True,            # Agent tự cập nhật danh sách đen mỗi ngày (tải tăng dần theo ETag)
     "ui_language": "en",            # Ngôn ngữ giao diện HTML: "en" | "vi" (giao diện Tk dự phòng luôn tiếng Việt)
+    "ui_theme": "light",
+    "guardian_enabled": False,      # Bảo vệ Gia đình. PIN và mã khôi phục KHÔNG nằm ở đây (xem chotto/guardian.py)
+    "guardian_warn_policy": "pin",  # Link mức WARN khi đang giám hộ: "pin" (mở bằng PIN) | "lock" (khóa hẳn)
+    "guardian_contact": "",         # Tên / SĐT người thân, hiện trên màn hình khóa
     "mascot_enabled": False,        # Nhân vật đồng hành trên thanh taskbar (Windows); người dùng tự bật
     "mascot_startup": "login",      # Khi nào nhân vật hiện: "login" (cùng agent) | "zalo" (khi Zalo mở)
     "mascot_colors": list(MASCOT_DEFAULT_COLORS),
@@ -123,9 +131,12 @@ DEFAULTS: Final[Config] = {
     "mascot_local_model": "qwen2.5-3b",
 }
 
+_MAX_CONTACT: Final[int] = 80
+
 # Các khóa người dùng được xem và sửa từ cửa sổ ứng dụng / cài đặt (các khóa khác như trình duyệt đã lưu thì không).
 SETTINGS_KEYS: Final[tuple[str, ...]] = (
-    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language",
+    "tier3_enabled", "ai_advice", "log_decisions", "unknown_caller_policy", "friction_seconds", "ui_language", "ui_theme",
+    "guardian_enabled", "guardian_warn_policy", "guardian_contact",
     "mascot_enabled", "mascot_startup", "mascot_colors", "mascot_pinned", "mascot_pos", "mascot_fps", "mascot_sleep_s", "mascot_run_s",
     "mascot_ai_mode", "mascot_byok_provider", "mascot_byok_base_url", "mascot_byok_model", "mascot_local_model",
 )
@@ -263,6 +274,13 @@ def validate_config(raw: Mapping[str, Any]) -> Config:
             accepted = value if value in ("inspect", "forward") else None
         elif key == "ui_language":
             accepted = value if value in UI_LANGUAGES else None
+        elif key == "ui_theme":
+            accepted = value if value in ("light", "dark") else None
+        elif key == "guardian_warn_policy":
+            accepted = value if value in ("pin", "lock") else None
+        elif key == "guardian_contact":
+            if isinstance(value, str):
+                accepted = "".join(c for c in value if c.isprintable()).strip()[:_MAX_CONTACT]
         elif key == "mascot_startup":
             accepted = value if value in MASCOT_STARTUPS else None
         elif key == "mascot_ai_mode":

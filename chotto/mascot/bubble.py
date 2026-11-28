@@ -14,7 +14,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Final
 
 from ..config import load_config
-from ..platforms import win32_window as w32
+from ..platforms import overlay as ov
 from . import ai, speech
 
 if TYPE_CHECKING:
@@ -38,10 +38,10 @@ class SpeechBubble:
         self._u = unit_dpi
         self._on_chat_change = on_chat_change
         self._win: Any = None                       # cửa sổ layered chứa bong bóng
-        self._hwnd = 0
-        self._surface: w32.LayeredSurface | None = None
+        self._hwnd: Any = 0
+        self._surface: Any = None                   # ``overlay.Surface``
         self._barwin: Any = None                    # cửa sổ ô chat (dưới bong bóng)
-        self._bar_hwnd = 0
+        self._bar_hwnd: Any = 0
         self._bar: Any = None
         self._entry: Any = None
         self._send: Any = None
@@ -89,16 +89,21 @@ class SpeechBubble:
         win.attributes("-topmost", True)
         tk.Canvas(win, width=1, height=1, highlightthickness=0, bd=0).pack()                   # chỉ để có cửa sổ; hình đến từ LayeredSurface
         win.update_idletasks()
-        self._hwnd = w32.toplevel_hwnd(int(win.winfo_id()))
-        w32.make_tool_window(self._hwnd)
-        w32.enable_layered(self._hwnd)
+        self._hwnd = ov.handle(win)
+        ov.make_tool_window(self._hwnd)
+        ov.enable_layered(self._hwnd)
         barwin = tk.Toplevel(self._root)
         barwin.withdraw()
-        barwin.overrideredirect(True)
+        barwin.overrideredirect(ov.BORDERLESS_INPUT)                 # macOS: cửa sổ có tiêu đề mới chắc nhận được bàn phím
+        if not ov.BORDERLESS_INPUT:
+            barwin.title("Chotto")
+            barwin.resizable(False, False)
+            barwin.protocol("WM_DELETE_WINDOW", self.close_chat)
         barwin.attributes("-topmost", True)
         barwin.update_idletasks()
-        self._bar_hwnd = w32.toplevel_hwnd(int(barwin.winfo_id()))
-        w32.make_tool_window(self._bar_hwnd)
+        self._bar_hwnd = ov.handle(barwin)
+        if ov.BORDERLESS_INPUT:
+            ov.make_tool_window(self._bar_hwnd)
         self._px = round(16 * u)
         self._font = speech.load_font(self._px)
         bar = tk.Frame(barwin, bg="#ffffff", highlightthickness=round(2 * u), highlightbackground=_INK, bd=0)
@@ -139,9 +144,10 @@ class SpeechBubble:
         win_w = max(img_w, round(340 * u)) if self._chat else img_w
         win_h = img_h + (bar_h + round(4 * u) if self._chat else 0)
         self._size = (win_w, win_h)
-        old, self._surface = self._surface, w32.LayeredSurface(self._hwnd, img_w, img_h)
+        old, self._surface = self._surface, None
         if old is not None:
             old.close()
+        self._surface = ov.Surface(self._hwnd, img_w, img_h)
         self._geom = None
         self._xy = None
         self._visible = True
@@ -244,7 +250,7 @@ class SpeechBubble:
         self._var.set("")
         self._on_chat_change(True)
         self.say("normal", ai.open_line(load_config()), keep=True)     # chế độ Miễn phí: kèm số lượt còn lại hôm nay
-        w32.set_noactivate(self._bar_hwnd, False)
+        ov.set_noactivate(self._bar_hwnd, False)
         self._barwin.after(60, self._focus)
 
     def _focus(self, tries: int = 0) -> None:
@@ -254,6 +260,7 @@ class SpeechBubble:
             self._barwin.after(40, lambda: self._focus(tries + 1))
             return
         try:
+            ov.allow_typing()
             self._barwin.focus_force()
             self._entry.focus_force()
         except Exception:  # noqa: BLE001
@@ -265,7 +272,7 @@ class SpeechBubble:
         self._chat = False
         self._busy = False
         if self._barwin is not None:
-            w32.set_noactivate(self._bar_hwnd, True)
+            ov.set_noactivate(self._bar_hwnd, True)
             self._barwin.withdraw()
         self._bar_shown = False
         self._on_chat_change(False)

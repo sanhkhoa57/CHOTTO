@@ -33,7 +33,7 @@ _MAC: Final[bool] = sys.platform == "darwin"
 CUSTOM_FRAME: Final[bool] = _WIN          # khung tự vẽ: phóng to có hiệu ứng, kéo giãn bằng mép HTML (win32_window)
 HIDE_UNTIL_LOADED: Final[bool] = _WIN     # ẩn cửa sổ ứng dụng tới khi trang tải xong rồi hiện dần (không nháy)
 REFOCUS_ON_LOAD: Final[bool] = _WIN       # lấy focus lần nữa khi trang tải xong (để phím Esc dùng được ngay)
-OVERLAY_SUPPORTED: Final[bool] = _WIN     # cửa sổ trong suốt, không viền, không lấy focus (nhân vật taskbar)
+OVERLAY_SUPPORTED: Final[bool] = _WIN or _MAC   # cửa sổ trong suốt cho nhân vật (chi tiết: platforms/overlay.py)
 
 
 def reload_on_show(window: Any, url: str) -> None:

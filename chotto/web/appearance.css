@@ -1,0 +1,120 @@
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c0a08; --surface: #161310; --surface2: #1f1b16; --ink: #f4efe7; --muted: #a89f92; --faint: #a89f92;
+  --line: rgba(244, 239, 231, .1); --line-strong: rgba(244, 239, 231, .2);
+  --accent: #c9a45a; --accent-hi: #d8b874; --accent-ink: #17110a; --accent-soft: rgba(201, 164, 90, .12);
+  --danger: #e5484d; --danger-ink: #ff9c8f; --danger-chip: rgba(229, 72, 77, .16);
+  --warn: #e0a84a; --warn-ink: #f0c47a; --warn-chip: rgba(224, 168, 74, .16);
+  --ok: #7fc8a0; --ok-chip: rgba(127, 200, 160, .14);
+  --shadow: inset 0 0 0 1px var(--line), 0 14px 34px -18px #000;
+}
+[data-theme="dark"] .shell { background: radial-gradient(120% 55% at 100% 0%, #302419, transparent 65%), var(--bg); }
+[data-theme="dark"] .guard { background: linear-gradient(165deg, #342641, #231a28 68%, #382419); }
+[data-theme="dark"] .guard.off { background: linear-gradient(165deg, #3e2328, #241719); }
+[data-theme="dark"] .guard p, [data-theme="dark"] .week span { color: var(--muted); }
+[data-theme="dark"] .guard.off .btn--primary { background: var(--accent); color: var(--accent-ink); }
+[data-theme="dark"] .week { background: radial-gradient(90% 100% at 0% 0%, #32261b, transparent), var(--surface); }
+[data-theme="dark"] .switch:not([aria-checked="true"]) { background: #4d4338; }
+[data-theme="dark"] .buddy-stage { background: linear-gradient(var(--surface2) 0 calc(100% - 10px), #514333 calc(100% - 10px)); }
+[data-theme="dark"] .nav { background: rgba(31, 27, 22, .92); box-shadow: var(--shadow); }
+[data-theme="dark"] .credit b { color: var(--accent); }
+[data-theme="dark"] .toast:not(.err), [data-theme="dark"] .tip:hover,
+[data-theme="dark"] .tip:focus-visible, [data-theme="dark"] .tip::after { color: var(--bg); }
+
+/* Công tắc mặt trời / mặt trăng và EN / VI từ trang chủ Chotto. */
+.themebtn, .langtog {
+  --spring: cubic-bezier(.3, 1.3, .5, 1);
+  position: relative; flex: none; height: 32px; padding: 0; border-radius: 999px;
+}
+.themebtn:focus-visible, .langtog:focus-visible { border-radius: 999px; }
+.themebtn[aria-disabled="true"], .langtog[aria-disabled="true"] { cursor: wait; }
+.themebtn { width: 64px; background: linear-gradient(160deg, #211c16, #2e271e); }
+.themebtn::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(244, 239, 231, .3); pointer-events: none;
+}
+.tt-sky { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.tt-sky::before {
+  content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, #d6cbf4, #ffdcc4);
+  opacity: 0; transition: opacity .35s ease;
+}
+.tt-star { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #f0d9a6; transition: opacity .25s ease; }
+.tt-star:nth-child(1) { left: 10px; top: 7px; }
+.tt-star:nth-child(2) { left: 19px; top: 20px; scale: .7; }
+.tt-star:nth-child(3) { left: 26px; top: 9px; scale: .55; }
+.tt-cloud {
+  position: absolute; width: 22px; height: 9px; right: 6px; bottom: 4px; border-radius: 9px;
+  background: rgba(255, 255, 255, .95); opacity: 0; transform: translateY(12px);
+  transition: transform .4s var(--spring), opacity .25s ease;
+}
+.tt-cloud + .tt-cloud { right: 15px; bottom: -3px; scale: .8; }
+.tt-cloud::before, .tt-cloud::after { content: ""; position: absolute; bottom: 3px; border-radius: 50%; background: inherit; }
+.tt-cloud::before { left: 3px; width: 10px; height: 10px; }
+.tt-cloud::after { left: 9px; width: 12px; height: 12px; }
+.tt-knob {
+  position: absolute; top: 5px; left: 5px; width: 22px; height: 22px; border-radius: 50%;
+  background: #efe8dc; box-shadow: inset -2px -2px 3px rgba(120, 100, 80, .25), 0 2px 6px -1px #0005;
+  translate: 32px 0; transition: translate .4s var(--spring), scale .2s var(--spring), background .35s, box-shadow .35s;
+}
+.tt-knob i { position: absolute; border-radius: 50%; background: #d6ccbb; transition: opacity .25s ease; }
+.tt-knob i:nth-child(1) { left: 5px; top: 4px; width: 7px; height: 7px; }
+.tt-knob i:nth-child(2) { left: 13px; top: 11px; width: 5px; height: 5px; }
+.tt-knob i:nth-child(3) { left: 6px; top: 14px; width: 3px; height: 3px; }
+.themebtn[aria-checked="false"]::after { box-shadow: inset 0 0 0 1px rgba(58, 37, 71, .35); }
+.themebtn[aria-checked="false"] .tt-sky::before, .themebtn[aria-checked="false"] .tt-cloud { opacity: 1; }
+.themebtn[aria-checked="false"] .tt-star, .themebtn[aria-checked="false"] .tt-knob i { opacity: 0; }
+.themebtn[aria-checked="false"] .tt-cloud { transform: none; }
+.themebtn[aria-checked="false"] .tt-knob {
+  translate: 0 0; background: #f8a75a;
+  box-shadow: inset -2px -2px 3px rgba(196, 90, 20, .25), 0 0 0 4px rgba(255, 222, 180, .4), 0 2px 6px -1px #ae532e66;
+}
+.langtog {
+  display: inline-grid; grid-template-columns: repeat(2, 1fr); align-items: center; width: 68px; padding: 4px;
+  font: 700 11px/1 var(--sans); letter-spacing: .06em; color: var(--muted);
+  background: var(--surface2); box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.langtog span { z-index: 1; }
+.lt-thumb {
+  position: absolute; top: 4px; left: 4px; width: 30px; height: 24px; border-radius: 999px; background: var(--accent);
+  box-shadow: 0 2px 6px -1px #0004; transition: translate .4s var(--spring), scale .2s var(--spring);
+}
+.langtog[data-lang="vi"] .lt-thumb { translate: 30px 0; }
+.langtog[data-lang="en"] [lang="en"], .langtog[data-lang="vi"] [lang="vi"] { color: var(--accent-ink); }
+.themebtn:hover .tt-knob, .langtog:hover .lt-thumb { scale: 1.05; }
+
+/* Giao diện mới loang từ tâm nút. Đổi ngôn ngữ có viền mực và dải chấm như trên trang chủ. */
+::view-transition { pointer-events: none; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(chotto-language), ::view-transition-old(chotto-ink) { display: none; }
+::view-transition-new(chotto-language), ::view-transition-new(chotto-ink) { animation: none; }
+
+@property --ink-radius {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+.appearance-ink {
+  --ink-line: #2b1938; --ink-front: #f28a3a; --ink-back: #cdbff0; --ink-dot: rgb(242 138 58 / .55);
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; view-transition-name: chotto-ink;
+  --back-start: max(0px, calc(var(--ink-radius) - 61px));
+  --back-fill: max(0px, calc(var(--ink-radius) - 57px));
+  --front-start: max(0px, calc(var(--ink-radius) - 37px));
+  --front-fill: max(0px, calc(var(--ink-radius) - 33px));
+  --rim-start: max(0px, calc(var(--ink-radius) - 4px));
+  --rim-end: calc(var(--ink-radius) + 3px);
+  background: radial-gradient(circle at var(--ink-origin), transparent var(--back-start),
+    var(--ink-line) var(--back-start) var(--back-fill), var(--ink-back) var(--back-fill) var(--front-start),
+    var(--ink-line) var(--front-start) var(--front-fill), var(--ink-front) var(--front-fill) var(--rim-start),
+    var(--ink-line) var(--rim-start) var(--rim-end), transparent var(--rim-end));
+}
+[data-theme="dark"] .appearance-ink {
+  --ink-line: #f4efe7; --ink-front: #c9a45a; --ink-back: #6b5530; --ink-dot: rgb(201 164 90 / .5);
+}
+.appearance-ink::before {
+  content: ""; position: absolute; inset: 0;
+  --dots-start: max(0px, calc(var(--ink-radius) - 190px));
+  --dots-end: max(0px, calc(var(--ink-radius) - 66px));
+  background: radial-gradient(circle, var(--ink-dot) 2.2px, transparent 2.6px) 0 0 / 11px 11px;
+  mask-image: radial-gradient(circle at var(--ink-origin), transparent var(--dots-start),
+    #000 var(--dots-start) var(--dots-end), transparent var(--dots-end));
+}

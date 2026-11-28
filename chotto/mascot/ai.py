@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 import logging
 import re
+import subprocess
+import sys
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
@@ -84,8 +86,10 @@ class Answer:
     ok: bool                               # có câu trả lời thật (chế độ Miễn phí chỉ trừ lượt khi True)
 
 
-# ---- khóa API riêng (DPAPI) ----
+# ---- khóa API riêng (DPAPI trên Windows, Keychain trên macOS) ----
 def has_api_key() -> bool:
+    if sys.platform == "darwin":
+        return load_api_key() is not None
     return (data_dir() / _KEY_FILE).is_file()
 
 
@@ -100,14 +104,33 @@ def api_key_hint() -> str:
     return "••••" + key[-4:] if len(key) >= 12 else "••••"
 
 
+_KEYCHAIN_SERVICE: Final[str] = "vn.chotto.mascot-byok"
+
+
+def _keychain(*args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+    """Gọi ``/usr/bin/security`` (Keychain của macOS)."""
+    return subprocess.run(["/usr/bin/security", *args], input=stdin, capture_output=True, text=True, timeout=15, check=False)
+
+
 def save_api_key(key: str) -> None:
-    """Mã hóa và lưu khóa; chuỗi rỗng = xóa khóa.
+    """Mã hóa và lưu khóa; chuỗi rỗng = xóa khóa. Windows: DPAPI vào file riêng; macOS: Keychain đăng nhập.
 
     Raises:
-        OSError: Không có DPAPI (không phải Windows) hoặc không ghi được file.
+        OSError: Không có nơi lưu an toàn (Linux) hoặc không ghi được.
     """
     path = data_dir() / _KEY_FILE
     key = key.strip()
+    if sys.platform == "darwin":
+        _keychain("delete-generic-password", "-s", _KEYCHAIN_SERVICE)
+        if key:
+            # Khóa đi qua stdin của lệnh "security -i" (không lộ trong danh sách tiến trình như khi đặt ở tham số).
+            line = f'add-generic-password -U -a chotto -s {_KEYCHAIN_SERVICE} -w "{key}"\n'
+            if '"' in key or "\\" in key:
+                raise OSError("Khóa có ký tự không hợp lệ")
+            done = _keychain("-i", stdin=line)
+            if done.returncode != 0:
+                raise OSError(done.stderr.strip() or "Không lưu được vào Keychain")
+        return
     if not key:
         path.unlink(missing_ok=True)
         return
@@ -119,6 +142,12 @@ def save_api_key(key: str) -> None:
 
 def load_api_key() -> str | None:
     """Khóa đã giải mã, ``None`` nếu chưa có hoặc không giải được (file của tài khoản/máy khác)."""
+    if sys.platform == "darwin":
+        try:
+            found = _keychain("find-generic-password", "-s", _KEYCHAIN_SERVICE, "-w")
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return found.stdout.strip() or None if found.returncode == 0 else None
     path = data_dir() / _KEY_FILE
     try:
         return dpapi.unprotect(path.read_bytes()).decode("utf-8") or None

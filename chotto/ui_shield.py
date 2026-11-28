@@ -114,6 +114,8 @@ class Shield:
         self.note.pack(pady=(6, 0))
         self.hint = tk.Label(body, text="", bg=BG, fg=MUTED, font=(ui_font, 9))
         self.hint.pack()
+        self.guard = tk.Label(body, text="", bg=PANEL, fg=FG, font=(ui_font, 12, "bold"), wraplength=WIDTH - 40,
+                              justify="left", padx=14, pady=12)
 
     # ---- vẽ ----
     def _draw_icon(self, level: str, main: str, ink: str) -> None:
@@ -199,6 +201,22 @@ class Shield:
         self.hint.config(text=actions["hint"])
         self._proceed_text = actions["proceed"]
         self.progress.itemconfigure(self._bar, fill=main)
+        self._render_guard(view.get("guardian"))
+
+    def _render_guard(self, info: dict[str, str] | None) -> None:
+        """Guardian Mode: lời nhắn, giấu nút sao chép địa chỉ; cấm thì bỏ hẳn nút "vẫn mở" (mức chỉ tăng)."""
+        if not info:
+            return
+        self.guard.config(text=info["message"])
+        if not self.guard.winfo_manager():
+            self.guard.pack(fill="x", pady=(14, 0), before=self.back)
+        self.copy.grid_remove()
+        self.report.grid(row=0, column=0, columnspan=2, sticky="ew", padx=0)
+        if info["policy"] == "pin":
+            self._proceed_text = info["pinLabel"]
+        else:
+            self.proceed.pack_forget()
+            self.progress.pack_forget()
 
     def _toggle_why(self) -> None:
         self._open = not self._open

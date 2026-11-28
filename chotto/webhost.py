@@ -25,12 +25,13 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Mapping
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, TextIO
 
-from . import __version__, logdb, platforms
-from .config import SETTINGS_KEYS, load_config, resource_path
+from . import __version__, guardian, logdb, platforms
+from .config import SETTINGS_KEYS, load_config, resource_path, validate_config
 from .messages import msg as _msg
 from .platforms import win32_window
 from .platforms import window as osw
@@ -113,7 +114,7 @@ class FrictionApi:
 
         Args:
             fid: Mã màn hình đệm (do agent đặt).
-            payload: ``{"view", "lock_s"}`` ban đầu.
+            payload: ``{"view", "lock_s", "theme"}`` ban đầu.
             lock_s: Số giây khóa nút "vẫn mở".
             wire: Kênh gửi quyết định về agent.
             on_done: Gọi khi đã có quyết định (để host đóng cửa sổ).
@@ -133,25 +134,52 @@ class FrictionApi:
         with self._lock:
             return self._payload
 
-    def decide(self, proceed: bool) -> dict[str, bool]:
-        """Người dùng chọn; "vẫn mở" trước khi hết giờ khóa bị từ chối."""
+    def decide(self, proceed: bool, pin: str = "") -> dict[str, Any]:
+        """Người dùng chọn; "vẫn mở" trước khi hết giờ khóa, hoặc bị Guardian Mode cấm, đều bị từ chối."""
         with self._lock:
             if self._done:
                 return {"ok": True}
             if proceed and time.monotonic() < self._unlock_at - _UNLOCK_SLACK_S:
                 return {"ok": False}
+            view = self._payload.get("view", {})
+        level = str(view.get("level", ""))
+        used_pin = ""
+        if proceed:
+            policy = guardian.strictest(str(view.get("guardian", {}).get("policy", "allow")),
+                                        guardian.open_policy(load_config(), level))
+            if policy == "deny":
+                return {"ok": False}
+            if policy == "pin":
+                if not pin:
+                    return {"ok": False, "need_pin": True}
+                result = guardian.verify_pin(pin)               # ngoài khóa: scrypt tốn vài chục mili-giây
+                if not result.ok:
+                    return {"ok": False, "need_pin": True, "auth": asdict(result)}
+                used_pin = str(pin)
+        with self._lock:
+            if self._done:
+                return {"ok": True}
+            if proceed and str(self._payload.get("view", {}).get("level", "")) != level:
+                return {"ok": False}                            # mức rủi ro vừa tăng trong lúc nhập PIN
             self._done = True
-        self._finish(bool(proceed))
+        self._finish(bool(proceed), used_pin)
         return {"ok": True}
+
+    def guardian_recover(self, recovery_key: str, new_pin: str) -> dict[str, Any]:
+        """Quên mã PIN ngay trên màn hình cảnh báo."""
+        return asdict(guardian.recover(str(recovery_key), str(new_pin)))
 
     def minimize(self) -> None:
         """Thu nhỏ cửa sổ."""
         if self._window is not None:
             self._window.minimize()
 
-    def _finish(self, proceed: bool) -> None:
+    def _finish(self, proceed: bool, pin: str = "") -> None:
         dwell_ms = int((time.monotonic() - self._opened) * 1000)
-        self._wire.send({"op": "decision", "id": self._fid, "proceed": proceed, "dwell_ms": dwell_ms})
+        message: dict[str, Any] = {"op": "decision", "id": self._fid, "proceed": proceed, "dwell_ms": dwell_ms}
+        if pin:
+            message["pin"] = pin                                # chỉ đi qua đường ống nội bộ tới agent
+        self._wire.send(message)
         self._on_done(self._fid)
 
     def _update(self, payload: dict[str, Any], lock_s: float) -> None:
@@ -159,6 +187,7 @@ class FrictionApi:
         with self._lock:
             if self._done:
                 return
+            payload = {**payload, "theme": self._payload["theme"]}
             self._payload = payload
             self._unlock_at = max(self._unlock_at, self._opened + max(0.0, lock_s))
         if self._window is not None:
@@ -215,7 +244,41 @@ class AppApi:
             "blacklist_text": _blacklist_text(last_update_success(), lang=cfg["ui_language"]),
             "mascot_supported": _mascot_supported(),
             "mascot_ai": _mascot_ai_state(),
+            # File hỏng khi đang tắt: coi như chưa có PIN để đặt lại được (đang bật thì vẫn khóa).
+            "guardian": {"has_pin": guardian.has_pin() and not (guardian.is_corrupt() and not cfg["guardian_enabled"]),
+                         "locked_for": guardian.lockout_remaining()},
         }
+
+    # ---- Guardian Mode ----
+    def guardian_setup(self, pin: str) -> dict[str, Any]:
+        """Đặt PIN lần đầu, trả mã khôi phục (hiện một lần). Chưa bật Guardian Mode."""
+        lang = load_config()["ui_language"]
+        if load_config()["guardian_enabled"]:        # file PIN mất khi đang bật: không cho đặt PIN mới để vượt khóa
+            return {"ok": False, "error": _msg(lang, "unknown")}
+        try:
+            return {"ok": True, "recovery_key": guardian.setup(str(pin), replace_corrupt=True)}
+        except guardian.GuardianError as exc:
+            _LOG.warning("Không đặt được PIN giám hộ: %s", exc)
+            return {"ok": False, "error": _msg(lang, "failed", error=exc)}
+
+    def guardian_confirm(self, pin: str) -> dict[str, Any]:
+        """Người dùng đã tick "đã lưu mã khôi phục"."""
+        return asdict(guardian.confirm(str(pin)))
+
+    def guardian_change_pin(self, current: str, new_pin: str) -> dict[str, Any]:
+        return asdict(guardian.change_pin(str(current), str(new_pin)))
+
+    def guardian_recover(self, recovery_key: str, new_pin: str) -> dict[str, Any]:
+        """Quên mã PIN: đặt PIN mới bằng mã khôi phục, nhận mã khôi phục mới."""
+        return asdict(guardian.recover(str(recovery_key), str(new_pin)))
+
+    @staticmethod
+    def _pin_gate(pin: str) -> dict[str, Any] | None:
+        """``None`` nếu PIN đúng; ngược lại là câu trả lời yêu cầu giao diện hỏi PIN."""
+        if not pin:
+            return {"ok": False, "need_pin": True}
+        result = guardian.verify_pin(str(pin))
+        return None if result.ok else {"ok": False, "need_pin": True, "auth": asdict(result)}
 
     # ---- hỏi đáp của nhân vật: API riêng + AI Local ----
     def byok_save_key(self, key: str) -> dict[str, Any]:
@@ -263,12 +326,20 @@ class AppApi:
             ok = False
         return {"ok": ok, **local_ai.status()}
 
-    def save(self, values: dict[str, Any]) -> dict[str, Any]:
+    def save(self, values: dict[str, Any], pin: str = "") -> dict[str, Any]:
         """Lưu ngay các khóa cài đặt được phép (giá trị sai được ``validate_config`` đưa về hợp lệ)."""
         from .service.app import save_settings
 
         lang = load_config()["ui_language"]
         clean = {key: values[key] for key in SETTINGS_KEYS if isinstance(values, dict) and key in values}
+        current = load_config()
+        wanted = validate_config({**current, **clean})       # so sau khi kiểm tra: giá trị rác không được lọt chốt
+        if wanted["guardian_enabled"] and not current["guardian_enabled"] and (not guardian.has_pin() or guardian.is_corrupt()):
+            return {"ok": False, "need_setup": True}
+        if guardian.needs_pin(current, wanted):
+            refusal = self._pin_gate(pin)
+            if refusal is not None:
+                return refusal
         try:
             save_settings(clean)
         except OSError as exc:
@@ -335,11 +406,15 @@ class AppApi:
         return {"ok": True, "level": result.level, "score": result.score,
                 "view": friction_view(result, False, rules, lang)}
 
-    def action(self, name: str) -> dict[str, Any]:
+    def action(self, name: str, pin: str = "") -> dict[str, Any]:
         """Chạy tác vụ: ``install`` | ``uninstall`` | ``update`` | ``export`` | ``clear_log`` (câu trả lời theo ``ui_language``)."""
         from .service import app as service
 
         lang = load_config()["ui_language"]
+        if name in ("uninstall", "clear_log") and load_config()["guardian_enabled"]:
+            refusal = self._pin_gate(pin)
+            if refusal is not None:
+                return refusal
         try:
             if name == "install":
                 return {"ok": True, "message": service.install_action(lang)}
@@ -412,13 +487,16 @@ class Host:
 
     def open_friction(self, fid: int, payload: dict[str, Any]) -> None:
         """Mở màn hình đệm ``fid``."""
+        theme = load_config()["ui_theme"]
+        payload = {**payload, "theme": theme}
         api = FrictionApi(fid, payload, float(payload.get("lock_s", 0)), self._wire, self._close_friction)
         height = self._friction_height()
         window = self._webview.create_window(
             _msg(str(payload.get("view", {}).get("lang", "en")), "friction_title"),
             url=str(web_root() / "friction.html"), js_api=api,
             width=620, height=height, min_size=(460, 520), frameless=True, easy_drag=False,
-            on_top=True, background_color=_APP_BG, text_select=True, **self._centered(620, height))
+            on_top=True, background_color=BG if theme == "dark" else _APP_BG,
+            text_select=True, **self._centered(620, height))
         api._window = window  # noqa: SLF001 - cùng mô-đun
         osw.reload_on_show(window, str(web_root() / "friction.html"))
         with self._lock:
@@ -463,9 +541,11 @@ class Host:
                 return
             except Exception:  # noqa: BLE001 - cửa sổ cũ hỏng: tạo cửa sổ mới
                 self._app_window = None
+        theme = load_config()["ui_theme"]
         window = self._webview.create_window(
             "Chotto", url=str(web_root() / "app.html"), js_api=AppApi(self), width=_APP_W, height=_APP_H,
-            min_size=(360, 640), frameless=True, easy_drag=False, background_color=_APP_BG, text_select=True,
+            min_size=(360, 640), frameless=True, easy_drag=False,
+            background_color=BG if theme == "dark" else _APP_BG, text_select=True,
             hidden=osw.HIDE_UNTIL_LOADED, **self._centered(_APP_W, _APP_H))   # Windows: ẩn hẳn tới khi trang tải xong (không nháy)
         self._app_window = window
         osw.reload_on_show(window, str(web_root() / "app.html"))

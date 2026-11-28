@@ -18,7 +18,7 @@ from collections.abc import Callable
 from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any, Final
 
-from .. import logdb, platforms
+from .. import guardian, logdb, platforms
 from ..config import SETTINGS_KEYS, Config, config_stamp, load_config, load_rules, save_config
 from ..messages import msg
 from ..platforms import Caller, detect_caller
@@ -127,6 +127,24 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None,
     from .. import ui
 
     rules: dict[str, Any] = {}
+    offered = [""]                      # PIN giao diện gửi kèm quyết định "mở"; dùng đúng một lần
+
+    def policy_of(level: str) -> guardian.OpenPolicy:
+        # Chặt nhất giữa cấu hình của handler và file trên đĩa (có thể vừa bật Guardian khi cảnh báo đang mở).
+        return guardian.strictest(guardian.open_policy(cfg, level), guardian.open_policy(load_config(), level))
+
+    def guard_of(level: str, lang: str) -> dict[str, str] | None:
+        policy = policy_of(level)
+        if policy == "allow":
+            return None
+        return guardian.screen_info(policy, load_config()["guardian_contact"] or cfg["guardian_contact"], lang)
+
+    def authorize() -> bool:
+        pin, offered[0] = offered[0], ""
+        return bool(pin) and guardian.verify_pin(pin).ok
+
+    def offer(pin: str) -> None:
+        offered[0] = pin
 
     def view_of(result: Result, checking: bool) -> dict[str, Any]:
         from ..shield import shield_view
@@ -134,17 +152,23 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None,
         if not rules:
             rules.update(load_rules())
         # Điểm rủi ro chỉ hiện ở Desktop (to, nhìn là hiểu); view dùng chung với tiện ích không có khóa này.
-        return {**shield_view(result, checking, rules, cfg["ui_language"]), "score": max(0, min(100, int(result.score)))}
+        view = {**shield_view(result, checking, rules, cfg["ui_language"]), "score": max(0, min(100, int(result.score)))}
+        info = guard_of(result.level, cfg["ui_language"])
+        if info is not None:
+            view["guardian"] = info
+            view["actions"] = {**view["actions"], "copyText": ""}       # chép nguyên địa chỉ là đường lách
+        return view
 
     def present(result: Result, seconds_for: SecondsFor, pending: Future[Result] | None) -> tuple[bool, int, Result]:
+        offered[0] = ""
         if web is not None:
             try:
-                return web.present(view_of, result, seconds_for, pending, _pump(root))
+                return web.present(view_of, result, seconds_for, pending, _pump(root), on_pin=offer)
             except WebUIError:
                 _LOG.warning("Giao diện HTML không dùng được, chuyển sang Tk", exc_info=True)
         if root is None:
             raise RuntimeError("Không có giao diện Tk")
-        return ui.show_friction(root, result, seconds_for, pending)
+        return ui.show_friction(root, result, seconds_for, pending, guard_of=guard_of, on_pin=offer)
 
     return LinkHandler(
         cfg=cfg,
@@ -154,6 +178,8 @@ def build_handler(cfg: Config, root: tk.Tk | None, web: WebUI | None = None,
         alert=lambda message: ui.native_alert("CHOTTO", message),
         record=_record_desktop(cfg),
         notify=notify,
+        policy=policy_of,
+        authorize=authorize,
     )
 
 
@@ -353,7 +379,7 @@ class _HandlerCache:
 
 
 def _start_mascot(open_app: Callable[[], None], web: WebUI | None,
-                  open_link: Callable[[str], None] | None = None) -> MascotRunner | None:
+                  open_link: Callable[[str], None] | None = None, main_root: Any = None) -> MascotRunner | None:
     """Nhân vật taskbar (tự ẩn/hiện theo ``mascot_enabled``) trên luồng Tk riêng; lỗi bất kỳ chỉ ghi log, agent chạy tiếp.
 
     ``open_app`` và ``open_link`` (link từ mã QR người dùng xác nhận mở) được gọi từ luồng nhân vật nên chỉ được đặt cờ/xếp hàng
@@ -362,7 +388,7 @@ def _start_mascot(open_app: Callable[[], None], web: WebUI | None,
     try:
         from ..mascot import MascotRunner
 
-        mascot = MascotRunner(open_app, open_link)
+        mascot = MascotRunner(open_app, open_link, main_root)
         if web is not None:
             def changed() -> None:
                 mascot.request_reload()
@@ -435,7 +461,7 @@ def run_resident(open_settings_after_ms: int | None = None, show_settings_now: b
     def open_scanned(url: str) -> None:
         core.submit(agent_mod.LinkRequest(url, None, True))
 
-    mascot = _start_mascot(open_flag.set, web, open_scanned)
+    mascot = _start_mascot(open_flag.set, web, open_scanned, window)
     handlers = _HandlerCache(window, web, mascot.notify if mascot is not None else None)
 
     def drain() -> None:

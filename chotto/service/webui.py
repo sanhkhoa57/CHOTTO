@@ -51,6 +51,7 @@ class _Waiter:
 
     event: threading.Event = field(default_factory=threading.Event)
     proceed: bool | None = None
+    pin: str = ""
     dwell_ms: int = 0
 
 
@@ -151,6 +152,7 @@ class WebUI:
             waiter = self._waiters.get(int(message.get("id", 0)))
             if waiter is not None:
                 waiter.proceed = bool(message.get("proceed"))
+                waiter.pin = str(message.get("pin") or "")
                 waiter.dwell_ms = int(message.get("dwell_ms", 0))
                 waiter.event.set()
         elif op == "settings_closed":
@@ -202,7 +204,8 @@ class WebUI:
 
     # ---- các màn hình ----
     def present(self, view_of: ViewOf, result: Result, seconds_for: Callable[[str], int],
-                pending: Future[Result] | None, pump: Callable[[], None]) -> tuple[bool, int, Result]:
+                pending: Future[Result] | None, pump: Callable[[], None],
+                on_pin: Callable[[str], None] | None = None) -> tuple[bool, int, Result]:
         """Hiện màn hình đệm và chờ quyết định (cùng hợp đồng với ``ui.show_friction``).
 
         Args:
@@ -211,6 +214,7 @@ class WebUI:
             seconds_for: Thời gian khóa theo mức rủi ro.
             pending: Kết quả cuối của Tầng 3 đang chạy nền.
             pump: Cho vòng lặp Tk xử lý sự kiện trong lúc chờ (giữ agent phản hồi).
+            on_pin: Nhận PIN giám hộ đi kèm quyết định "mở" (agent tự kiểm lại).
 
         Raises:
             WebUIError: Không hiện được hoặc host chết trước khi có quyết định.
@@ -236,6 +240,8 @@ class WebUI:
             self._waiters.pop(fid, None)
         if waiter.proceed is None:
             raise WebUIError("Giao diện HTML thoát trước khi người dùng quyết định")
+        if waiter.proceed and waiter.pin and on_pin is not None:
+            on_pin(waiter.pin)
         return waiter.proceed, waiter.dwell_ms, shown
 
     def open_settings(self, pump: Callable[[], None]) -> bool:

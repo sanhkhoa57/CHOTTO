@@ -1,7 +1,8 @@
 // Màn hình đệm. Dữ liệu đến từ Python (chotto/webhost.py) qua pywebview:
-//   api.initial()        -> {view, lock_s}   (view: chotto/shield.shield_view, có view.lang)
-//   api.decide(proceed)  -> {ok}             (Python tự kiểm lại thời gian khóa)
-//   window.CHOTTO.update({view, lock_s})     do Python gọi khi Tầng 3 xong (mức chỉ tăng, bố cục không nhảy)
+//   api.initial()        -> {view, lock_s, theme}   (view: chotto/shield.shield_view, có view.lang)
+//   api.decide(proceed, pin) -> {ok, need_pin?, auth?}  (Python tự kiểm lại thời gian khóa và Guardian Mode)
+//   view.guardian = {policy: "pin"|"deny", message, pinLabel} khi Guardian Mode đang chặn (chỉ Desktop)
+//   window.CHOTTO.update({view, lock_s, theme}) do Python gọi khi Tầng 3 xong (mức chỉ tăng, bố cục không nhảy)
 // Phần dựng giao diện nằm ở shield.js (dùng chung với tiện ích trình duyệt). Mở bằng trình duyệt thường với ?demo
 // để xem với dữ liệu mẫu (?demo&vi: tiếng Việt; ?demo&level=WARN|HIGH|BLOCKED; ?demo&checking: đang tra tuổi tên miền).
 "use strict";
@@ -14,6 +15,7 @@
   let unlockAt = Infinity;
   let shownLevel = "";
   let deciding = false;
+  let guard = null;        // view.guardian
 
   function setLock(seconds) {
     unlockAt = Math.max(unlockAt === Infinity ? 0 : unlockAt, opened + seconds * 1000);
@@ -28,7 +30,18 @@
   async function decide(proceed) {
     if (deciding) return;
     if (proceed && performance.now() < unlockAt) return;
+    if (proceed && guard && guard.policy === "deny") return;
     deciding = true;
+    if (proceed && guard) {                       // mở bằng PIN giám hộ
+      try {
+        const done = api && await window.ChottoGuardian.askPin(api,
+          { title: guard.pinLabel, attempt: (pin) => api.decide(true, pin) });
+        if (!done || !done.reply.ok) deciding = false;
+      } catch (err) {
+        deciding = false;
+      }
+      return;
+    }
     try {
       const reply = api ? await api.decide(proceed) : { ok: true };
       if (!reply || !reply.ok) deciding = false;     // Python từ chối (còn khóa): cho bấm lại sau
@@ -37,29 +50,52 @@
     }
   }
 
-  function show(view) {
+  function show({ view, theme }) {
+    document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
     if (view.lang && view.lang !== I18N.lang) I18N.apply(view.lang);
     document.documentElement.lang = view.lang || "en";
+    guard = view.guardian || (shownLevel ? guard : null);
+    if (guard && guard.policy === "pin") {
+      view = { ...view, actions: { ...view.actions, proceed: guard.pinLabel }, labels: { ...view.labels, proceedWait: `${guard.pinLabel} ({n})` } };
+    }
     if (shield) shield.update(view);
     else {
-      shield = window.ChottoShield.mount(document.getElementById("scroll"), view, { theme: "light" });
+      shield = window.ChottoShield.mount(document.getElementById("scroll"), view, { theme: document.documentElement.dataset.theme });
       shield.back.addEventListener("click", () => decide(false));
       shield.proceed.addEventListener("click", () => decide(true));
     }
     shownLevel = view.level;
+    showGuard();
+  }
+
+  // Lời nhắn giám hộ; ẩn nút chép địa chỉ (đường lách), mức cấm thì bỏ hẳn nút "vẫn mở".
+  function showGuard() {
+    if (!guard) return;
+    let banner = document.querySelector(".gd-banner");
+    if (!banner) {
+      banner = document.createElement("p");
+      banner.className = "gd-banner";
+      banner.setAttribute("role", "note");
+      shield.back.before(banner);
+    }
+    banner.textContent = guard.message;
+    const copy = shield.root.querySelector(".sh-ghost:not(.sh-report)");
+    if (copy) copy.style.display = "none";
+    if (guard.policy === "deny") shield.proceed.style.display = "none";
   }
 
   window.CHOTTO = {
     update(payload) {
       const rising = payload.view.level !== shownLevel;
-      show(payload.view);
+      if (rising) window.ChottoGuardian.close();          // mức vừa tăng: hỏi lại từ đầu theo chính sách mới
+      show(payload);
       if (rising) setLock(payload.lock_s);
     },
   };
 
   function start(payload) {
     opened = performance.now();
-    show(payload.view);
+    show(payload);
     setLock(payload.lock_s);
     requestAnimationFrame(tick);
     shield.back.focus();
@@ -114,6 +150,13 @@
     const level = (location.search.match(/level=(WARN|HIGH|BLOCKED)/) || [])[1];
     if (level) payload.view.level = level;
     if (location.search.includes("checking")) payload.view.checking = true;
+    const policy = (location.search.match(/guard=(pin|deny)/) || [])[1];
+    if (policy) {
+      payload.view.guardian = payload.view.lang === "vi"
+        ? { policy, message: "Đang bật Bảo vệ Gia đình. Nếu cần mở, hãy nhờ Mẹ (0901 234 567) kiểm tra giúp nhé!", pinLabel: "Nhập mã PIN giám hộ để mở" }
+        : { policy, message: "Family Protection is on. If you need this link, ask Mum (0901 234 567) to check it for you!", pinLabel: "Enter guardian PIN to open" };
+    }
+    payload.theme = new URLSearchParams(location.search).get("theme");
     return payload;
   }
 

@@ -7,12 +7,16 @@
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const I18N = window.CHOTTO_I18N;
+  const themeBtn = $("#themeBtn");
+  const langBtn = $("#langBtn");
   const t = I18N.t;
   const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const okIcon = '<span class="ok" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m3.5 8.4 2.8 2.8 6.2-6.4"/></svg></span>';
   let api = null;
   let state = null;
   let lastCheck = null;
+  let pendingSave = Promise.resolve();
+  let activeReveal = null;
 
   // ---------- tiện ích ----------
   let toastTimer = 0;
@@ -48,11 +52,18 @@
   const officialHTML = (v) => (v.official
     ? `<div class="compare">${okIcon}<span>${t("official", { brand: esc(v.brand), domain: esc(v.official) })}</span></div>` : "");
 
-  // ---------- ngôn ngữ ----------
+  // ---------- giao diện ----------
+  function applyTheme(theme) {
+    const dark = theme === "dark";
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+    themeBtn.setAttribute("aria-checked", dark);
+  }
+
   function applyLanguage(lang) {
     I18N.apply(lang);
     $("#credit").innerHTML = esc(t("footer")).replace("AECCUS", "<b>AECCUS</b>");
-    $$("[data-lang-switch] button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.lang === I18N.lang));
+    langBtn.dataset.lang = I18N.lang;
+    langBtn.setAttribute("aria-label", t("lang.switch"));
     $$("#seconds button").forEach((b) => { b.textContent = t("sec", { n: b.dataset.s }); });
     buddyRows();
     if (state) renderState(state);
@@ -96,6 +107,7 @@
     $("#guardTitle").textContent = t(protectedNow ? "guard.on" : "guard.off");
     $("#guardText").textContent = protectedNow ? s.blacklist_text : t("guard.offText");
     $("#guardInstall").hidden = protectedNow;
+    guardianRender(s);
     $("#guardIco").innerHTML = BURST + (protectedNow ? GLYPH.ok : GLYPH.warn);
     // Đã là trình mở link mặc định: báo thành công (giống bản Android) thay cho nút cài.
     $("#guardBadge").hidden = s.default_handler !== true;
@@ -119,7 +131,11 @@
   }
   async function refresh() {
     if (!api) return;
+    const saved = pendingSave;
+    await saved;
     const s = await api.state();
+    if (saved !== pendingSave) return refresh();
+    applyTheme(s.settings.ui_theme);
     if (s.settings.ui_language !== I18N.lang) { state = s; applyLanguage(s.settings.ui_language); }
     else renderState(s);
   }
@@ -165,16 +181,85 @@
   });
 
   // ---------- cài đặt: lưu ngay ----------
+  const G = window.ChottoGuardian;
+  function guardianRender(s) {
+    const on = !!s.settings.guardian_enabled;
+    $("#gdFlag").hidden = !on;
+    $("#gdSwitch").setAttribute("aria-checked", on);
+    $("#gdExtra").hidden = !on;
+    const hasPin = !!s.guardian?.has_pin;
+    $("#gdChange").hidden = !hasPin;
+    $("#gdForgot").hidden = !hasPin;
+    $$("#gdPolicy button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.v === (s.settings.guardian_warn_policy || "pin")));
+    if (document.activeElement !== $("#gdContact")) $("#gdContact").value = s.settings.guardian_contact || "";
+  }
+
+  // Backend trả need_pin cho thay đổi được bảo vệ: hỏi PIN rồi gửi lại kèm PIN. Hủy = {ok: false, cancelled: true}.
+  async function withPin(reply, attempt) {
+    if (!reply.need_pin) return reply;
+    const result = await G.askPin(api, { title: t("g.ask"), attempt });
+    return result ? result.reply : { ok: false, cancelled: true };
+  }
+
   async function save(patch, revert) {
     if (!api) return true;
+    const request = pendingSave.then(() => api.save(patch));
+    pendingSave = request.catch(() => {});
     try {
-      const reply = await api.save(patch);
+      const reply = await withPin(await request, (pin) => api.save(patch, pin));
+      if (reply.cancelled) { revert(); return false; }
       if (reply.ok) { if (state) state.settings = reply.settings; toast(t("saved")); return true; }
       revert(); toast(reply.error || t("saveFail"), true);
     } catch (err) {
       revert(); toast(t("saveFail"), true);
     }
     return false;
+  }
+  let guardianBusy = false;
+  $("#gdSwitch").addEventListener("click", async () => {
+    if (!api || !state || guardianBusy) return;
+    guardianBusy = true;
+    try {
+      if (state.settings.guardian_enabled) await save({ guardian_enabled: false }, () => {});
+      else if (state.guardian && state.guardian.has_pin) await save({ guardian_enabled: true }, () => {});
+      else {
+        const made = await G.createPin(api, state.settings.guardian_contact);   // lần đầu: PIN + mã khôi phục
+        if (made) {
+          const reply = await api.save({ guardian_enabled: true, guardian_contact: made.contact }, made.pin);
+          toast(reply.ok ? t("g.on") : reply.error || t("saveFail"), !reply.ok);
+        }
+      }
+    } catch (err) {
+      toast(t("saveFail"), true);
+    } finally {
+      guardianBusy = false;
+      refresh();
+    }
+  });
+  $$("#gdPolicy button").forEach((b) => b.addEventListener("click", async () => {
+    if (b.getAttribute("aria-pressed") === "true") return;
+    await save({ guardian_warn_policy: b.dataset.v }, () => {});
+    refresh();
+  }));
+  $("#gdContact").addEventListener("change", async (e) => {
+    await save({ guardian_contact: e.target.value.trim() }, () => {});
+    e.target.blur();
+    refresh();
+  });
+  $("#gdContact").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } });
+  for (const [selector, action, success] of [
+    ["#gdChange", G.changePin, "g.changed"],
+    ["#gdForgot", G.resetPin, "g.reset"],
+  ]) {
+    $(selector).addEventListener("click", async () => {
+      if (!api || guardianBusy) return;
+      guardianBusy = true;
+      try {
+        if (await action(api)) toast(t(success));
+      } finally {
+        guardianBusy = false;
+      }
+    });
   }
   $$(".switch[data-key]").forEach((sw) => sw.addEventListener("click", () => {
     const on = sw.getAttribute("aria-checked") !== "true";
@@ -224,12 +309,65 @@
     slider("#buddySleep", "mascot_sleep_s", 3, duration),
     slider("#buddyRun", "mascot_run_s", 3, duration),
   ];
-  $$("[data-lang-switch] button").forEach((b) => b.addEventListener("click", () => {
-    const before = I18N.lang;
-    if (b.dataset.lang === before) return;
-    applyLanguage(b.dataset.lang);                       // đổi ngay, không chờ Python
-    save({ ui_language: b.dataset.lang }, () => applyLanguage(before));
-  }));
+  async function revealPreference(button, apply, fromPointer) {
+    if (activeReveal) await activeReveal.finished.catch(() => {});
+    if (!fromPointer || !document.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      apply();
+      return;
+    }
+
+    const { left, top, width, height } = button.getBoundingClientRect();
+    const x = left + width / 2, y = top + height / 2;
+    const origin = `${x}px ${y}px`;
+    const reach = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    const language = button === langBtn;
+    const radius = reach + (language ? 190 : 0); // Đưa cả dải chấm ra ngoài cửa sổ.
+    const duration = 1600; // Cùng nhịp với hai công tắc trên trang chủ.
+    const easing = language ? "linear(0, .074 20%, .216125 35%, .5 50%, .783875 65%, .926 80%, 1)"
+      : "cubic-bezier(.45, 0, .25, 1)";
+    let ink = null;
+
+    if (language) langBtn.style.viewTransitionName = "chotto-language";
+    const transition = document.startViewTransition(() => {
+      apply();
+      if (!language) return;
+      ink = document.createElement("div");
+      ink.className = "appearance-ink";
+      ink.setAttribute("aria-hidden", "true");
+      ink.style.setProperty("--ink-origin", origin);
+      document.body.prepend(ink);
+    });
+    function cleanup() {
+      ink?.remove();
+      langBtn.style.removeProperty("view-transition-name");
+      activeReveal = null;
+    }
+    activeReveal = transition;
+    transition.ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: [`circle(0px at ${origin})`, `circle(${radius}px at ${origin})`] },
+        { duration, easing, pseudoElement: "::view-transition-new(root)" }
+      );
+      if (ink) ink.animate({ "--ink-radius": ["0px", `${radius}px`] }, { duration, easing });
+    }).catch(() => transition.skipTransition());
+    transition.finished.then(cleanup, cleanup);
+    return transition.updateCallbackDone;
+  }
+
+  function bindPreference(button, key, read, apply, first, second) {
+    button.addEventListener("click", async (event) => {
+      if (button.getAttribute("aria-disabled") === "true") return;
+      const before = read();
+      const next = before === first ? second : first;
+      button.setAttribute("aria-disabled", "true");
+      await revealPreference(button, () => apply(next), event.detail > 0);
+      const saved = await save({ [key]: next }, () => apply(before));
+      button.removeAttribute("aria-disabled");
+      if (saved && key === "ui_language") refresh();
+    });
+  }
+  bindPreference(themeBtn, "ui_theme", () => document.documentElement.dataset.theme, applyTheme, "light", "dark");
+  bindPreference(langBtn, "ui_language", () => I18N.lang, applyLanguage, "en", "vi");
 
   // ---------- nhân vật taskbar: xem trước + tô màu (chotto/web/mascot.js), lưu vào mascot_colors ----------
   // Agent nhận tín hiệu config_changed nên nhân vật trên taskbar đổi màu/ẩn hiện ngay, không cần khởi động lại.
@@ -543,7 +681,7 @@
     const label = button ? button.textContent : "";
     if (button) { button.disabled = true; button.textContent = t("act.busy"); }
     try {
-      const reply = await api.action(name);
+      const reply = await withPin(await api.action(name), (pin) => api.action(name, pin));
       if (reply.message) toast(reply.message, !reply.ok);
     } finally {
       if (button) { button.disabled = false; button.textContent = label; }
@@ -592,8 +730,10 @@
   const now = Date.now() / 1000;
   const DEMO = {
     default_handler: !location.search.includes("off"), blacklist_text: "Scam list updated at 07:42 today",
-    settings: { tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
+    guardian: { has_pin: location.search.includes("guard"), locked_for: 0 },
+    settings: { guardian_enabled: location.search.includes("guard"), guardian_warn_policy: "pin", guardian_contact: "", tier3_enabled: true, ai_advice: true, log_decisions: true, unknown_caller_policy: "inspect", friction_seconds: 5,
       ui_language: location.search.includes("vi") ? "vi" : "en",
+      ui_theme: new URLSearchParams(location.search).get("theme") === "dark" ? "dark" : "light",
       mascot_enabled: true, mascot_startup: "login", mascot_fps: 60, mascot_sleep_s: 3, mascot_run_s: 3, mascot_pinned: false, mascot_colors: ["#3c3840", "#503065", "#f8d5c0", "#342928", "#25242b", "#bc8e3f"],
       mascot_ai_mode: /ai=(free|byok|local)/.test(location.search) ? location.search.match(/ai=(\w+)/)[1] : "local",
       mascot_byok_provider: "gemini", mascot_byok_base_url: "", mascot_byok_model: "", mascot_local_model: "qwen2.5-3b" },
@@ -617,6 +757,7 @@
       refresh();
     } else if (location.search.includes("demo")) {
       state = DEMO;
+      applyTheme(DEMO.settings.ui_theme);
       applyLanguage(DEMO.settings.ui_language);
     }
     const start = (location.hash || "").slice(1);

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -283,6 +283,8 @@ body { background: var(--bg); font-family: var(--sans); }
 @media (max-height: 700px) { .guard { padding-top: 150px; } .mascot { width: 48%; } .guard-ico { width: 68px; height: 68px; top: 22px; } .guard-ico .glyph { inset: 18px; width: 32px; height: 32px; } }
 @media (min-width: 560px) { .main { padding-left: 15%; padding-right: 15%; } }
 </style>
+<link rel="stylesheet" href="appearance.css">
+<link rel="stylesheet" href="guardian.css">
 </head>
 <body>
 <div class="rz" data-edge="n"></div><div class="rz" data-edge="s"></div><div class="rz" data-edge="e"></div><div class="rz" data-edge="w"></div>
@@ -314,6 +316,7 @@ body { background: var(--bg); font-family: var(--sans); }
         </svg>
         <span class="guard-ico" id="guardIco" aria-hidden="true"></span>
         <span class="chip ok guard-badge" id="guardBadge" data-i18n="guard.badge" hidden>Chotto is your link handler</span>
+        <span class="chip ok gd-flag" id="gdFlag" data-i18n="g.flag" hidden>Family Protection is on</span>
         <h2 id="guardTitle" data-i18n="guard.on">This computer is protected</h2>
         <p id="guardText"></p>
         <button class="btn btn--primary" id="guardInstall" data-i18n="guard.install" hidden>Set Chotto as link handler</button>
@@ -349,10 +352,34 @@ body { background: var(--bg); font-family: var(--sans); }
       <h1 class="page-h"><span data-i18n="set.h">Settings</span><span class="tip" tabindex="0" role="note" data-i18n-tip="tip.set">i</span></h1>
       <div class="group card">
         <h2 class="h2" data-i18n="set.general">General</h2>
+        <div class="opt"><div><strong id="themeLabel" data-i18n="set.darkTheme">Dark mode</strong></div>
+          <button class="themebtn" id="themeBtn" type="button" role="switch" aria-checked="false" aria-labelledby="themeLabel">
+            <span class="tt-sky" aria-hidden="true"><i class="tt-star"></i><i class="tt-star"></i><i class="tt-star"></i><i class="tt-cloud"></i><i class="tt-cloud"></i></span>
+            <span class="tt-knob" aria-hidden="true"><i></i><i></i><i></i></span>
+          </button>
+        </div>
         <div class="opt"><div><strong data-i18n="set.language">Language</strong></div>
-          <div class="seg" role="group" data-lang-switch data-i18n-attr="aria-label:lang.aria" aria-label="Language">
-            <button data-lang="en" aria-pressed="true">English</button><button data-lang="vi" aria-pressed="false">Tiếng Việt</button>
-          </div></div>
+          <button class="langtog" id="langBtn" type="button" data-lang="en" aria-label="Switch to Vietnamese">
+            <i class="lt-thumb" aria-hidden="true"></i><span lang="en" aria-hidden="true">EN</span><span lang="vi" aria-hidden="true">VI</span>
+          </button>
+        </div>
+      </div>
+      <div class="group card" id="gdGroup">
+        <h2 class="h2" data-i18n="g.group">Guardian Mode (Family Protection)</h2>
+        <details class="gd-settings">
+          <summary data-i18n="g.manage">Change</summary>
+          <div class="opt"><div><strong data-i18n="g.enable">Guardian Mode</strong><span class="tip" tabindex="0" role="note" data-i18n-tip="g.tip">i</span></div><button class="switch" role="switch" id="gdSwitch" aria-checked="false" data-i18n-attr="aria-label:g.enable" aria-label="Guardian Mode"></button></div>
+          <div id="gdExtra" hidden>
+            <div class="opt"><div><strong data-i18n="g.warn">Suspicious links (not clearly dangerous)</strong></div>
+              <div class="seg" role="group" id="gdPolicy" data-i18n-attr="aria-label:g.warn" aria-label="Suspicious links">
+                <button data-v="pin" aria-pressed="false" data-i18n="g.warn.pin">Open with PIN</button><button data-v="lock" aria-pressed="false" data-i18n="g.warn.lock">Always locked</button>
+              </div></div>
+            <div class="opt opt--stack"><div><strong data-i18n="g.contact">Guardian name / phone</strong></div>
+              <input class="gd-contact" id="gdContact" type="text" maxlength="80" autocomplete="off" data-i18n-attr="placeholder:g.contact.ph;aria-label:g.contact" aria-label="Guardian name / phone"></div>
+          </div>
+          <button type="button" class="btn btn--secondary gd-change" id="gdChange" data-i18n="g.change" hidden>Change PIN</button>
+        </details>
+        <button type="button" class="gd-recovery" id="gdForgot" data-i18n="g.forgot.link" hidden>Forgot PIN?</button>
       </div>
       <div class="group card">
         <h2 class="h2" data-i18n="set.privacy">Privacy</h2>
@@ -445,6 +472,7 @@ body { background: var(--bg); font-family: var(--sans); }
 </div>
 <div class="toast" id="toast" role="status"></div>
 <script src="i18n.js"></script>
+<script src="guardian.js"></script>
 <script src="mascot.js"></script>
 <script src="app.js"></script>
 </body>

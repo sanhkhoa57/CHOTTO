@@ -213,7 +213,9 @@ def _set_dark_title_bar(window: tk.Toplevel | tk.Tk) -> None:
 
 
 def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int],
-                  pending: Future[Result] | None = None) -> tuple[bool, int, Result]:
+                  pending: Future[Result] | None = None,
+                  guard_of: Callable[[str, str], dict[str, str] | None] | None = None,
+                  on_pin: Callable[[str], None] | None = None) -> tuple[bool, int, Result]:
     """Hiển thị màn hình đệm (đường lùi của giao diện HTML) và chờ người dùng quyết định.
 
     Cùng cấu trúc và cùng chữ với giao diện HTML: ``chotto.shield.shield_view`` rồi ``chotto.ui_shield.Shield``.
@@ -222,6 +224,8 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
         root: Cửa sổ gốc Tk (có thể đang ẩn).
         result: Kết quả thẩm định (sơ bộ nếu ``pending`` khác ``None``).
         seconds_for: Thời gian khóa nút "vẫn mở" theo mức rủi ro.
+        guard_of: ``(mức rủi ro, ngôn ngữ)`` → phần Guardian (``guardian.screen_info``), ``None`` = không giám hộ.
+        on_pin: Nhận PIN giám hộ khi người dùng được phép mở bằng PIN.
         pending: Kết quả cuối của Tầng 3 đang chạy nền. Khi xong, màn hình được cập nhật tại chỗ;
             nếu mức rủi ro tăng, thời gian khóa được kéo dài tính từ lúc mở cửa sổ.
 
@@ -250,8 +254,32 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
         if top.winfo_exists():
             top.destroy()
 
-    shield = Shield(top, ui_font, mono_font, lambda: finish(False), lambda: finish(True))
-    shield.render(shield_view(result, pending is not None, rules, "vi"), reserve=pending is not None)
+    def view_of(item: Result, checking: bool) -> dict[str, Any]:
+        view = shield_view(item, checking, rules, "vi")
+        info = guard_of(item.level, "vi") if guard_of is not None else None          # Tk luôn tiếng Việt
+        if info is not None:
+            view["guardian"] = info
+            view["actions"] = {**view["actions"], "copyText": ""}
+        return view
+
+    def proceed() -> None:
+        level = state["result"].level
+        info = guard_of(level, "vi") if guard_of is not None else None
+        if info is None:
+            finish(True)
+            return
+        if info["policy"] != "pin":
+            return
+        from .ui_guardian import ask_pin
+
+        pin = ask_pin(top, "Nhập mã PIN giám hộ để mở liên kết này.")
+        # Mức rủi ro có thể đã tăng trong lúc nhập; backend kiểm lại, ở đây chỉ không đóng nhầm.
+        if pin is not None and top.winfo_exists() and state["result"].level == level and on_pin is not None:
+            on_pin(pin)
+            finish(True)
+
+    shield = Shield(top, ui_font, mono_font, lambda: finish(False), proceed)
+    shield.render(view_of(result, pending is not None), reserve=pending is not None)
 
     def check_pending() -> None:
         future: Future[Result] | None = state["pending"]
@@ -262,11 +290,11 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
             final = future.result()
         except Exception:  # noqa: BLE001 - Tầng 3 lỗi: giữ nguyên kết quả đang hiển thị
             _LOG.exception("Tầng 3 nền lỗi, giữ kết quả sơ bộ")
-            shield.render(shield_view(state["result"], False, rules, "vi"), reserve=True)
+            shield.render(view_of(state["result"], False), reserve=True)
             return
         state["result"] = final
         unlock["at"] = max(unlock["at"], started + max(0, seconds_for(final.level)))
-        shield.render(shield_view(final, False, rules, "vi"), reserve=True)
+        shield.render(view_of(final, False), reserve=True)
 
     def tick() -> None:
         if not top.winfo_exists():
@@ -311,6 +339,17 @@ def show_settings(root: tk.Tk | tk.Toplevel, cfg: Mapping[str, Any], on_save: Ca
         actions: Các tác vụ nút bấm, chạy trên luồng nền.
         on_close: Gọi khi người dùng đóng cửa sổ; mặc định hủy ``root`` (thoát chương trình).
     """
+    if cfg.get("guardian_enabled"):                # cửa sổ này tắt được bảo vệ: đang giám hộ thì phải có PIN
+        from .ui_guardian import ask_pin
+
+        parent = root if isinstance(root, tk.Toplevel) else tk.Toplevel(root)
+        parent.withdraw()
+        pin = ask_pin(parent, "Đang bật Bảo vệ Gia đình. Nhập mã PIN giám hộ để mở Cài đặt.")
+        if parent is not root:
+            parent.destroy()
+        if pin is None:
+            (on_close or root.destroy)()
+            return
     ui_font, _ = _fonts(root)
     working = dict(cfg)
     root.deiconify()

@@ -1,22 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chotto · link mở từ Zalo</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="shield.css">
+<link rel="stylesheet" href="guardian.css">
 <style>
 /* Bảng màu pastel giống app.html: oải hương + cam đào, chữ tím đậm. Ghi đè nhánh sáng của shield.css. */
-:root { color-scheme: light; --bg: #fbf6f1; --ink: #3a2547; --muted: #675a69; --line: rgba(58, 37, 71, .09); --line-strong: rgba(58, 37, 71, .22); --accent: #f28a3a; --accent-hi: #f69a52; --accent-ink: #2b1400; }
-body { background: #fbf6f1; color: #3a2547; }
-.shell { height: 100vh; display: flex; flex-direction: column;
-  background: radial-gradient(120% 55% at 100% 0%, #ffe3cf 0%, transparent 60%), radial-gradient(110% 50% at 0% 0%, #ebe3fb 0%, transparent 62%), #fbf6f1; }
-.scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(58, 37, 71, .28) transparent; }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fbf6f1; --surface: #fff; --surface2: #f5ece6; --ink: #3a2547; --muted: #675a69;
+  --line: rgba(58, 37, 71, .09); --line-strong: rgba(58, 37, 71, .22);
+  --accent: #f28a3a; --accent-hi: #f69a52; --accent-ink: #2b1400; --danger-ink: #b3262d;
+}
+.shell { height: 100vh; display: flex; flex-direction: column; }
+[data-theme="light"] .shell {
+  background: radial-gradient(120% 55% at 100% 0%, #ffe3cf 0%, transparent 60%), radial-gradient(110% 50% at 0% 0%, #ebe3fb 0%, transparent 62%), var(--bg); }
+.scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 .scroll .sh { box-sizing: border-box; min-height: 100%; padding-bottom: 32px; }
-.tb { color: #3a2547; }
-.tb .ctl svg { stroke: #3a2547; }
-.tb .ctl:hover { background: rgba(58, 37, 71, .07); }
+.tb { color: var(--ink); }
+.tb .ctl svg { stroke: var(--ink); }
+.tb .ctl:hover { background: var(--line); }
 .sh[data-theme="light"] { --bg: transparent; }          /* để lộ nền gradient của cửa sổ */
 </style>
 </head>
@@ -31,6 +37,7 @@ body { background: #fbf6f1; color: #3a2547; }
 </div>
 <script src="i18n.js"></script>
 <script src="shield.js"></script>
+<script src="guardian.js"></script>
 <script src="friction.js"></script>
 </body>
 </html>

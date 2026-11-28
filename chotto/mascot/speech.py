@@ -171,7 +171,8 @@ _RIM_RGB: Final[tuple[int, int, int]] = (255, 250, 242)
 _RIM_ALPHA: Final[int] = 235
 _TONE: Final[tuple[int, int, int]] = (138, 124, 150)   # chấm "screentone" đổ bóng trong ruột, dày dần về phía đáy-phải
 _TONE_BAND: Final[tuple[float, float]] = (11.0, 5.0)  # bề dày hai dải screentone (chấm nhỏ ngoài, chấm to sát viền)
-_FONT_FILES: Final[tuple[str, ...]] = ("segoeuib.ttf", "SegoeUI-Bold.ttf", "arialbd.ttf", "DejaVuSans-Bold.ttf")
+_FONT_FILES: Final[tuple[str, ...]] = ("segoeuib.ttf", "SegoeUI-Bold.ttf", "arialbd.ttf", "Arial Bold.ttf",   # macOS: Supplemental
+                                       "DejaVuSans-Bold.ttf")
 
 
 def layout(kind: str, text_w: int, text_h: int, u: float) -> tuple[int, int, int, int]:

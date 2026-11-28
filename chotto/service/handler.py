@@ -20,6 +20,7 @@ from typing import Final
 
 from ..platforms import Caller
 from ..config import Config, friction_seconds_for
+from ..guardian import OpenPolicy, open_policy
 from ..core.url import SUPPORTED_SCHEMES, URLParseError, get_scheme, parse_url
 from ..engine import Engine, Level, Result, Tier3Job, analysis_failed_result, safe_open_url
 
@@ -67,6 +68,8 @@ class LinkHandler:
     alert: Alert
     record: Recorder
     notify: Notifier | None = None           # báo cho nhân vật taskbar; lỗi ở đây không bao giờ ảnh hưởng quyết định
+    policy: Callable[[str], OpenPolicy] | None = None   # Guardian Mode theo mức rủi ro; mặc định theo ``cfg``
+    authorize: Callable[[], bool] | None = None         # PIN giám hộ vừa nhập có đúng không; thiếu = không
     _engine: Engine | None = field(default=None, init=False, repr=False)
 
     def _get_engine(self) -> Engine:
@@ -123,6 +126,25 @@ class LinkHandler:
         except Exception:  # noqa: BLE001 - phần trang trí không được chạm vào luồng chặn link
             _LOG.debug("Báo sự kiện cho nhân vật lỗi (bỏ qua)", exc_info=True)
 
+    def _policy(self, level: str) -> OpenPolicy:
+        """Chính sách Guardian cho ``level``; không đọc được thì coi như cấm."""
+        try:
+            return self.policy(level) if self.policy is not None else open_policy(self.cfg, level)
+        except Exception:  # noqa: BLE001 - lỗi ở chốt giám hộ phải đóng, không được mở
+            _LOG.exception("Không đọc được chính sách giám hộ, khóa liên kết")
+            return "deny"
+
+    def _may_open(self, level: str) -> bool:
+        """Chốt chặn cuối ở backend: giao diện bảo "mở" cũng chưa đủ khi đang giám hộ."""
+        policy = self._policy(level)
+        if policy != "pin":
+            return policy == "allow"
+        try:
+            return self.authorize is not None and self.authorize()
+        except Exception:  # noqa: BLE001
+            _LOG.exception("Xác thực PIN giám hộ lỗi, khóa liên kết")
+            return False
+
     def _open(self, url: str) -> bool:
         """Mở bằng trình duyệt thật; thất bại thì báo người dùng."""
         try:
@@ -149,7 +171,7 @@ class LinkHandler:
 
         Returns:
             Mã kết quả: ``rejected`` | ``forwarded`` | ``auto_open`` | ``proceed`` | ``cancel`` |
-            ``ui_failed_open`` | ``ui_failed_blocked``.
+            ``ui_failed_open`` | ``ui_failed_blocked`` | ``guardian_blocked``.
         """
         _LOG.info("NHAN link host=%s force=%s", host_for_log(url), force)
         if get_scheme(url) not in SUPPORTED_SCHEMES:
@@ -185,7 +207,7 @@ class LinkHandler:
         except Exception:  # noqa: BLE001 - giao diện hỏng: áp dụng chính sách fail-safe ở dưới
             self._safe_notify("warning_closed", result.level)
             _LOG.exception("Không hiển thị được màn hình đệm")
-            if result.tier_reached == 0:
+            if result.tier_reached == 0 and self._policy(result.level) == "allow":
                 self._safe_record(result, "ui_failed_open", 0)
                 self._open(result.open_url)
                 return "ui_failed_open"
@@ -195,8 +217,14 @@ class LinkHandler:
             return "ui_failed_blocked"
 
         self._safe_notify("warning_closed", shown.level)
+        refused = proceed and not self._may_open(shown.level)
+        if refused:
+            _LOG.warning("Guardian Mode từ chối lệnh mở (mức %s)", shown.level)
+            proceed = False
         _LOG.info("NGUOI DUNG chọn %s sau %sms (mức %s)", "MỞ" if proceed else "ĐÓNG", dwell_ms, shown.level)
         self._safe_record(shown, "proceed" if proceed else "cancel", dwell_ms)
+        if refused:
+            return "guardian_blocked"
         if not proceed:
             return "cancel"
         self._open(result.open_url)

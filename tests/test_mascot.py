@@ -476,8 +476,52 @@ class TaskbarMascotFailSafeTest(unittest.TestCase):
         self.assertEqual(validate_config({"mascot_startup": "off"})["mascot_startup"], "login")   # "Thủ công" đã bỏ
 
     def test_headless_has_no_support_off_windows(self) -> None:
-        with patch.object(mascot.taskbar.osw, "OVERLAY_SUPPORTED", False):
+        with patch.object(mascot.taskbar.ov, "SUPPORTED", False):
             self.assertFalse(mascot.supported())
+
+
+class MacPortTest(unittest.TestCase):
+    """Phần macOS chạy được kiểm tra trên mọi máy (không cần AppKit)."""
+
+    def test_runner_uses_main_root_on_mac(self) -> None:
+        from chotto.mascot import runner as runner_mod
+
+        root = object()
+        with patch.object(runner_mod.sys, "platform", "darwin"),                 patch.object(runner_mod, "TaskbarMascot") as fake, patch.object(runner_mod.threading, "Thread") as thread:
+            runner = runner_mod.MascotRunner(lambda: None, None, root)
+            runner.start()
+            runner.stop()
+        fake.assert_called_once()
+        self.assertIs(fake.call_args.args[0], root)               # không tạo tk.Tk ở luồng phụ (macOS sẽ sập)
+        thread.assert_not_called()
+        fake.return_value.stop.assert_called_once()
+
+    def test_runner_ignores_main_root_on_windows(self) -> None:
+        from chotto.mascot import runner as runner_mod
+
+        with patch.object(runner_mod.sys, "platform", "win32"):
+            self.assertIsNone(runner_mod.MascotRunner(lambda: None, None, object())._main_root)
+
+    def test_zalo_detection_on_mac(self) -> None:
+        from chotto import platforms
+        from chotto.platforms import cocoa_overlay
+
+        with patch.object(platforms.sys, "platform", "darwin"),                 patch.object(cocoa_overlay, "running_app_names", return_value={"zalo", "finder"}):
+            self.assertTrue(platforms.any_process_running(["zalo.exe"]))
+            self.assertFalse(platforms.any_process_running(["telegram.exe"]))
+
+    def test_work_area_converts_to_top_left_origin(self) -> None:
+        from types import SimpleNamespace
+
+        from chotto.platforms import cocoa_overlay
+
+        def rect(x: float, y: float, w: float, h: float) -> SimpleNamespace:
+            return SimpleNamespace(origin=SimpleNamespace(x=x, y=y), size=SimpleNamespace(width=w, height=h))
+
+        screen = SimpleNamespace(frame=lambda: rect(0, 0, 1512, 982), visibleFrame=lambda: rect(0, 70, 1512, 875))
+        appkit = SimpleNamespace(NSScreen=SimpleNamespace(screens=lambda: [screen]))
+        with patch.object(cocoa_overlay, "_appkit", return_value=appkit):
+            self.assertEqual(cocoa_overlay.work_area(), (0, 37, 1512, 912))   # menu 37 pt, Dock 70 pt
 
 
 class WiringTest(unittest.TestCase):

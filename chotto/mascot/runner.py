@@ -29,7 +29,10 @@ _STOP_TIMEOUT_S = 2.0
 class MascotRunner:
     """Giữ một ``TaskbarMascot`` chạy trên luồng nền có ``tk.Tk`` riêng. Mọi phương thức công khai đều không ném lỗi."""
 
-    def __init__(self, open_app: Callable[[], None], open_link: Callable[[str], None] | None = None) -> None:
+    def __init__(self, open_app: Callable[[], None], open_link: Callable[[str], None] | None = None,
+                 main_root: Any = None) -> None:
+        """``main_root``: cửa sổ Tk của luồng chính. Trên macOS Tk chỉ chạy ở luồng chính nên nhân vật dùng chung nó."""
+        self._main_root = main_root if sys.platform == "darwin" else None
         self._open_app = open_app
         self._open_link = open_link                 # gọi từ luồng nhân vật: chỉ được xếp hàng, không đụng Tk luồng chính
         self._mascot: TaskbarMascot | None = None
@@ -42,6 +45,14 @@ class MascotRunner:
         # Chu kỳ nhường GIL mặc định 5 ms: luồng khác (xử lý link, cập nhật danh sách đen...) đang tính toán thì mỗi khung hình của nhân vật
         # phải chờ hàng chục mili giây. Hạ xuống 0,5 ms: đo được 11 -> 53 khung/giây dưới tải nặng, chi phí không đáng kể cho agent này.
         sys.setswitchinterval(0.0005)
+        if self._main_root is not None:
+            try:
+                mascot = TaskbarMascot(self._main_root, self._open_app, self._open_link)
+                mascot.start()
+                self._root, self._mascot = self._main_root, mascot
+            except Exception:  # noqa: BLE001 - phần trang trí không được làm chết agent
+                _LOG.exception("Không khởi động được nhân vật")
+            return
         self._thread = threading.Thread(target=self._run, name="chotto-mascot-tk", daemon=True)
         self._thread.start()
         self._ready.wait(_START_TIMEOUT_S)
@@ -92,6 +103,12 @@ class MascotRunner:
     def stop(self) -> None:
         """Gỡ nhân vật và kết thúc luồng (agent thoát)."""
         if self._root is None or self._mascot is None:
+            return
+        if self._main_root is not None:                          # macOS: đang ở luồng chính rồi
+            try:
+                self._mascot.stop()
+            finally:
+                self._mascot = self._root = None
             return
         finished = threading.Event()
 

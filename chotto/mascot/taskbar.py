@@ -18,8 +18,7 @@ from typing import TYPE_CHECKING, Any, Final
 
 from ..config import MASCOT_DEFAULT_COLORS, MASCOT_FPS_RANGE, config_stamp, data_dir, load_config
 from ..platforms import any_process_running
-from ..platforms import win32_window as w32
-from ..platforms import window as osw
+from ..platforms import overlay as ov
 from ..util import clamp as _clamp
 from . import qr, speech
 from .brain import POSE_INDEX, WARNING_LEVELS, Frame, MascotBrain
@@ -40,7 +39,7 @@ _LOG = logging.getLogger("chotto")
 
 def supported() -> bool:
     """Máy này hiện được nhân vật không (hệ điều hành có cửa sổ overlay trong suốt + Pillow có ImageTk)."""
-    if not osw.OVERLAY_SUPPORTED:
+    if not ov.SUPPORTED:
         return False
     try:
         from PIL import ImageTk  # noqa: F401
@@ -174,7 +173,7 @@ class TaskbarMascot:
         self._stamp: tuple[int, int] | None = None
         self._window: Any = None
         self._canvas: Any = None
-        self._surface: w32.LayeredSurface | None = None
+        self._surface: Any = None                           # ``overlay.Surface`` (Win32 layered / Tk trong suốt trên macOS)
         self._brain: MascotBrain | None = None
         self._poses: list[Image.Image | None] | None = None       # từng tư thế đã tô (tư thế mới tô xong thì thay ngay, không đợi đủ bốn)
         self._incoming: collections.deque[tuple[tuple[str, ...], int, Image.Image]] = collections.deque()
@@ -191,7 +190,7 @@ class TaskbarMascot:
         self._unit = 1.0
         self._area: tuple[int, int, int, int] = (0, 0, 0, 0)
         self._size: tuple[int, int] = (1, 1)
-        self._hwnd = 0
+        self._hwnd: Any = 0                   # tay cầm cửa sổ (``overlay.handle``)
         self._pinned = False
         self._pos = 0.85                      # vị trí cố định, tỉ lệ 0..1 trên vùng chạy
         self._placing = False
@@ -300,7 +299,7 @@ class TaskbarMascot:
         self._switch_on = bool(cfg["mascot_enabled"])
         self._startup = cfg["mascot_startup"]
         self._frame_s = 1 / _clamp(float(cfg["mascot_fps"]), *map(float, MASCOT_FPS_RANGE))
-        self._zalo_names = tuple(cfg["zalo_processes"])
+        self._zalo_names = tuple(cfg["zalo_processes"]) + tuple(cfg["zalo_bundle_ids"])     # macOS so cả bundle id
         timing = (float(cfg["mascot_sleep_s"]), float(cfg["mascot_run_s"]))
         if timing != self._timing:                              # lưu cài đặt khác không được làm lại giấc ngủ đang dở
             self._timing = timing
@@ -344,12 +343,12 @@ class TaskbarMascot:
 
     def _show(self) -> None:
         if not supported():
-            _LOG.info("Nhân vật taskbar không khả dụng trên máy này (cần Windows + Pillow), bỏ qua")
+            _LOG.info("Nhân vật không khả dụng trên máy này (cần Windows/macOS + Pillow), bỏ qua")
             self._broken = True
             return
         self._enabled = True
         self._presented = None
-        previous = w32.foreground_window()                      # lấy TRƯỚC khi dựng cửa sổ (dựng xong có thể đã thành foreground)
+        previous = ov.foreground()                      # lấy TRƯỚC khi dựng cửa sổ (dựng xong có thể đã thành foreground)
         if self._window is None:
             self._build()
         self._place_bounds()
@@ -413,14 +412,15 @@ class TaskbarMascot:
         self._stamp = config_stamp()
 
     def _give_back_focus(self, previous: int) -> None:
-        if previous and previous != self._hwnd and w32.foreground_window() == self._hwnd:
-            w32.set_foreground(previous)
+        own = ov.own(self._hwnd)
+        if previous and previous != own and ov.foreground() == own:
+            ov.set_foreground(previous)
 
     def _set_fine(self, on: bool) -> None:
         """Bộ hẹn giờ 1 ms chỉ bật lúc đang chạy/giật mình (cặp bật/tắt luôn cân bằng)."""
         if on != self._fine:
             self._fine = on
-            w32.fine_timer(on)
+            ov.fine_timer(on)
 
     def _hide(self) -> None:
         self._enabled = False
@@ -436,7 +436,7 @@ class TaskbarMascot:
     def _build(self) -> None:
         import tkinter as tk
 
-        dpi = w32.system_dpi_scale()
+        dpi = ov.dpi_scale()
         self._scale = _BASE_SCALE * dpi
         self._unit = self._scale / _DESIGN_SCALE
         big = self._scale * _STOP_MUL            # khung phải chứa được tư thế to nhất
@@ -449,25 +449,28 @@ class TaskbarMascot:
         canvas = tk.Canvas(window, width=width, height=height, highlightthickness=0, bd=0)       # chỉ để nhận chuột; hình vẽ qua LayeredSurface
         canvas.pack()
         canvas.bind("<Button-3>", lambda e: self._safe(lambda: self._menu(e.x_root, e.y_root)))
+        canvas.bind("<Button-2>", lambda e: self._safe(lambda: self._menu(e.x_root, e.y_root)))       # macOS: chuột phải là Button-2
+        canvas.bind("<Control-Button-1>", lambda e: self._safe(lambda: self._menu(e.x_root, e.y_root)))
         canvas.bind("<Double-Button-1>", lambda e: None if self._placing else self._safe(self._open_choices))
         canvas.bind("<ButtonPress-1>", lambda e: self._safe(lambda: self._press(e)))
         canvas.bind("<B1-Motion>", lambda e: self._safe(lambda: self._motion(e)))
         canvas.bind("<ButtonRelease-1>", lambda e: self._safe(lambda: self._release(e)))
         window.update_idletasks()
-        self._hwnd = w32.toplevel_hwnd(int(window.winfo_id()))
-        w32.make_tool_window(self._hwnd)
-        w32.enable_layered(self._hwnd)
-        self._surface = w32.LayeredSurface(self._hwnd, width, height)
+        self._hwnd = ov.handle(window)
+        ov.make_tool_window(self._hwnd)
+        ov.enable_layered(self._hwnd)
+        self._surface = ov.Surface(self._hwnd, width, height)
         self._window, self._canvas = window, canvas
         self._size = (width, height)
-        self._brain = MascotBrain(0, 1, unit=self._unit, reduced_motion=not w32.animations_enabled())
+        self._brain = MascotBrain(0, 1, unit=self._unit, reduced_motion=not ov.animations_enabled())
         self._brain.set_timing(*self._timing)
         self._bubble = SpeechBubble(self._root, dpi, self._on_chat_change)
-        self._panel = ActionPanel(self._root, dpi, self._on_panel_change)
-        self._scan = QrScan(self._root, dpi, self._safe, self._on_capturing, self._on_qr_reading, self._on_qr_report)
+        if ov.QR_SUPPORTED:                     # bảng chọn nhanh chỉ để chọn giữa quét QR và hỏi đáp
+            self._panel = ActionPanel(self._root, dpi, self._on_panel_change)
+            self._scan = QrScan(self._root, dpi, self._safe, self._on_capturing, self._on_qr_reading, self._on_qr_report)
 
     def _place_bounds(self) -> None:
-        self._area = w32.taskbar_work_area()
+        self._area = ov.work_area()
         left, _top, right, _bottom = self._area
         half = self._size[0] / 2
         if self._brain is not None:
@@ -482,7 +485,8 @@ class TaskbarMascot:
         open_label, hide_label = _MENU.get(self._lang, _MENU["en"])
         words = qr.texts(self._lang)
         menu = tk.Menu(self._window, tearoff=0)
-        menu.add_command(label=words["scan"], command=lambda: self._safe(self._start_scan))
+        if ov.QR_SUPPORTED:
+            menu.add_command(label=words["scan"], command=lambda: self._safe(self._start_scan))
         menu.add_command(label=words["ask"], command=lambda: self._safe(self._open_chat))
         menu.add_command(label=open_label, command=lambda: self._safe(self._open_app))
         menu.add_command(label=hide_label, command=lambda: self._safe(self._hide_by_user))
@@ -536,7 +540,10 @@ class TaskbarMascot:
             self._bubble.hide()
 
     def _open_choices(self) -> None:
-        """Nhấn đúp: hai ô "Quét QR" và "Hỏi Chotto"."""
+        """Nhấn đúp: hai ô "Quét QR" và "Hỏi Chotto" (máy không quét được QR thì mở thẳng ô chat)."""
+        if not ov.QR_SUPPORTED:
+            self._open_chat()
+            return
         if self._panel is None or not self._enabled or self._placing or self._capturing():
             return
         self._cancel_scan()
