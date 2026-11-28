@@ -17,8 +17,9 @@ class Tiers(private val inspector: LinkInspector, private val blacklistLookup: (
         val original = Url.parse(raw) ?: return inspector.unparseable(raw) to null
         val a = inspector.analyze(original)
 
-        // Tầng 1: mọi mắt xích trong chuỗi + URL nhúng.
-        val toCheck = a.chain + a.chain.flatMap { inspector.embeddedUrls(it) }
+        // Đích cuối + URL nhúng. Mắt xích trước đó là dịch vụ bọc link đã bóc được (rules.wrappers), mà danh
+        // sách đen hay liệt kê (l.instagram.com, href.li...) vì bị lợi dụng chuyển hướng: tra chúng sẽ chặn nhầm.
+        val toCheck = listOf(a.final) + a.chain.flatMap { inspector.embeddedUrls(it) }
         val hit = toCheck.firstOrNull { blacklistLookup(it.host, it.path) != null }
         if (hit != null) {
             val sig = LinkInspector.Signal("blacklist", 100, "Tên miền nằm trong danh sách lừa đảo đã được cộng đồng báo cáo")

@@ -197,7 +197,9 @@ export class Engine {
     const degraded = [];
     const final = unwrapped.final;
 
-    const toCheck = [...unwrapped.chain];
+    // Đích cuối + URL nhúng. Mắt xích trước đó là dịch vụ bọc link đã bóc được (rules.wrappers), mà danh sách
+    // đen hay liệt kê (l.instagram.com, href.li...) vì bị lợi dụng chuyển hướng: tra chúng sẽ chặn nhầm link sạch.
+    const toCheck = [final];
     for (const item of unwrapped.chain) toCheck.push(...tier2.embeddedUrls(item));
     /** @type {string | null} */
     let hitHost = null;

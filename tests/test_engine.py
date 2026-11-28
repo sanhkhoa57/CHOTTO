@@ -40,6 +40,43 @@ class BrokenBlacklist(Blacklist):
         raise BlacklistError("hỏng")
 
 
+class SetBlacklist(Blacklist):
+    """Danh sách đen giả: khớp đúng host hoặc tên miền cha nằm trong tập."""
+
+    def __init__(self, hosts: set[str]) -> None:  # noqa: D107 - không mở file thật
+        self.hosts = hosts
+
+    def lookup(self, host: str, path: str = "") -> str | None:
+        labels = host.split(".")
+        return next((".".join(labels[i:]) for i in range(len(labels)) if ".".join(labels[i:]) in self.hosts), None)
+
+
+class WrapperBlacklistTests(unittest.TestCase):
+    """Dịch vụ bọc link (l.instagram.com...) hay bị liệt kê trong danh sách đen vì bị lợi dụng chuyển hướng."""
+
+    BL = {"l.instagram.com", "href.li", "evil-phish.top"}
+    IG = ("https://l.instagram.com/?u=https%3A%2F%2F{}%2F%3Ffbclid%3DPAZXh0bgNhZW0CMTEAAaZabc123_def456"
+          "&e=AT0aBcDeFgHiJkLmNoPqRsTuVwXyZ-0123456789abcdefghijklmnopqrstuvwxyzABCDEF_qrstuvwxyz0123456789")
+
+    def test_clean_link_wrapped_by_instagram_is_not_blocked(self) -> None:
+        result = engine(blacklist=SetBlacklist(self.BL)).inspect(self.IG.format("chotto.id.vn"))
+        self.assertEqual(result.final_url.split("?")[0], "https://chotto.id.vn/")
+        self.assertNotEqual(result.score, 100)
+        self.assertEqual(result.level, "SAFE")
+
+    def test_phishing_link_wrapped_by_instagram_is_still_blocked(self) -> None:
+        result = engine(blacklist=SetBlacklist(self.BL)).inspect(self.IG.format("login.evil-phish.top"))
+        self.assertEqual((result.level, result.host, result.tier_reached), ("BLOCKED", "login.evil-phish.top", 1))
+
+    def test_double_wrapped_phishing_is_still_blocked(self) -> None:
+        url = "https://href.li/?https://l.instagram.com/?u=https%3A%2F%2Fevil-phish.top%2Fotp"
+        self.assertEqual(engine(blacklist=SetBlacklist(self.BL)).inspect(url).level, "BLOCKED")
+
+    def test_blacklisted_wrapper_that_cannot_unwrap_is_still_blocked(self) -> None:
+        result = engine(blacklist=SetBlacklist(self.BL)).inspect("https://l.instagram.com/?u=khong-phai-url")
+        self.assertEqual(result.level, "BLOCKED")
+
+
 class OriginalBehaviourTests(unittest.TestCase):
     def test_official_and_trusted_safe(self) -> None:
         for url in ("https://vietcombank.com.vn/", "https://online.mbbank.com.vn/x", "https://google.com/",

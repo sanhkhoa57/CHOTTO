@@ -86,6 +86,25 @@ class LinkInspectorTest {
         assertEquals(bl.size, FingerprintSet.fromBytes(bl.toBytes())!!.size)
     }
 
+    /** Dịch vụ bọc link hay nằm trong danh sách đen (bị lợi dụng chuyển hướng): chỉ đích thật mới bị tra. */
+    @Test fun blacklistedWrapperDoesNotBlockCleanTarget() {
+        val bl = FingerprintSet.of(
+            listOf("l.instagram.com", "href.li", "evil-phish.top").map(FingerprintSet::fingerprint).toLongArray(),
+        )
+        val tiers = Tiers(LinkInspector(rules)) { host, path -> bl.lookup(host, path, rules.psl) }
+        fun ig(target: String) =
+            "https://l.instagram.com/?u=https%3A%2F%2F$target%2F%3Ffbclid%3DPAZXh0bgNhZW0&e=AT0aBcDeFg-0123456789_xyz"
+        val clean = tiers.fast(ig("chotto.id.vn"), tier3Enabled = false).first
+        assertEquals("https://chotto.id.vn/", clean.finalUrl.substringBefore("?"))
+        assertEquals(LinkInspector.Level.SAFE, clean.level)
+        val phish = tiers.fast(ig("login.evil-phish.top"), tier3Enabled = false).first
+        assertEquals(LinkInspector.Level.BLOCKED, phish.level)
+        assertEquals("login.evil-phish.top", phish.host)
+        val nested = "https://href.li/?https://l.instagram.com/?u=https%3A%2F%2Fevil-phish.top%2Fotp"
+        assertEquals(LinkInspector.Level.BLOCKED, tiers.fast(nested, tier3Enabled = false).first.level)
+        assertEquals(LinkInspector.Level.BLOCKED, tiers.fast("https://l.instagram.com/?u=khong-phai-url", tier3Enabled = false).first.level)
+    }
+
     @Test fun blacklistEntryFormats() {
         assertEquals("evil.top" to null, BlacklistEntry.keys("||evil.top^"))
         assertEquals("evil.top" to "/a", BlacklistEntry.keys("https://evil.top/a/"))

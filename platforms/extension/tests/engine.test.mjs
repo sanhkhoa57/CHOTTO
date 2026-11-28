@@ -194,6 +194,28 @@ test("Pipeline: Tầng 3 cộng điểm tên miền mới, lời khuyên tắt k
   assert.deepEqual(fallback.degraded, ["tier1"]);
   assert.notEqual(fallback.level, "SAFE");
 
+  // Dịch vụ bọc link hay nằm trong danh sách đen (bị lợi dụng chuyển hướng): chỉ đích thật mới bị tra.
+  const listed = new Set(["l.instagram.com", "href.li", "evil-phish.top"]);
+  const wrapperEngine = new (await import("../src/engine/engine.js")).Engine({
+    rules: data.rules, advice: data.advice, settings: { tier3Enabled: false, aiAdvice: true },
+    blacklist: async () => ({
+      lookup: async (host) => {
+        const labels = host.split(".");
+        for (let i = 0; i < labels.length; i++) if (listed.has(labels.slice(i).join("."))) return labels.slice(i).join(".");
+        return null;
+      },
+    }),
+  });
+  const ig = (target) => `https://l.instagram.com/?u=https%3A%2F%2F${target}%2F%3Ffbclid%3DPAZXh0bgNhZW0&e=AT0aBcDeFg-0123456789_xyz`;
+  const clean = await wrapperEngine.inspect(ig("chotto.id.vn"));
+  assert.equal(clean.finalUrl.split("?")[0], "https://chotto.id.vn/");
+  assert.equal(clean.level, "SAFE");
+  const phish = await wrapperEngine.inspect(ig("login.evil-phish.top"));
+  assert.equal(phish.level, "BLOCKED");
+  assert.equal(phish.host, "login.evil-phish.top");
+  assert.equal((await wrapperEngine.inspect("https://href.li/?https://l.instagram.com/?u=https%3A%2F%2Fevil-phish.top%2Fotp")).level, "BLOCKED");
+  assert.equal((await wrapperEngine.inspect("https://l.instagram.com/?u=khong-phai-url")).level, "BLOCKED");
+
   const unparseable = await engine.inspect("https://exa mple.com/");
   assert.equal(unparseable.level, "WARN");
   assert.equal(unparseable.tierReached, 0);

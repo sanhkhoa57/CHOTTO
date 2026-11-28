@@ -278,8 +278,11 @@ class Engine:
         degraded: list[str] = []
         final = unwrapped.final
 
-        # --- Tầng 1: mọi mắt xích + URL nhúng ---
-        to_check = list(unwrapped.chain)
+        # --- Tầng 1: đích cuối + URL nhúng ---
+        # Các mắt xích trước đích cuối là dịch vụ bọc link đã bóc được (``rules["wrappers"]``, không ai đăng ký
+        # được). Danh sách đen hay liệt kê chính chúng (``l.instagram.com``, ``href.li``...) vì kẻ gian lợi dụng
+        # để chuyển hướng; tra chúng sẽ chặn nhầm link sạch được bọc. Đích thật vẫn được tra.
+        to_check = [final]
         for item in unwrapped.chain:
             to_check.extend(tier2.embedded_urls(item))
         try:
