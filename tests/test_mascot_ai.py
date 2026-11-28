@@ -441,6 +441,23 @@ class CatalogTests(_TempData):
         self.assertFalse((Path(self.tmp) / "local_ai" / "server.json").exists())
         self.assertFalse(local_ai._pid_is_llama(os.getpid()))             # chính tiến trình test không phải llama-server
 
+    def test_stop_unless_reads_choice_inside_lock(self) -> None:
+        server = local_ai.LocalServer()
+        proc = MagicMock()
+        proc.poll.return_value = None
+        server._proc, server._model = proc, "qwen2.5-3b"  # noqa: SLF001
+        seen: list[bool] = []
+
+        def keep(model_id: str) -> bool:
+            seen.append(server._lock.locked())  # noqa: SLF001
+            return model_id == "qwen2.5-3b"
+
+        server.stop_unless(keep)
+        proc.terminate.assert_not_called()
+        server.stop_unless(lambda _m: False)
+        proc.terminate.assert_called_once()
+        self.assertEqual(seen, [True])
+
     def test_ensure_requires_files(self) -> None:
         with self.assertRaises(local_ai.LocalAIError) as caught:
             local_ai.LocalServer().ensure(local_ai.CATALOG[0], wait_s=0.1)
@@ -533,7 +550,9 @@ class DownloadTests(_TempData):
         link.type, link.linkname = tarfile.SYMTYPE, "libggml.1.dylib"           # như gói thật: liên kết trong cùng thư mục
         out = Path(self.tmp) / "ok"
         local_ai.safe_extract(build("ok.tar.gz", [exe, lib, link]), out)
-        self.assertTrue((out / "llama-b1" / "libggml.dylib").is_symlink())
+        linked = out / "llama-b1" / "libggml.dylib"
+        # Windows không có quyền tạo symlink (thiếu Developer Mode): tarfile chép luôn file đích, vẫn dùng được.
+        self.assertTrue(linked.is_symlink() or (sys.platform == "win32" and linked.is_file()))
         self.assertTrue(os.access(out / "llama-b1" / "llama-server", os.X_OK))
 
         evil = tarfile.TarInfo("llama-b1/evil")

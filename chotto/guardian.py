@@ -30,7 +30,7 @@ from typing import Any, Final, Literal
 from .config import data_dir
 from .platforms import dpapi
 
-__all__ = ["LOCKOUT_S", "MAX_FAILURES", "RECOVERY_ALPHABET", "AuthResult", "GuardianError", "OpenPolicy",
+__all__ = ["LOCKOUT_S", "MAX_FAILURES", "RECOVERY_ALPHABET", "AuthResult", "GuardianError", "OpenPolicy", "PinRequired",
            "change_pin", "confirm", "has_pin", "is_corrupt", "lockout_remaining", "needs_pin", "normalize_recovery_key", "open_policy",
            "recover", "screen_info", "setup", "strictest", "valid_pin", "verify_pin"]
 
@@ -52,6 +52,10 @@ AuthError = Literal["", "wrong", "locked", "unavailable", "invalid_pin"]
 
 class GuardianError(RuntimeError):
     """Thao tác không hợp lệ (đặt PIN khi đã có, PIN sai định dạng) hoặc không ghi được dữ liệu."""
+
+
+class PinRequired(GuardianError):
+    """Thao tác cần PIN giám hộ (Guardian Mode đang bật lúc thực hiện) mà người gọi chưa kiểm PIN."""
 
 
 @dataclass(frozen=True, slots=True)

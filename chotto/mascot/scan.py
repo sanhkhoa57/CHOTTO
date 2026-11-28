@@ -68,13 +68,23 @@ class QrScan:
             return
         try:
             image, origin, scale = snip.grab_screen()
-            self._overlay = snip.SnipOverlay(self._root, image, origin, qr.texts(self._lang)["hint"], self._u,
-                                             lambda picked: self._safe(lambda: self._picked(generation, picked)), scale)
+            def register(overlay: snip.SnipOverlay) -> None:
+                # Ghi nhận trước khi hàm dựng xử lý sự kiện Tk (macOS: update() có thể mở màn cảnh báo rồi gọi cancel()).
+                self._overlay = overlay
+
+            overlay = snip.SnipOverlay(self._root, image, origin, qr.texts(self._lang)["hint"], self._u,
+                                       lambda picked: self._safe(lambda: self._picked(generation, picked)), scale,
+                                       register=register)
+            if generation != self._generation:          # lượt đã bị hủy trong lúc dựng: không để lớp phủ sót lại
+                overlay.cancel()
+                return
         except snip.ScreenPermissionError:          # macOS: chưa cấp quyền Ghi màn hình (Cài đặt vừa được mở sẵn)
             _LOG.info("Chưa có quyền Ghi màn hình để quét QR")
             self._end_capture()
             self._on_report(qr.QrReport("failed", qr.texts(self._lang)["permission"]))
         except Exception:  # noqa: BLE001 - không chụp/dựng được lớp phủ: báo lỗi, nhân vật chạy tiếp
+            if generation != self._generation:          # bị hủy giữa lúc dựng (cửa sổ đã đóng): không báo lỗi
+                return
             _LOG.exception("Không mở được chế độ chọn vùng quét QR")
             self._end_capture()
             self._on_report(qr.QrReport("failed", qr.texts(self._lang)["failed"]))

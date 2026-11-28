@@ -121,15 +121,10 @@ def save_api_key(key: str) -> None:
     path = data_dir() / _KEY_FILE
     key = key.strip()
     if sys.platform == "darwin":
-        _keychain("delete-generic-password", "-s", _KEYCHAIN_SERVICE)
-        if key:
-            # Khóa đi qua stdin của lệnh "security -i" (không lộ trong danh sách tiến trình như khi đặt ở tham số).
-            line = f'add-generic-password -U -a chotto -s {_KEYCHAIN_SERVICE} -w "{key}"\n'
-            if '"' in key or "\\" in key:
-                raise OSError("Khóa có ký tự không hợp lệ")
-            done = _keychain("-i", stdin=line)
-            if done.returncode != 0:
-                raise OSError(done.stderr.strip() or "Không lưu được vào Keychain")
+        try:
+            _save_keychain(key)
+        except subprocess.SubprocessError as exc:              # vd. hết giờ chờ Keychain (bị khóa, hỏi mật khẩu)
+            raise OSError(f"Keychain không phản hồi: {exc}") from exc
         return
     if not key:
         path.unlink(missing_ok=True)
@@ -140,11 +135,32 @@ def save_api_key(key: str) -> None:
     tmp.replace(path)
 
 
+def _save_keychain(key: str) -> None:
+    """macOS: lưu/xóa khóa trong Keychain đăng nhập (ghi xong thì đọc lại để xác minh)."""
+    if not key:
+        done = _keychain("delete-generic-password", "-a", "chotto", "-s", _KEYCHAIN_SERVICE)
+        # 0 = đã xóa, 44 = errSecItemNotFound (vốn không có). Mã khác (bị từ chối...) = khóa có thể còn.
+        if done.returncode not in (0, 44):
+            raise OSError(done.stderr.strip() or "Không xóa được khóa khỏi Keychain")
+        # 44 có thể che lỗi tra cứu: đọc lại, còn đọc được khóa thì báo lỗi chứ không báo "đã xóa".
+        check = _keychain("find-generic-password", "-a", "chotto", "-s", _KEYCHAIN_SERVICE).returncode
+        if check != 44:                               # 0 = vẫn còn; mã khác = không tra được: đều không báo "đã xóa"
+            raise OSError("Khóa vẫn còn trong Keychain" if check == 0 else "Không kiểm được Keychain")
+        return
+    # Kiểm khóa mới TRƯỚC, rồi "-U" ghi đè tại chỗ: khóa mới hỏng hay ghi lỗi thì khóa cũ vẫn còn.
+    if '"' in key or "\\" in key:
+        raise OSError("Khóa có ký tự không hợp lệ")
+    # Khóa đi qua stdin của lệnh "security -i" (không lộ trong danh sách tiến trình như khi đặt ở tham số).
+    done = _keychain("-i", stdin=f'add-generic-password -U -a chotto -s {_KEYCHAIN_SERVICE} -w "{key}"\n')
+    if done.returncode != 0 or load_api_key() != key:      # "security -i" có thể trả 0 dù lệnh bên trong lỗi
+        raise OSError(done.stderr.strip() or "Không lưu được vào Keychain")
+
+
 def load_api_key() -> str | None:
     """Khóa đã giải mã, ``None`` nếu chưa có hoặc không giải được (file của tài khoản/máy khác)."""
     if sys.platform == "darwin":
         try:
-            found = _keychain("find-generic-password", "-s", _KEYCHAIN_SERVICE, "-w")
+            found = _keychain("find-generic-password", "-a", "chotto", "-s", _KEYCHAIN_SERVICE, "-w")   # cùng mục lưu/xóa
         except (OSError, subprocess.SubprocessError):
             return None
         return found.stdout.strip() or None if found.returncode == 0 else None

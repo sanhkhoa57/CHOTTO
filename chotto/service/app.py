@@ -14,12 +14,13 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
 from collections.abc import Callable
 from concurrent.futures import Future
 from typing import TYPE_CHECKING, Any, Final
 
 from .. import guardian, logdb, platforms
-from ..config import SETTINGS_KEYS, Config, config_stamp, load_config, load_rules, save_config
+from ..config import SETTINGS_KEYS, Config, config_stamp, load_config, load_rules, config_lock, update_config
 from ..messages import msg
 from ..platforms import Caller, detect_caller
 from ..platforms import window as osw
@@ -55,15 +56,36 @@ def _record_desktop(cfg: Config) -> Callable[[Result, str, int], bool]:
     return record
 
 
-def save_settings(values: dict[str, Any]) -> None:
+def save_settings(values: dict[str, Any], pin_verified: bool = False) -> bool:
     """Lưu các khóa của cửa sổ cài đặt lên cấu hình mới nhất trên đĩa (không ghi đè trình duyệt đã lưu).
+
+    Đọc, kiểm chốt Guardian và ghi trong cùng một khóa (``update_config``): chốt xét trên chính bản cấu hình sắp ghi,
+    không tin bản người gọi đã xem (cửa sổ khác có thể vừa bật Guardian Mode).
+
+    Args:
+        values: Các khóa muốn đổi.
+        pin_verified: Người gọi đã kiểm đúng PIN giám hộ cho lần lưu này.
+
+    Returns:
+        ``False`` (không ghi gì) nếu thay đổi cần PIN mà ``pin_verified`` sai.
 
     Raises:
         OSError: Không ghi được ``config.json``.
     """
-    current: dict[str, Any] = dict(load_config())
-    current.update({key: values[key] for key in SETTINGS_KEYS if key in values})
-    save_config(current)
+    from ..config import validate_config
+
+    def change(cfg: dict[str, Any]) -> bool:
+        live = validate_config(cfg)
+        cfg.update({key: values[key] for key in SETTINGS_KEYS if key in values})
+        if not pin_verified and guardian.needs_pin(live, validate_config(cfg)):
+            _LOG.warning("Lưu cài đặt cần PIN giám hộ (Guardian Mode vừa bật?): không lưu")
+            return False
+        return True
+
+    return update_config(change)
+
+
+_BROWSER_KEYS: Final[tuple[str, ...]] = ("browser_progid", "browser_command", "browser_bundle_id")
 
 
 def install_action(lang: str = "vi") -> str:
@@ -73,20 +95,55 @@ def install_action(lang: str = "vi") -> str:
         PlatformSetupError: Không đăng ký được.
         OSError: Không lưu được cấu hình.
     """
-    cfg: dict[str, Any] = dict(load_config())
-    detail = platforms.install(cfg)
-    save_config(cfg)
+    scratch: dict[str, Any] = dict(load_config())
+    detail = platforms.install(scratch)               # chạy ngoài khóa (có thể chậm); chỉ ghi lại trình duyệt đã ghi nhớ
+    update_config(lambda cfg: cfg.update({key: scratch[key] for key in _BROWSER_KEYS}))
     return detail if lang == "vi" else msg(lang, "installed")
 
 
-def uninstall_action(lang: str = "vi", stop_agent: bool = True) -> str:
-    """Tác vụ gỡ đăng ký: gỡ handler, tắt tự khởi động và tắt agent đang chạy.
+def handler_released(wait_s: float = 0.0) -> bool:
+    """CHOTTO đã thôi nhận link chưa (đợi tối đa ``wait_s`` giây: macOS hỏi người dùng, trả lời có thể đến sau).
+
+    Không biết (``None``) thì coi như CHƯA: giữ agent để link từ Zalo vẫn được bảo vệ.
+    """
+    deadline = time.monotonic() + wait_s
+    while True:
+        if platforms.handler_released() is True:
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.5)
+
+
+def finish_uninstall() -> bool:
+    """Sau khi gỡ đăng ký: CHOTTO hết nhận link thì tắt tự khởi động và trả ``True`` (người gọi tắt agent); người dùng từ
+    chối đổi trình duyệt (macOS) hay không biết chắc thì giữ nguyên agent và tự khởi động.
+    """
+    if handler_released(_RELEASE_WAIT_S if sys.platform == "darwin" else 0.0):
+        platforms.disable_autostart()
+        return True
+    _LOG.warning("Đã gỡ đăng ký nhưng chưa chắc CHOTTO hết nhận link (người dùng từ chối?): giữ agent chạy")
+    return False
+
+
+_RELEASE_WAIT_S: Final[float] = 60.0      # macOS: thời gian chờ người dùng trả lời hộp thoại đổi trình duyệt
+
+
+def uninstall_action(lang: str = "vi", stop_agent: bool = True, pin_verified: bool = False) -> str:
+    """Tác vụ gỡ đăng ký: gỡ handler, tắt tự khởi động và tắt agent đang chạy (nếu CHOTTO thật sự hết nhận link).
 
     ``stop_agent=False``: cửa sổ ứng dụng HTML gọi (nó là tiến trình con của agent, tắt agent ngay thì
     cửa sổ đóng theo); agent tự tắt khi cửa sổ đó đóng (``settings_closed`` kèm ``quit``).
+
+    Raises:
+        guardian.PinRequired: Guardian Mode đang bật (xét lúc thực hiện, trong khóa cấu hình) mà chưa kiểm PIN.
     """
-    detail = platforms.uninstall(load_config())
-    if stop_agent:
+    with config_lock():                                  # không ai bật Guardian xen giữa lúc kiểm và lúc gỡ
+        cfg = load_config()
+        if cfg["guardian_enabled"] and not pin_verified:
+            raise guardian.PinRequired("Cần mã PIN giám hộ để hủy đăng ký")
+        detail = platforms.uninstall(cfg)
+    if stop_agent and finish_uninstall():
         agent_mod.stop_agent()
     return detail if lang == "vi" else msg(lang, "uninstalled")
 
@@ -98,13 +155,43 @@ def update_action(lang: str = "vi") -> str:
 
 
 def export_action(path: str, lang: str = "vi") -> str:
-    """Tác vụ xuất nhật ký ra ``path``."""
-    return msg(lang, "exported", count=logdb.export_csv(path), path=path)
+    """Tác vụ xuất nhật ký ra ``path`` (cửa sổ HTML, Tk và lệnh ``export-log`` đều qua đây).
+
+    Raises:
+        OSError: Không ghi được, hoặc ``path`` nằm trong thư mục dữ liệu của CHOTTO (đè lên ``config.json`` hay
+            ``guardian.bin`` là phá được Bảo vệ Gia đình mà không cần PIN).
+    """
+    target = Path(path).resolve()
+    if _inside_data_dir(target):
+        raise OSError(f"Không được ghi vào thư mục dữ liệu của CHOTTO: {target}")
+    return msg(lang, "exported", count=logdb.export_csv(target), path=str(target))
 
 
-def clear_log_action(lang: str = "vi") -> str:
-    """Tác vụ xóa toàn bộ nhật ký quyết định."""
-    logdb.clear()
+def _inside_data_dir(target: Path) -> bool:
+    """``target`` nằm trong thư mục dữ liệu: so theo định danh trên đĩa (``samefile``), nên chữ hoa/thường khác
+    (APFS, NTFS không phân biệt) hay đường dẫn vòng vẫn bị nhận ra."""
+    from ..config import data_dir
+
+    home = data_dir()
+    for folder in (target, *target.parents):
+        try:
+            if folder.exists() and os.path.samefile(folder, home):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def clear_log_action(lang: str = "vi", pin_verified: bool = False) -> str:
+    """Tác vụ xóa toàn bộ nhật ký quyết định.
+
+    Raises:
+        guardian.PinRequired: Guardian Mode đang bật mà chưa kiểm PIN (xóa nhật ký là giấu hoạt động).
+    """
+    with config_lock():
+        if load_config()["guardian_enabled"] and not pin_verified:
+            raise guardian.PinRequired("Cần mã PIN giám hộ để xóa nhật ký")
+        logdb.clear()
     return msg(lang, "cleared")
 
 
@@ -192,7 +279,7 @@ def _settings_actions() -> SettingsActions:
     """Các tác vụ nút bấm của cửa sổ cài đặt."""
     from .. import ui
 
-    return ui.SettingsActions(install=install_action, uninstall=uninstall_action,
+    return ui.SettingsActions(install=install_action, uninstall=lambda verified: uninstall_action(pin_verified=verified),
                               update_blacklist=update_action, export_log=export_action)
 
 
@@ -401,7 +488,9 @@ def _start_mascot(open_app: Callable[[], None], web: WebUI | None,
         if web is not None:
             def changed() -> None:
                 mascot.request_reload()
-                _stop_local_ai_unless_selected()
+                # Luồng riêng: hàm này chạy trên luồng đọc đường ống của giao diện (nhận cả quyết định ở màn cảnh báo),
+                # mà SERVER.stop() phải đợi khóa của ensure() đang nạp model (tới 2 phút).
+                threading.Thread(target=_stop_local_ai_unless_selected, name="chotto-local-ai-stop", daemon=True).start()
 
             web.on_config_changed = changed
         mascot.start()
@@ -416,13 +505,11 @@ def _stop_local_ai_unless_selected(force: bool = False) -> None:
     try:
         from ..mascot import local_ai
 
-        cfg = load_config()
-        if force or cfg["mascot_ai_mode"] != "local":
-            local_ai.SERVER.stop()
-        else:
-            for model in local_ai.CATALOG:
-                if model.id != cfg["mascot_local_model"]:
-                    local_ai.SERVER.stop_if_model(model.id)
+        def keep(model_id: str) -> bool:
+            cfg = load_config()
+            return not force and cfg["mascot_ai_mode"] == "local" and cfg["mascot_local_model"] == model_id
+
+        local_ai.SERVER.stop_unless(keep)
     except Exception:  # noqa: BLE001 - chỉ là dọn dẹp
         _LOG.exception("Không tắt được AI Local")
 

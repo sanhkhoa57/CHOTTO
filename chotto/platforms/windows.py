@@ -323,6 +323,22 @@ def is_default_handler() -> bool:
     return _user_choice_progid("https") == PROGID and bool(_progid_command(PROGID))
 
 
+def handler_released() -> bool | None:
+    """CHOTTO hết nhận link: lệnh mở của ProgId CHOTTO (dùng chung cho http và https) đã bị xóa.
+
+    Chỉ "chắc chắn không có khóa" mới là đã nhả; còn khóa (gỡ chưa xong) là chưa; đọc registry lỗi là không biết.
+    """
+    import winreg
+
+    try:
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, PROGID + r"\shell\open\command"):
+            return False
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return None
+
+
 def install(cfg: MutableMapping[str, Any]) -> str:
     """Đăng ký CHOTTO trong HKCU, ghi nhớ trình duyệt thật vào ``cfg`` và mở trang chọn ứng dụng mặc định.
 

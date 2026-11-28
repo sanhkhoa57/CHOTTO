@@ -3,7 +3,7 @@
 import time
 import unittest
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from chotto.engine import Result
 from chotto.mascot import TaskbarMascot, panel, qr, scan
@@ -262,11 +262,28 @@ class ScanPipelineTest(unittest.TestCase):
             time.sleep(0.005)
         self.fail("lượt quét không kết thúc")
 
+    def test_cancel_while_overlay_is_being_built(self) -> None:
+        """macOS: update() trong hàm dựng lớp phủ có thể chạy cancel() (màn cảnh báo vừa mở): lớp phủ phải bị gỡ."""
+        job, root, events = self._scan()
+        built = MagicMock()
+
+        def overlay(*_args: Any, register: Any = None) -> object:
+            register(built)
+            job.cancel()                                  # hủy giữa lúc dựng
+            return built
+
+        with patch.object(scan.snip, "grab_screen", return_value=("img", (0, 0), 1.0)),                 patch.object(scan.snip, "SnipOverlay", side_effect=overlay):
+            job.start("vi")
+            self._drain(root)
+        built.cancel.assert_called()
+        self.assertFalse(job.capturing)
+        self.assertEqual(events, [True, False])           # không báo lỗi
+
     def test_hides_before_capture_then_decodes_off_thread(self) -> None:
         job, root, events = self._scan()
         order: list[str] = []
 
-        def overlay(_root: Any, _image: Any, _origin: Any, _hint: str, _u: float, done: Any, _scale: float) -> object:
+        def overlay(_root: Any, _image: Any, _origin: Any, _hint: str, _u: float, done: Any, _scale: float, register: Any = None) -> object:
             order.append("overlay")
             done("cropped")
             return object()

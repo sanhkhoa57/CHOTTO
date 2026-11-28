@@ -58,6 +58,7 @@ class Shield:
     def __init__(self, top: tk.Toplevel, ui_font: str, mono_font: str, on_back: Callable[[], None],
                  on_proceed: Callable[[], None]) -> None:
         self._top = top
+        self.copy_allowed: Callable[[], bool] | None = None      # kiểm lại lúc bấm "chép địa chỉ" (Guardian Mode)
         self._font = ui_font
         self._mono = mono_font
         self._view: dict[str, Any] = {}
@@ -237,6 +238,9 @@ class Shield:
         self._top.after(2200, lambda: button.winfo_exists() and button.config(text=old))
 
     def _copy(self) -> None:
+        if self.copy_allowed is not None and not self.copy_allowed():     # Guardian vừa bật: chép địa chỉ là đường lách
+            self.copy.grid_remove()
+            return
         self._share(self.copy, self._view["actions"]["copyText"], self._view["actions"]["copied"])
 
     def _report(self) -> None:

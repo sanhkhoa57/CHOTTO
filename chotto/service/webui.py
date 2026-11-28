@@ -40,6 +40,15 @@ class WebUIError(RuntimeError):
     """Giao diện HTML không dùng được cho lần hiển thị này (người gọi quay về Tk)."""
 
 
+def _final_or(pending: Future[Result], fallback: Result) -> Result:
+    """Kết quả Tầng 3 đã xong; lỗi thì giữ ``fallback`` (kết quả sơ bộ đang hiển thị), như giao diện Tk."""
+    try:
+        return pending.result()
+    except Exception:  # noqa: BLE001 - Tầng 3 lỗi không được làm sập màn hình cảnh báo
+        _LOG.exception("Tầng 3 nền lỗi, giữ kết quả sơ bộ")
+        return fallback
+
+
 def enabled() -> bool:
     """``False`` khi người dùng ép dùng Tk (``CHOTTO_UI=tk``)."""
     return os.environ.get("CHOTTO_UI", "").strip().lower() != "tk"
@@ -52,6 +61,7 @@ class _Waiter:
     event: threading.Event = field(default_factory=threading.Event)
     proceed: bool | None = None
     pin: str = ""
+    level: str = ""           # mức rủi ro trên màn hình lúc người dùng chọn (host gửi kèm)
     dwell_ms: int = 0
 
 
@@ -153,6 +163,7 @@ class WebUI:
             if waiter is not None:
                 waiter.proceed = bool(message.get("proceed"))
                 waiter.pin = str(message.get("pin") or "")
+                waiter.level = str(message.get("level") or "")
                 waiter.dwell_ms = int(message.get("dwell_ms", 0))
                 waiter.event.set()
         elif op == "settings_closed":
@@ -235,11 +246,23 @@ class WebUI:
             while not waiter.event.wait(_POLL_S):
                 pump()
                 if not updated and pending is not None and pending.done():
-                    final = pending.result()
                     updated = True
-                    shown = final
+                    shown = _final_or(pending, shown)
+                    # Luôn gửi (kể cả khi Tầng 3 lỗi và giữ kết quả sơ bộ): tắt dòng "đang kiểm tra" trên màn hình.
                     self._send({"op": "update", "id": fid,
-                                "payload": {"view": view_of(final, False), "lock_s": seconds_for(final.level)}})
+                                "payload": {"view": view_of(shown, False), "lock_s": seconds_for(shown.level)}})
+            if not updated and pending is not None and pending.done():
+                # Tầng 3 xong ngay trước khi quyết định tới: người dùng chưa thấy kết quả cuối. Mức rủi ro đổi thì
+                # không mở (Guardian và thời gian khóa phải xét theo mức mới), người dùng bấm lại trên màn hình mới.
+                final = _final_or(pending, shown)
+                if waiter.proceed and final.level != shown.level:
+                    _LOG.warning("Tầng 3 nâng mức %s -> %s đúng lúc người dùng chọn mở: không mở", shown.level, final.level)
+                    waiter.proceed = False
+                shown = final
+            if waiter.proceed and waiter.level and waiter.level != shown.level:
+                # Người dùng bấm "mở" trên màn hình mức cũ (bản cập nhật Tầng 3 tới sau cú bấm): không mở.
+                _LOG.warning("Quyết định cho mức %s nhưng kết quả cuối là %s: không mở", waiter.level, shown.level)
+                waiter.proceed = False
         finally:
             self._waiters.pop(fid, None)
         if waiter.proceed is None:

@@ -47,6 +47,7 @@ class _DataDir(unittest.TestCase):
         env = patch.dict(os.environ, {"CHOTTO_DATA_DIR": folder.name})
         env.start()
         self.addCleanup(env.stop)
+        save_config(validate_config({}))                 # như bản đã cài: config.json có sẵn, Guardian tắt rõ ràng
 
     def enable(self, **changes: Any) -> None:
         if not guardian.has_pin():
@@ -180,20 +181,59 @@ class FrictionApiTests(_DataDir):
         self.enable()
         for level in ("HIGH", "BLOCKED"):
             api, out = self.api(level)
-            self.assertEqual(api.decide(True, PIN), {"ok": False})
+            reply = api.decide(True, PIN)
+            self.assertEqual((reply["ok"], reply["guardian"]["policy"]), (False, "deny"))
             self.assertEqual(out.getvalue(), "")
             self.assertTrue(api.decide(False)["ok"])
 
     def test_warn_pin_flow(self) -> None:
         self.enable()
         api, out = self.api("WARN")
-        self.assertEqual(api.decide(True), {"ok": False, "need_pin": True})
+        first = api.decide(True)
+        self.assertEqual((first["ok"], first["need_pin"], first["guardian"]["policy"]), (False, True, "pin"))
         wrong = api.decide(True, "0000")
         self.assertEqual((wrong["ok"], wrong["auth"]["error"], wrong["auth"]["attempts_left"]), (False, "wrong", 4))
         self.assertEqual(out.getvalue(), "")
         self.assertTrue(api.decide(True, PIN)["ok"])
         message = json.loads(out.getvalue())
         self.assertEqual((message["proceed"], message["pin"]), (True, PIN))
+
+    def test_guardian_turned_on_after_window_opened(self) -> None:
+        api, out = self.api("WARN")                      # màn hình mở khi Guardian còn tắt (payload không có guardian)
+        self.enable()
+        reply = api.decide(True)
+        self.assertEqual((reply["ok"], reply.get("need_pin"), reply["guardian"]["policy"]), (False, True, "pin"))
+        self.assertEqual(out.getvalue(), "")
+        self.assertTrue(api.decide(True, PIN)["ok"])
+
+    def test_decision_carries_shown_level(self) -> None:
+        api, out = self.api("WARN")
+        self.assertTrue(api.decide(True)["ok"])
+        self.assertEqual(json.loads(out.getvalue())["level"], "WARN")
+
+    def test_open_screen_picks_up_guardian(self) -> None:
+        api, _out = self.api("WARN")
+        api._payload["view"]["actions"] = {"copyText": URL}  # noqa: SLF001
+        self.enable()
+        api.refresh_guardian()
+        view = api.initial()["view"]
+        self.assertEqual((view["guardian"]["policy"], view["actions"]["copyText"]), ("pin", ""))
+
+    def test_copy_rechecks_live_policy(self) -> None:
+        api, _out = self.api("WARN")
+        self.assertTrue(api.copy_allowed()["ok"])
+        self.enable()
+        denied = api.copy_allowed()
+        self.assertEqual((denied["ok"], denied["payload"]["view"]["guardian"]["policy"]), (False, "pin"))
+        self.assertEqual(api.initial()["view"]["guardian"]["policy"], "pin")
+
+    def test_partly_broken_policy_while_on_locks(self) -> None:
+        self.enable()
+        config = Path(os.environ["CHOTTO_DATA_DIR"]) / "config.json"
+        raw = json.loads(config.read_text("utf-8"))
+        raw["guardian_warn_policy"] = 7
+        config.write_text(json.dumps(raw), "utf-8")
+        self.assertEqual(load_config()["guardian_warn_policy"], "lock")
 
     def test_warn_lockout(self) -> None:
         self.enable()
@@ -266,6 +306,55 @@ class SettingsGateTests(_DataDir):
         self.assertFalse(self.api.guardian_setup("1111")["ok"])
         self.assertFalse(self.api.save({"guardian_enabled": False}, PIN)["ok"])
         self.assertTrue(load_config()["guardian_enabled"])
+
+    def test_corrupt_config_keeps_guardian_on(self) -> None:
+        self.enable()
+        config = Path(os.environ["CHOTTO_DATA_DIR"]) / "config.json"
+        for broken in ("{hỏng", "[]", json.dumps({**json.loads(config.read_text("utf-8")), "guardian_enabled": "no"})):
+            with self.subTest(content=broken[:12]):
+                config.write_text(broken, "utf-8")
+                self.assertTrue(load_config()["guardian_enabled"])
+                self.assertEqual(guardian.open_policy(load_config(), "HIGH"), "deny")
+        config.write_text("{hỏng", "utf-8")
+        (Path(os.environ["CHOTTO_DATA_DIR"]) / "guardian.bin").unlink()
+        self.assertFalse(load_config()["guardian_enabled"])       # chưa từng đặt PIN: mặc định như cũ
+
+    def test_save_rechecks_live_config(self) -> None:
+        from chotto.service.app import save_settings
+
+        self.enable()                                    # cửa sổ khác vừa bật Guardian: bản chụp cũ không được tắt nó
+        self.assertFalse(save_settings({"guardian_enabled": False, "tier3_enabled": False}))
+        self.assertTrue(load_config()["guardian_enabled"])
+        self.assertTrue(load_config()["tier3_enabled"])
+        self.assertTrue(save_settings({"ui_theme": "dark"}))
+        self.assertTrue(save_settings({"tier3_enabled": False}, pin_verified=True))
+
+    def test_export_refuses_data_dir(self) -> None:
+        from chotto.service.app import export_action
+
+        data = Path(os.environ["CHOTTO_DATA_DIR"])
+        before = (data / "config.json").read_bytes()
+        for target in (data / "config.json", data / "guardian.bin", data / "sub" / ".." / "x.csv",
+                       Path(str(data).upper()) / "config.json"):          # khác chữ hoa/thường (NTFS, APFS)
+            with self.subTest(target=str(target)[-20:]), self.assertRaises(OSError):
+                export_action(str(target))
+        self.assertEqual((data / "config.json").read_bytes(), before)
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        with patch("chotto.logdb.export_csv", return_value=0):
+            self.assertIn("0", export_action(str(Path(outside.name) / "log.csv"), "en"))
+
+    def test_missing_config_with_pin_keeps_guardian_on(self) -> None:
+        self.enable()
+        (Path(os.environ["CHOTTO_DATA_DIR"]) / "config.json").unlink()
+        self.assertTrue(load_config()["guardian_enabled"])
+        self.assertTrue(self.api.save({"guardian_enabled": False}).get("need_pin"))
+
+    def test_setup_writes_config_first(self) -> None:
+        (Path(os.environ["CHOTTO_DATA_DIR"]) / "config.json").unlink()
+        self.assertTrue(self.api.guardian_setup(PIN)["ok"])
+        self.assertTrue(self.api.guardian_confirm(PIN)["ok"])
+        self.assertFalse(load_config()["guardian_enabled"])      # đặt PIN chưa phải là bật
 
     def test_cannot_make_new_pin_after_data_file_is_deleted(self) -> None:
         self.enable()

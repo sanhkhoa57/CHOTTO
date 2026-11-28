@@ -9,7 +9,9 @@ from __future__ import annotations
 import contextlib
 import csv
 import logging
+import os
 import sqlite3
+import tempfile
 import time
 from collections.abc import Iterator
 from datetime import datetime, timezone
@@ -162,10 +164,19 @@ def export_csv(path: str | Path) -> int:
     """
     with _connect() as con:
         rows = con.execute(f"SELECT {', '.join(_COLUMNS)} FROM decisions ORDER BY ts").fetchall()
-    with open(path, "w", newline="", encoding="utf-8-sig") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(_COLUMNS)
-        for row in rows:
-            stamp = datetime.fromtimestamp(float(row[0]), tz=timezone.utc).isoformat(timespec="seconds")
-            writer.writerow((stamp, *row[1:]))
+    # Ghi file tạm rồi thay: đích là hard link tới file khác thì chỉ cắt liên kết, không ghi xuyên vào file kia.
+    # mkstemp tạo file MỚI tên ngẫu nhiên (O_EXCL): không thể là một liên kết đặt sẵn, hai lần xuất không giẫm nhau.
+    target = Path(path)
+    fd, temp_name = tempfile.mkstemp(prefix=".chotto-export-", suffix=".tmp", dir=target.parent)
+    temp = Path(temp_name)
+    try:
+        with open(fd, "w", newline="", encoding="utf-8-sig") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(_COLUMNS)
+            for row in rows:
+                stamp = datetime.fromtimestamp(float(row[0]), tz=timezone.utc).isoformat(timespec="seconds")
+                writer.writerow((stamp, *row[1:]))
+        os.replace(temp, target)
+    finally:
+        temp.unlink(missing_ok=True)
     return len(rows)

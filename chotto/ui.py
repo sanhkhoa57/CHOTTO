@@ -263,7 +263,14 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
         return view
 
     def proceed() -> None:
+        before = state["result"].level
+        check_pending()                              # Tầng 3 vừa xong mà màn hình chưa kịp cập nhật?
         level = state["result"].level
+        if level != before:                          # mức đổi: người dùng chưa thấy, bấm lại trên màn hình mới
+            tick()                                   # chạy lại đồng hồ khóa theo mức mới
+            return
+        if time.monotonic() < unlock["at"]:
+            return
         info = guard_of(level, "vi") if guard_of is not None else None
         if info is None:
             finish(True)
@@ -273,12 +280,20 @@ def show_friction(root: tk.Tk, result: Result, seconds_for: Callable[[str], int]
         from .ui_guardian import ask_pin
 
         pin = ask_pin(top, "Nhập mã PIN giám hộ để mở liên kết này.")
-        # Mức rủi ro có thể đã tăng trong lúc nhập; backend kiểm lại, ở đây chỉ không đóng nhầm.
-        if pin is not None and top.winfo_exists() and state["result"].level == level and on_pin is not None:
+        if pin is None or not top.winfo_exists():
+            return
+        check_pending()                              # Tầng 3 có thể xong trong lúc nhập PIN
+        if state["result"].level != level:           # mức đổi: không mở, người dùng xét lại trên màn hình mới
+            tick()
+            return
+        if on_pin is not None:
             on_pin(pin)
             finish(True)
 
     shield = Shield(top, ui_font, mono_font, lambda: finish(False), proceed)
+    if guard_of is not None:
+        # Guardian có thể vừa bật sau khi màn hình mở: xét lại theo cấu hình hiện tại lúc bấm chép.
+        shield.copy_allowed = lambda: guard_of(state["result"].level, "vi") is None
     shield.render(view_of(result, pending is not None), reserve=pending is not None)
 
     def check_pending() -> None:
@@ -323,19 +338,19 @@ class SettingsActions:
     """Các tác vụ của cửa sổ cài đặt; mỗi hàm trả về thông báo tiếng Việt và có thể ném lỗi."""
 
     install: Callable[[], str]
-    uninstall: Callable[[], str]
+    uninstall: Callable[[bool], str]          # nhận "đã kiểm đúng PIN giám hộ"
     update_blacklist: Callable[[], str]
     export_log: Callable[[str], str]
 
 
-def show_settings(root: tk.Tk | tk.Toplevel, cfg: Mapping[str, Any], on_save: Callable[[dict[str, Any]], None],
+def show_settings(root: tk.Tk | tk.Toplevel, cfg: Mapping[str, Any], on_save: Callable[[dict[str, Any], bool], bool | None],
                   actions: SettingsActions, on_close: Callable[[], None] | None = None) -> None:
     """Dựng cửa sổ cài đặt trên ``root``.
 
     Args:
         root: Cửa sổ chứa giao diện cài đặt (cửa sổ gốc ẩn hoặc một ``Toplevel``), sẽ được hiện ra.
         cfg: Cấu hình hiện tại.
-        on_save: Hàm lưu cấu hình (nhận dict đầy đủ); có thể ném ``OSError``.
+        on_save: Hàm lưu ``(các khóa đã sửa, đã kiểm đúng PIN)``; trả ``False`` nếu từ chối (cần PIN); có thể ném ``OSError``.
         actions: Các tác vụ nút bấm, chạy trên luồng nền.
         on_close: Gọi khi người dùng đóng cửa sổ; mặc định hủy ``root`` (thoát chương trình).
     """
@@ -396,16 +411,30 @@ def show_settings(root: tk.Tk | tk.Toplevel, cfg: Mapping[str, Any], on_save: Ca
             status.config(text="Thời gian khóa phải là số nguyên từ 3 đến 15.")
             return
         var_seconds.set(seconds)
-        working.update(tier3_enabled=var_tier3.get(), ai_advice=var_advice.get(), log_decisions=var_log.get(),
-                       unknown_caller_policy="inspect" if var_unknown.get() else "forward",
-                       friction_seconds=seconds)
+        # Chỉ gửi đúng các khóa cửa sổ này sửa: gửi cả bản chụp lúc mở là ghi đè Guardian Mode / nhân vật vừa đổi ở nơi khác.
+        edited: dict[str, Any] = {"tier3_enabled": var_tier3.get(), "ai_advice": var_advice.get(),
+                                  "log_decisions": var_log.get(),
+                                  "unknown_caller_policy": "inspect" if var_unknown.get() else "forward",
+                                  "friction_seconds": seconds}
+        working.update(edited)
+        from . import guardian
+        from .config import load_config, validate_config
+
+        live = load_config()
+        verified = False
+        if guardian.needs_pin(live, validate_config({**live, **edited})):     # xét theo cấu hình HIỆN TẠI trên đĩa
+            from .ui_guardian import ask_pin
+
+            if ask_pin(root, "Thay đổi này làm yếu Bảo vệ Gia đình. Nhập mã PIN giám hộ.") is None:
+                return
+            verified = True
         try:
-            on_save(working)
+            saved = on_save(edited, verified)
         except OSError as exc:
             _LOG.exception("Không lưu được cấu hình")
             messagebox.showerror("CHOTTO", f"Không lưu được cài đặt: {exc}", parent=root)
             return
-        status.config(text="Đã lưu cài đặt.")
+        status.config(text="Đã lưu cài đặt." if saved is not False else "Chưa lưu: cần mã PIN giám hộ, hãy bấm Lưu lại.")
 
     def poll() -> None:
         try:
@@ -437,10 +466,20 @@ def show_settings(root: tk.Tk | tk.Toplevel, cfg: Mapping[str, Any], on_save: Ca
         run_in_background("Cài đặt", actions.install)
 
     def on_uninstall() -> None:
-        if messagebox.askyesno("CHOTTO", "Hủy đăng ký CHOTTO làm trình duyệt mặc định?\n\n"
-                               "Sau đó bạn cần chọn lại trình duyệt mặc định trong Cài đặt của hệ thống.",
-                               parent=root):
-            run_in_background("Hủy đăng ký", actions.uninstall)
+        if not messagebox.askyesno("CHOTTO", "Hủy đăng ký CHOTTO làm trình duyệt mặc định?\n\n"
+                                   "Sau đó bạn cần chọn lại trình duyệt mặc định trong Cài đặt của hệ thống.",
+                                   parent=root):
+            return
+        from .config import load_config
+
+        verified = False
+        if load_config()["guardian_enabled"]:          # xét SAU hộp xác nhận; tác vụ còn tự kiểm lại lúc gỡ (trong khóa)
+            from .ui_guardian import ask_pin
+
+            if ask_pin(root, "Đang bật Bảo vệ Gia đình. Nhập mã PIN giám hộ để hủy đăng ký.") is None:
+                return
+            verified = True
+        run_in_background("Hủy đăng ký", lambda: actions.uninstall(verified))
 
     def on_update() -> None:
         run_in_background("Cập nhật danh sách đen", actions.update_blacklist)

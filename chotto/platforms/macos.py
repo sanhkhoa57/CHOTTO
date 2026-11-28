@@ -161,8 +161,8 @@ def _set_url_handler(bundle: str) -> bool:
     return True
 
 
-def _live_https_handler() -> str | None:
-    """Bundle id (chữ thường) đang mở link https, hỏi thẳng LaunchServices qua NSWorkspace; ``None`` nếu không hỏi được.
+def _live_https_handler(scheme: str = "https") -> str | None:
+    """Bundle id (chữ thường) đang mở link ``scheme``, hỏi thẳng LaunchServices qua NSWorkspace; ``None`` nếu không hỏi được.
 
     Đọc plist ``LSHandlers`` thì chậm hàng chục giây sau khi người dùng đổi (macOS ghi file trễ), nên ưu tiên cách này.
     """
@@ -170,7 +170,7 @@ def _live_https_handler() -> str | None:
         import AppKit  # type: ignore[import-untyped,import-not-found,unused-ignore]
 
         app_url = AppKit.NSWorkspace.sharedWorkspace().URLForApplicationToOpenURL_(
-            AppKit.NSURL.URLWithString_("https://example.com"))
+            AppKit.NSURL.URLWithString_(f"{scheme}://example.com"))
         bundle = AppKit.NSBundle.bundleWithURL_(app_url) if app_url is not None else None
         ident = bundle.bundleIdentifier() if bundle is not None else None
         return str(ident).lower() if ident else None
@@ -189,6 +189,17 @@ def is_default_handler() -> bool:
     if live is not None:
         return live == OWN_BUNDLE
     return _handler_for(_ls_handlers(), "https") == OWN_BUNDLE
+
+
+def handler_released() -> bool | None:
+    """CHOTTO đã thôi mở cả link http lẫn https chưa (hỏi thẳng LaunchServices; macOS đổi từng scheme riêng).
+
+    Không hỏi được trạng thái thật thì ``None``: plist ``LSHandlers`` ghi trễ nên không dùng để kết luận "đã nhả".
+    """
+    handlers = [_live_https_handler(scheme) for scheme in ("http", "https")]
+    if any(bundle == OWN_BUNDLE for bundle in handlers):
+        return False
+    return None if any(bundle is None for bundle in handlers) else True
 
 
 # ---------------- trình duyệt thật ----------------
@@ -233,11 +244,8 @@ def install(cfg: MutableMapping[str, Any]) -> str:
 
 def uninstall(cfg: Mapping[str, Any]) -> str:
     """Trả trình mở link về trình duyệt đã ghi nhớ lúc cài (nếu CHOTTO đang là mặc định)."""
-    try:
-        is_default = is_default_handler()
-    except (OSError, ValueError):
-        is_default = False
-    if is_default:
+    # Xin đổi trừ khi chắc chắn CẢ http lẫn https đã không còn là CHOTTO (CHOTTO có thể chỉ còn giữ http).
+    if handler_released() is not True:
         bundle = next(_candidates(cfg), "com.apple.safari")
         if _set_url_handler(bundle):
             return "macOS sẽ hỏi bạn có đổi trình duyệt mặc định về trình duyệt cũ không: hãy đồng ý."

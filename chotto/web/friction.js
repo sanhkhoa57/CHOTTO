@@ -1,6 +1,7 @@
 // Màn hình đệm. Dữ liệu đến từ Python (chotto/webhost.py) qua pywebview:
 //   api.initial()        -> {view, lock_s, theme}   (view: chotto/shield.shield_view, có view.lang)
-//   api.decide(proceed, pin) -> {ok, need_pin?, auth?}  (Python tự kiểm lại thời gian khóa và Guardian Mode)
+//   api.decide(proceed, pin, rev) -> {ok, need_pin?, auth?, guardian?, stale?}  (Python tự kiểm lại thời gian khóa,
+//     Guardian Mode và rev = phiên bản dữ liệu đang hiển thị: bấm trên bản cũ thì bị từ chối)
 //   view.guardian = {policy: "pin"|"deny", message, pinLabel} khi Guardian Mode đang chặn (chỉ Desktop)
 //   window.CHOTTO.update({view, lock_s, theme}) do Python gọi khi Tầng 3 xong (mức chỉ tăng, bố cục không nhảy)
 // Phần dựng giao diện nằm ở shield.js (dùng chung với tiện ích trình duyệt). Mở bằng trình duyệt thường với ?demo
@@ -16,6 +17,7 @@
   let shownLevel = "";
   let deciding = false;
   let guard = null;        // view.guardian
+  let shownRev = -1;       // payload.rev đang hiển thị (bản đến muộn hơn bản đã vẽ thì bỏ)
 
   function setLock(seconds) {
     unlockAt = Math.max(unlockAt === Infinity ? 0 : unlockAt, opened + seconds * 1000);
@@ -32,40 +34,78 @@
     if (proceed && performance.now() < unlockAt) return;
     if (proceed && guard && guard.policy === "deny") return;
     deciding = true;
-    if (proceed && guard) {                       // mở bằng PIN giám hộ
-      try {
-        const done = api && await window.ChottoGuardian.askPin(api,
-          { title: guard.pinLabel, attempt: (pin) => api.decide(true, pin) });
-        if (!done || !done.reply.ok) deciding = false;
-      } catch (err) {
-        deciding = false;
-      }
-      return;
-    }
+    let reply = null;
     try {
-      const reply = api ? await api.decide(proceed) : { ok: true };
-      if (!reply || !reply.ok) deciding = false;     // Python từ chối (còn khóa): cho bấm lại sau
+      if (proceed && guard) {                     // mở bằng PIN giám hộ
+        const done = api && await window.ChottoGuardian.askPin(api,
+          { title: guard.pinLabel, attempt: (pin) => api.decide(true, pin, shownRev) });
+        reply = done ? done.reply : null;
+      } else {
+        reply = api ? await api.decide(proceed, "", shownRev) : { ok: true };
+      }
     } catch (err) {
-      deciding = false;
+      reply = null;
+    }
+    if (reply && reply.ok) return;
+    deciding = false;
+    if (reply && reply.stale && api) {            // trang đang giữ bản cũ (bản đẩy bị lỡ): lấy bản hiện hành
+      try { const now = await api.initial(); if (now && now.rev > shownRev) applyLatest(now); } catch (err) { /* thử lại lần bấm sau */ }
+    }                             // Python từ chối (còn khóa, hủy nhập PIN...): cho bấm lại sau
+    // Chính sách giám hộ đổi khi màn hình đã mở (vừa bật Guardian, hay đổi "mở bằng PIN" thành "khóa hẳn"):
+    // Python gửi kèm phần giám hộ mới, hiện ngay và hỏi PIN nếu được mở bằng PIN.
+    const fresh = reply && reply.guardian;
+    if (fresh && (!guard || guard.policy !== fresh.policy)) {
+      guard = fresh;
+      shield.update(guardedView(lastView));
+      showGuard();
+      if (reply.need_pin) decide(true);
     }
   }
 
-  function show({ view, theme }) {
+  let lastView = null;
+  function guardedView(view) {
+    if (!(guard && guard.policy === "pin")) return view;
+    return { ...view, actions: { ...view.actions, proceed: guard.pinLabel }, labels: { ...view.labels, proceedWait: `${guard.pinLabel} ({n})` } };
+  }
+
+  function show({ view, theme, rev }) {
+    if (typeof rev === "number") shownRev = rev;
     document.documentElement.dataset.theme = theme === "dark" ? "dark" : "light";
     if (view.lang && view.lang !== I18N.lang) I18N.apply(view.lang);
     document.documentElement.lang = view.lang || "en";
     guard = view.guardian || (shownLevel ? guard : null);
-    if (guard && guard.policy === "pin") {
-      view = { ...view, actions: { ...view.actions, proceed: guard.pinLabel }, labels: { ...view.labels, proceedWait: `${guard.pinLabel} ({n})` } };
-    }
+    lastView = view;
+    view = guardedView(view);
     if (shield) shield.update(view);
     else {
       shield = window.ChottoShield.mount(document.getElementById("scroll"), view, { theme: document.documentElement.dataset.theme });
       shield.back.addEventListener("click", () => decide(false));
       shield.proceed.addEventListener("click", () => decide(true));
+      guardCopy();
     }
     shownLevel = view.level;
     showGuard();
+  }
+
+  // Nút "chép địa chỉ": hỏi Python theo cấu hình HIỆN TẠI trước khi chép (Guardian có thể vừa bật ở cửa sổ khác).
+  function guardCopy() {
+    const copy = shield.root.querySelector(".sh-ghost:not(.sh-report)");
+    if (!copy) return;
+    let pass = false;
+    copy.addEventListener("click", (e) => {
+      if (pass || !api || !api.copy_allowed) return;      // demo: không có Python
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      api.copy_allowed().then((reply) => {
+        if (!reply || !reply.ok) {                // không được chép: áp bản có phần giám hộ (ẩn nút, khóa bôi đen)
+          if (reply && reply.payload && reply.payload.rev > shownRev) applyLatest(reply.payload);
+          return;
+        }
+        pass = true;
+        copy.click();
+        pass = false;
+      }).catch(() => {});
+    }, true);
   }
 
   // Lời nhắn giám hộ; ẩn nút chép địa chỉ (đường lách), mức cấm thì bỏ hẳn nút "vẫn mở".
@@ -79,6 +119,9 @@
       shield.back.before(banner);
     }
     banner.textContent = guard.message;
+    document.documentElement.dataset.guard = guard.policy;          // CSS: không cho bôi đen địa chỉ
+    const sel = window.getSelection && window.getSelection();
+    if (sel) sel.removeAllRanges();
     const copy = shield.root.querySelector(".sh-ghost:not(.sh-report)");
     if (copy) copy.style.display = "none";
     if (guard.policy === "deny") shield.proceed.style.display = "none";
@@ -86,17 +129,26 @@
 
   window.CHOTTO = {
     update(payload) {
-      const rising = payload.view.level !== shownLevel;
-      if (rising) window.ChottoGuardian.close();          // mức vừa tăng: hỏi lại từ đầu theo chính sách mới
-      show(payload);
-      if (rising) setLock(payload.lock_s);
+      if (typeof payload.rev === "number" && payload.rev <= shownRev) return;   // bản cũ đến muộn
+      if (!shield) { opened = opened || performance.now(); show(payload); setLock(payload.lock_s); return; }   // đến trước initial()
+      applyLatest(payload);                                // mức vừa tăng: hỏi lại từ đầu theo chính sách mới
     },
   };
 
-  function start(payload) {
-    opened = performance.now();
+  // Bản mới hơn bản đang hiển thị (theo rev): vẽ lại; mức đổi thì hỏi lại từ đầu và kéo dài khóa.
+  function applyLatest(payload) {
+    const rising = payload.view.level !== shownLevel;
+    if (rising) window.ChottoGuardian.close();
     show(payload);
-    setLock(payload.lock_s);
+    if (rising) setLock(payload.lock_s);
+  }
+
+  function start(payload) {
+    opened = opened || performance.now();
+    if (!(typeof payload.rev === "number" && payload.rev < shownRev)) {   // bản cập nhật đến trước initial(): giữ bản mới
+      show(payload);
+      setLock(payload.lock_s);
+    }
     requestAnimationFrame(tick);
     shield.back.focus();
   }

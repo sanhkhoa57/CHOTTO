@@ -13,6 +13,7 @@ import unittest
 from concurrent.futures import Future
 from datetime import datetime
 from pathlib import Path
+from dataclasses import replace
 from typing import Any
 from unittest.mock import patch
 
@@ -144,6 +145,9 @@ FAKE_HOST = textwrap.dedent("""
             break
         if mode == "die":
             sys.exit(1)
+        if mode == "eager" and msg["op"] == "friction":     # bấm "mở" ngay, không chờ Tầng 3
+            print(json.dumps({"op": "decision", "id": msg["id"], "proceed": True, "dwell_ms": 1}), flush=True)
+            continue
         if msg["op"] == "friction" and msg["payload"]["view"]["checking"]:
             continue                                   # chờ bản cập nhật Tầng 3 rồi mới quyết định
         if msg["op"] in ("friction", "update"):
@@ -183,6 +187,31 @@ class WebUIProtocolTests(unittest.TestCase):
         proceed, _, shown = self.web("ok").present(view_of, preliminary, seconds_for, pending, no_pump)
         self.assertTrue(proceed)
         self.assertIs(shown, final)
+
+    def test_tier3_finishing_right_before_decision_is_not_skipped(self) -> None:
+        preliminary = inspect("https://vcb-digibanks.top/xac-nhan")
+        final = replace(preliminary, level="BLOCKED" if preliminary.level != "BLOCKED" else "HIGH")
+        pending: Future[Result] = Future()
+        web = self.web("eager")
+        on_message = web._on_message  # noqa: SLF001
+
+        def late(message: dict[str, Any]) -> None:    # Tầng 3 xong đúng lúc quyết định tới, trước lượt kiểm kế tiếp
+            if message.get("op") == "decision" and not pending.done():
+                pending.set_result(final)
+            on_message(message)
+
+        web._on_message = late  # type: ignore[method-assign]  # noqa: SLF001
+        proceed, _, shown = web.present(view_of, preliminary, seconds_for, pending, no_pump)
+        self.assertIs(shown, final)
+        self.assertFalse(proceed)                     # mức đã đổi mà người dùng chưa thấy: không mở
+
+    def test_tier3_error_keeps_preliminary_screen(self) -> None:
+        from chotto.service.webui import _final_or
+
+        preliminary = inspect("https://vcb-digibanks.top/xac-nhan")
+        broken: Future[Result] = Future()
+        broken.set_exception(RuntimeError("tầng 3 hỏng"))
+        self.assertIs(_final_or(broken, preliminary), preliminary)
 
     def test_host_that_cannot_start_raises_and_gives_up(self) -> None:
         web = self.web("exit")
@@ -305,7 +334,8 @@ class HostTests(unittest.TestCase):
     def test_update_extends_lock_and_closing_window_means_cancel(self) -> None:
         self.host.dispatch({"op": "friction", "id": 6, "payload": dict(self.payload, lock_s=0)})
         self.host.dispatch({"op": "update", "id": 6, "payload": dict(self.payload, lock_s=8)})
-        self.assertEqual(self.api().decide(True), {"ok": False})
+        self.assertEqual(self.api().decide(True), {"ok": False, "stale": True})       # bấm trên bản cũ (rev 0)
+        self.assertEqual(self.api().decide(True, "", 1), {"ok": False})               # bản mới: còn khóa 8 giây
         self.assertIn("CHOTTO.update", self.webview.windows[-1].js[0])
         self.webview.windows[-1].events.closed.fire()       # nút X / Alt+F4
         self.assertFalse(self.decisions()[0]["proceed"])
@@ -394,15 +424,17 @@ class UninstallKeepsWindowTests(unittest.TestCase):
 
     def test_settings_closed_with_quit_stops_agent(self) -> None:
         web = WebUI()
-        with patch("chotto.service.agent.stop_agent") as stop:
+        called = threading.Event()
+        # Chờ bằng Event + join luồng TRƯỚC khi gỡ patch: luồng chạy trễ (máy bận) mà patch đã gỡ thì nó tắt agent thật trên máy.
+        with patch("chotto.service.agent.stop_agent", side_effect=lambda *_a, **_k: called.set()) as stop:
             web._on_message({"op": "settings_closed"})  # noqa: SLF001
             time.sleep(0.05)
             stop.assert_not_called()
             web._on_message({"op": "settings_closed", "quit": True})  # noqa: SLF001
-            for _ in range(50):
-                if stop.called:
-                    break
-                time.sleep(0.01)
+            self.assertTrue(called.wait(10))
+            for thread in threading.enumerate():
+                if thread.name == "chotto-quit":
+                    thread.join(10)
             stop.assert_called_once()
 
     def test_app_uninstall_defers_agent_stop(self) -> None:
@@ -411,10 +443,20 @@ class UninstallKeepsWindowTests(unittest.TestCase):
         with patch("chotto.service.app.uninstall_action", return_value="đã gỡ") as uninstall, \
                 patch("chotto.service.app.install_action", return_value="đã cài"):
             self.assertTrue(api.action("uninstall")["ok"])
-            self.assertEqual(uninstall.call_args.kwargs, {"stop_agent": False})
+            self.assertEqual(uninstall.call_args.kwargs, {"stop_agent": False, "pin_verified": False})
             self.assertTrue(host.quit_agent_on_close)
             self.assertTrue(api.action("install")["ok"])
             self.assertFalse(host.quit_agent_on_close)
+
+    def test_declined_uninstall_keeps_agent(self) -> None:
+        """macOS: người dùng từ chối đổi trình duyệt (hay không biết chắc), CHOTTO vẫn nhận link: giữ agent và tự khởi động."""
+        host = Host(Wire(open(os.devnull, "w")), object(), lambda: "")
+        for released, quits in ((False, False), (None, False), (True, True)):
+            with self.subTest(released=released):
+                host.quit_agent_on_close = True
+                with patch("chotto.platforms.handler_released", return_value=released),                         patch("chotto.platforms.disable_autostart") as disable,                         patch("chotto.service.app._RELEASE_WAIT_S", 0.0):
+                    self.assertEqual(host._quit_after_uninstall(), quits)  # noqa: SLF001
+                self.assertEqual(disable.called, quits)
 
 
 if __name__ == "__main__":

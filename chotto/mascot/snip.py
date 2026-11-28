@@ -51,7 +51,10 @@ class SnipOverlay:
     """Một lần chọn vùng: gọi ``on_done`` đúng MỘT lần với ảnh đã cắt, hoặc ``None`` nếu hủy."""
 
     def __init__(self, root: tk.Tk, image: Image.Image, origin: tuple[int, int], hint: str, unit_dpi: float,
-                 on_done: Callable[[Image.Image | None], None], scale: float = 1.0) -> None:
+                 on_done: Callable[[Image.Image | None], None], scale: float = 1.0,
+                 register: Callable[[SnipOverlay], None] | None = None) -> None:
+        """``register`` được gọi ngay khi có cửa sổ, TRƯỚC mọi lần xử lý sự kiện Tk: macOS dùng chung Tk với agent, ``update()``
+        trong hàm dựng có thể chạy việc khác (vd. mở màn cảnh báo) cần hủy được lớp phủ này."""
         import tkinter as tk
 
         from PIL import Image as PILImage
@@ -78,6 +81,8 @@ class SnipOverlay:
         canvas = tk.Canvas(win, width=image.width, height=image.height, highlightthickness=0, bd=0, cursor="crosshair", bg="#000")
         canvas.pack(fill="both", expand=True)
         self._win, self._canvas = win, canvas
+        if register is not None:
+            register(self)
         try:
             dim = image.point([round(v * _DIM) for v in range(256)] * 3)
             self._dim: Any = ImageTk.PhotoImage(dim, master=win)          # có master: luồng nhân vật dùng Tk riêng
@@ -99,6 +104,8 @@ class SnipOverlay:
                 from ..platforms import cocoa_overlay
 
                 win.update()                                   # NSWindow phải có rồi mới nâng lên được
+                if self._done:                                 # bị hủy ngay trong update(): không nâng cửa sổ đã đóng
+                    return
                 cocoa_overlay.raise_overlay(win)
                 # Esc của Tk không tới cửa sổ không viền trên Aqua → nghe phím qua NSEvent
                 self._esc = cocoa_overlay.watch_escape(lambda: win.after(0, self.cancel))

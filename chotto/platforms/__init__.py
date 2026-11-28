@@ -28,6 +28,7 @@ __all__ = [
     "detect_caller",
     "disable_autostart",
     "enable_autostart",
+    "handler_released",
     "install",
     "is_default_handler",
     "open_in_real_browser",
@@ -49,6 +50,7 @@ class _Backend(Protocol):
     def enable_autostart(self, argv: list[str]) -> None: ...
     def disable_autostart(self) -> None: ...
     def is_default_handler(self) -> bool | None: ...
+    def handler_released(self) -> bool | None: ...
     def install(self, cfg: MutableMapping[str, Any]) -> str: ...
     def uninstall(self, cfg: Mapping[str, Any]) -> str: ...
     def open_url(self, url: str, cfg: Mapping[str, Any]) -> bool: ...
@@ -105,6 +107,15 @@ def is_default_handler() -> bool | None:
         return None
 
 
+def handler_released() -> bool | None:
+    """CHOTTO đã thôi nhận MỌI link web (http và https) chưa; ``None`` nếu không hỏi được trạng thái thật lúc này."""
+    try:
+        return _OS.handler_released()
+    except (OSError, ValueError, PlatformSetupError):
+        _LOG.warning("Không xác định được CHOTTO còn nhận link không", exc_info=True)
+        return None
+
+
 def install(cfg: MutableMapping[str, Any]) -> str:
     """Đăng ký CHOTTO, bật tự khởi động agent và khởi động agent ngay.
 
@@ -127,9 +138,12 @@ def install(cfg: MutableMapping[str, Any]) -> str:
 
 
 def uninstall(cfg: Mapping[str, Any] | None = None) -> str:
-    """Gỡ đăng ký CHOTTO và tắt tự khởi động. macOS: trả trình mở link về trình duyệt đã ghi nhớ lúc cài."""
-    disable_autostart()
-    return _OS.uninstall(cfg or {})
+    """Gỡ đăng ký CHOTTO; tắt tự khởi động khi CHOTTO đã thật sự thôi nhận link. macOS: trả trình mở link về trình duyệt
+    đã ghi nhớ lúc cài (macOS hỏi người dùng, trả lời đến sau: ``chotto.service.app.finish_uninstall`` tắt sau)."""
+    message = _OS.uninstall(cfg or {})
+    if handler_released() is True:
+        disable_autostart()
+    return message
 
 
 def any_process_running(names: Iterable[str]) -> bool:

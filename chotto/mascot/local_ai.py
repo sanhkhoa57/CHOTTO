@@ -367,16 +367,32 @@ def _read_record() -> dict[str, Any]:
         return {}
 
 
+def _mac_exe_path(pid: int) -> str | None:
+    """Đường dẫn file chạy của tiến trình ``pid`` (macOS, ``proc_pidpath`` của libproc); ``None`` nếu không đọc được."""
+    import ctypes
+
+    try:
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+        buffer = ctypes.create_string_buffer(4096)          # PROC_PIDPATHINFO_MAXSIZE
+        size = int(libproc.proc_pidpath(ctypes.c_int(pid), buffer, ctypes.c_uint32(len(buffer))))
+    except (OSError, AttributeError):
+        return None
+    return buffer.value.decode("utf-8", "surrogateescape") if size > 0 else None
+
+
 def _pid_is_llama(pid: int) -> bool:
     """PID còn sống và đúng là ``llama-server`` (phòng PID cũ đã được hệ điều hành cấp cho tiến trình khác)."""
     if not SUPPORTED or pid <= 0:
         return False
     if _MAC:
-        try:
-            out = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "comm="], capture_output=True, text=True, timeout=5).stdout
-        except (OSError, subprocess.SubprocessError):
+        path = _mac_exe_path(pid)
+        if path is None:
             return False
-        return Path(out.strip()).name == _EXE
+        # Đường dẫn file chạy thật (proc_pidpath, không phải argv[0] như "ps -o comm"): chỉ tắt đúng server của CHOTTO.
+        try:
+            return Path(path).resolve() == server_exe().resolve()
+        except OSError:
+            return False
     try:
         out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True, text=True,
                              timeout=5, creationflags=_CREATE_NO_WINDOW).stdout
@@ -471,6 +487,13 @@ class LocalServer:
     def stop(self) -> None:
         with self._lock:
             self._stop_locked()
+
+    def stop_unless(self, keep: Callable[[str], bool]) -> None:
+        """Tắt server trừ khi ``keep(model đang chạy)``; ``keep`` được gọi TRONG khóa (đọc cấu hình mới nhất, không dùng
+        bản đọc trước khi chờ khóa: người dùng có thể vừa chọn lại đúng model đang nạp)."""
+        with self._lock:
+            if self._proc is not None and not keep(self._model):
+                self._stop_locked()
 
     def stop_if_model(self, model_id: str) -> None:
         with self._lock:

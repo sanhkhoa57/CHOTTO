@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, TextIO
 
 from . import __version__, guardian, logdb, platforms
-from .config import SETTINGS_KEYS, load_config, resource_path, validate_config
+from .config import SETTINGS_KEYS, config_stamp, load_config, resource_path, update_config, validate_config
 from .messages import msg as _msg
 from .platforms import win32_window
 from .platforms import window as osw
@@ -50,6 +50,7 @@ BG: Final[str] = "#0c0a08"
 _APP_BG: Final[str] = "#fbf6f1"                 # nền sáng của cửa sổ ứng dụng (tránh chớp đen lúc mở)
 _APP_W: Final[int] = 420                         # cửa sổ ứng dụng theo tỉ lệ điện thoại (~9:19,5)
 _APP_H: Final[int] = 880
+_CONFIG_POLL_S: Final[float] = 1.0          # nhịp xem config.json khi có màn cảnh báo mở
 _UNLOCK_SLACK_S: Final[float] = 0.25          # bù độ trễ hiển thị của đồng hồ đếm ngược phía JavaScript
 _MAX_CHECK_URL: Final[int] = 4096
 
@@ -128,30 +129,38 @@ class FrictionApi:
         self._done = False
         self._lock = threading.Lock()
         self._window: Any = None
+        self._rev = 0                         # phiên bản dữ liệu hiển thị; tăng mỗi lần cập nhật (Tầng 3, Guardian)
+        self._payload = {**payload, "rev": 0}
 
     def initial(self) -> dict[str, Any]:
         """Dữ liệu hiển thị hiện hành (JS gọi khi trang sẵn sàng)."""
         with self._lock:
             return self._payload
 
-    def decide(self, proceed: bool, pin: str = "") -> dict[str, Any]:
-        """Người dùng chọn; "vẫn mở" trước khi hết giờ khóa, hoặc bị Guardian Mode cấm, đều bị từ chối."""
+    def decide(self, proceed: bool, pin: str = "", rev: int = 0) -> dict[str, Any]:
+        """Người dùng chọn; "vẫn mở" trước khi hết giờ khóa, bị Guardian Mode cấm, hoặc bấm trên bản hiển thị cũ
+        (``rev`` khác bản hiện hành: Tầng 3/Guardian vừa đổi mà trang chưa kịp vẽ), đều bị từ chối."""
         with self._lock:
             if self._done:
                 return {"ok": True}
+            if proceed and rev != self._rev:
+                return {"ok": False, "stale": True}
             if proceed and time.monotonic() < self._unlock_at - _UNLOCK_SLACK_S:
                 return {"ok": False}
             view = self._payload.get("view", {})
         level = str(view.get("level", ""))
         used_pin = ""
         if proceed:
+            cfg = load_config()
             policy = guardian.strictest(str(view.get("guardian", {}).get("policy", "allow")),
-                                        guardian.open_policy(load_config(), level))
+                                        guardian.open_policy(cfg, level))
+            # Guardian vừa bật khi màn hình đã mở: gửi kèm phần giám hộ để trang hiện lời nhắn / hỏi PIN.
+            info = guardian.screen_info(policy, cfg["guardian_contact"], str(view.get("lang") or cfg["ui_language"]))
             if policy == "deny":
-                return {"ok": False}
+                return {"ok": False, "guardian": info}
             if policy == "pin":
                 if not pin:
-                    return {"ok": False, "need_pin": True}
+                    return {"ok": False, "need_pin": True, "guardian": info}
                 result = guardian.verify_pin(pin)               # ngoài khóa: scrypt tốn vài chục mili-giây
                 if not result.ok:
                     return {"ok": False, "need_pin": True, "auth": asdict(result)}
@@ -159,11 +168,24 @@ class FrictionApi:
         with self._lock:
             if self._done:
                 return {"ok": True}
-            if proceed and str(self._payload.get("view", {}).get("level", "")) != level:
-                return {"ok": False}                            # mức rủi ro vừa tăng trong lúc nhập PIN
+            if proceed and (rev != self._rev or str(self._payload.get("view", {}).get("level", "")) != level):
+                return {"ok": False, "stale": True}             # dữ liệu vừa đổi trong lúc nhập PIN
             self._done = True
-        self._finish(bool(proceed), used_pin)
+        self._finish(bool(proceed), used_pin, level)
         return {"ok": True}
+
+    def copy_allowed(self) -> dict[str, Any]:
+        """Được chép địa chỉ không (xét Guardian theo cấu hình hiện tại). Không được thì trả kèm bản hiển thị hiện hành
+        (có phần giám hộ) để trang tự áp, phòng khi lần đẩy trước bị lỡ."""
+        with self._lock:
+            view = self._payload.get("view", {})
+        policy = guardian.strictest(str((view.get("guardian") or {}).get("policy", "allow")),
+                                    guardian.open_policy(load_config(), str(view.get("level", ""))))
+        if policy == "allow":
+            return {"ok": True}
+        self.refresh_guardian()
+        with self._lock:
+            return {"ok": False, "payload": self._payload}
 
     def guardian_recover(self, recovery_key: str, new_pin: str) -> dict[str, Any]:
         """Quên mã PIN ngay trên màn hình cảnh báo."""
@@ -174,9 +196,11 @@ class FrictionApi:
         if self._window is not None:
             self._window.minimize()
 
-    def _finish(self, proceed: bool, pin: str = "") -> None:
+    def _finish(self, proceed: bool, pin: str = "", level: str = "") -> None:
         dwell_ms = int((time.monotonic() - self._opened) * 1000)
         message: dict[str, Any] = {"op": "decision", "id": self._fid, "proceed": proceed, "dwell_ms": dwell_ms}
+        if level:
+            message["level"] = level                            # mức người dùng thấy khi chọn: agent đối chiếu kết quả cuối
         if pin:
             message["pin"] = pin                                # chỉ đi qua đường ống nội bộ tới agent
         self._wire.send(message)
@@ -187,14 +211,43 @@ class FrictionApi:
         with self._lock:
             if self._done:
                 return
-            payload = {**payload, "theme": self._payload["theme"]}
+            guard = self._payload.get("view", {}).get("guardian")
+            view = payload.get("view", {})
+            if guard and not view.get("guardian"):          # Guardian đã áp lên màn hình này: bản Tầng 3 không được xóa
+                view = {**view, "guardian": guard, "actions": {**view.get("actions", {}), "copyText": ""}}
+            self._rev += 1
+            payload = {**payload, "view": view, "theme": self._payload["theme"], "rev": self._rev}
             self._payload = payload
             self._unlock_at = max(self._unlock_at, self._opened + max(0.0, lock_s))
+        self._push(payload)
+
+    def _push(self, payload: dict[str, Any]) -> None:
         if self._window is not None:
             try:
                 self._window.evaluate_js(f"window.CHOTTO && window.CHOTTO.update({json.dumps(payload)})")
             except Exception:  # noqa: BLE001 - trang chưa sẵn sàng: initial() sẽ trả dữ liệu mới
                 _LOG.debug("Chưa cập nhật được màn hình đệm", exc_info=True)
+
+    def refresh_guardian(self) -> None:
+        """Guardian Mode vừa bật/chặt hơn khi màn hình đang mở: hiện lời nhắn giám hộ, bỏ nút chép địa chỉ (đường lách).
+
+        Gộp vào bản hiển thị HIỆN HÀNH ngay trong khóa (không ghi đè bản Tầng 3 mới hơn)."""
+        cfg = load_config()
+        with self._lock:
+            if self._done:
+                return
+            view = self._payload.get("view", {})
+            level = str(view.get("level", ""))
+            old = view.get("guardian") or {}
+            policy = guardian.strictest(str(old.get("policy", "allow")), guardian.open_policy(cfg, level))
+            if policy == "allow" or policy == old.get("policy"):
+                return
+            info = guardian.screen_info(policy, cfg["guardian_contact"], str(view.get("lang") or cfg["ui_language"]))
+            self._rev += 1
+            payload = {**self._payload, "rev": self._rev,
+                       "view": {**view, "guardian": info, "actions": {**view.get("actions", {}), "copyText": ""}}}
+            self._payload = payload
+        self._push(payload)
 
     def _closed(self) -> None:
         """Cửa sổ bị đóng (nút X của hệ thống, Alt+F4...): luôn là "không mở"."""
@@ -256,7 +309,12 @@ class AppApi:
         if load_config()["guardian_enabled"]:        # file PIN mất khi đang bật: không cho đặt PIN mới để vượt khóa
             return {"ok": False, "error": _msg(lang, "unknown")}
         try:
+            # Ghi "đang tắt" ra đĩa TRƯỚC khi có PIN: thiếu config.json mà có PIN thì load_config coi như đang bật.
+            update_config(lambda _cfg: None)
             return {"ok": True, "recovery_key": guardian.setup(str(pin), replace_corrupt=True)}
+        except OSError as exc:
+            _LOG.warning("Không ghi được cấu hình trước khi đặt PIN: %s", exc)
+            return {"ok": False, "error": _msg(lang, "failed", error=exc)}
         except guardian.GuardianError as exc:
             _LOG.warning("Không đặt được PIN giám hộ: %s", exc)
             return {"ok": False, "error": _msg(lang, "failed", error=exc)}
@@ -336,12 +394,15 @@ class AppApi:
         wanted = validate_config({**current, **clean})       # so sau khi kiểm tra: giá trị rác không được lọt chốt
         if wanted["guardian_enabled"] and not current["guardian_enabled"] and (not guardian.has_pin() or guardian.is_corrupt()):
             return {"ok": False, "need_setup": True}
+        pin_ok = False
         if guardian.needs_pin(current, wanted):
             refusal = self._pin_gate(pin)
             if refusal is not None:
                 return refusal
+            pin_ok = True
         try:
-            save_settings(clean)
+            if not save_settings(clean, pin_verified=pin_ok):      # Guardian vừa bật ở nơi khác: hỏi PIN
+                return {"ok": False, "need_pin": True}
         except OSError as exc:
             _LOG.exception("Không lưu được cấu hình")
             return {"ok": False, "error": _msg(lang, "save_failed", error=exc)}
@@ -411,26 +472,34 @@ class AppApi:
         from .service import app as service
 
         lang = load_config()["ui_language"]
-        if name in ("uninstall", "clear_log") and load_config()["guardian_enabled"]:
+        pin_ok = False
+        if name in ("uninstall", "clear_log") and (load_config()["guardian_enabled"] or pin):
             refusal = self._pin_gate(pin)
             if refusal is not None:
                 return refusal
+            pin_ok = True                 # tác vụ tự kiểm lại Guardian lúc thực hiện (trong khóa cấu hình)
         try:
             if name == "install":
                 message = service.install_action(lang)
                 self._host.quit_agent_on_close = False
                 return {"ok": True, "message": message}
             if name == "uninstall":
-                message = service.uninstall_action(lang, stop_agent=False)   # tắt agent ngay = đóng luôn cửa sổ này
-                self._host.quit_agent_on_close = True
+                self._host.uninstall_idle.clear()      # đóng cửa sổ giữa chừng: đợi gỡ xong mới báo agent
+                try:
+                    message = service.uninstall_action(lang, stop_agent=False, pin_verified=pin_ok)   # tắt agent ngay = đóng luôn cửa sổ này
+                    self._host.quit_agent_on_close = True
+                finally:
+                    self._host.uninstall_idle.set()
                 return {"ok": True, "message": message}
             if name == "update":
                 return {"ok": True, "message": service.update_action(lang)}
             if name == "clear_log":
-                return {"ok": True, "message": service.clear_log_action(lang)}
+                return {"ok": True, "message": service.clear_log_action(lang, pin_verified=pin_ok)}
             if name == "export":
                 path = self._host.ask_save_path("chotto_log.csv")
                 return {"ok": True, "message": service.export_action(path, lang) if path else ""}
+        except guardian.PinRequired:                  # Guardian vừa bật ở nơi khác: hỏi PIN
+            return {"ok": False, "need_pin": True}
         except Exception as exc:  # noqa: BLE001 - lỗi của tác vụ phải về được giao diện
             _LOG.exception("Tác vụ '%s' lỗi", name)
             return {"ok": False, "message": _msg(lang, "failed", error=exc)}
@@ -464,6 +533,8 @@ class Host:
         self._webview = webview
         self._read_line = read_line
         self.quit_agent_on_close = False     # vừa gỡ đăng ký trong cửa sổ ứng dụng: đóng cửa sổ thì agent tắt
+        self.uninstall_idle = threading.Event()   # xóa trong lúc tác vụ gỡ đăng ký đang chạy
+        self.uninstall_idle.set()
         self._frictions: dict[int, tuple[Any, FrictionApi]] = {}
         self._app_window: Any = None
         self._app_maximized = False
@@ -473,6 +544,24 @@ class Host:
         self._resize: tuple[int, set[str], tuple[int, int, int, int], float] | None = None
         self._keeper: Any = None
         self._lock = threading.Lock()
+        self._watching = False               # luồng theo dõi config.json đang chạy (chỉ khi có màn cảnh báo mở)
+
+    def _watch_config(self) -> None:
+        """Có màn cảnh báo mở thì xem ``config.json`` mỗi giây: cửa sổ cài đặt ở tiến trình khác bật Guardian Mode thì
+        màn cảnh báo cũng áp ngay (ẩn nút chép địa chỉ, hỏi PIN)."""
+        stamp = config_stamp()
+        while True:
+            time.sleep(_CONFIG_POLL_S)
+            with self._lock:
+                apis = [api for _window, api in self._frictions.values()]
+                if not apis:
+                    self._watching = False
+                    return
+            now = config_stamp()
+            if now != stamp:
+                stamp = now
+                for api in apis:
+                    api.refresh_guardian()
 
     # ---- màn hình đệm ----
     def _friction_height(self) -> int:
@@ -506,6 +595,9 @@ class Host:
         osw.reload_on_show(window, str(web_root() / "friction.html"))
         with self._lock:
             self._frictions[fid] = (window, api)
+            start_watch, self._watching = not self._watching, True
+        if start_watch:
+            threading.Thread(target=self._watch_config, name="chotto-config-watch", daemon=True).start()
         window.events.closed += lambda: self._on_friction_closed(fid)
         _when_shown(window, lambda: osw.center_on_screen(window, 620, 740))
         _when_shown(window, lambda: osw.activate(window))
@@ -596,8 +688,12 @@ class Host:
         threading.Thread(target=osw.fade, args=(window, 0, 255, 200), name="chotto-reveal", daemon=True).start()
 
     def config_changed(self) -> None:
-        """Báo agent đọc lại cấu hình ngay (không chờ lần kiểm tra định kỳ)."""
+        """Báo agent đọc lại cấu hình ngay (không chờ lần kiểm tra định kỳ); màn cảnh báo đang mở áp Guardian mới."""
         self._wire.send({"op": "config_changed"})
+        with self._lock:
+            apis = [api for _window, api in self._frictions.values()]
+        for api in apis:
+            api.refresh_guardian()
 
     def _on_settings_closed(self) -> None:
         self._app_window = None
@@ -605,7 +701,28 @@ class Host:
         from . import mascot
 
         mascot.set_place_flag(False)                 # đóng cửa sổ ứng dụng = hết chế độ chọn vị trí
-        self._wire.send({"op": "settings_closed", "quit": self.quit_agent_on_close})
+        if self.quit_agent_on_close or not self.uninstall_idle.is_set():
+            # Có thể phải chờ gỡ xong / người dùng trả lời hộp thoại macOS: không giữ luồng sự kiện của pywebview.
+            threading.Thread(target=lambda: self._wire.send({"op": "settings_closed", "quit": self._quit_after_uninstall()}),
+                             name="chotto-settings-closed", daemon=True).start()
+        else:
+            self._wire.send({"op": "settings_closed", "quit": False})
+
+    def _quit_after_uninstall(self) -> bool:
+        """Agent có nên tắt khi cửa sổ ứng dụng đóng: chỉ khi đã gỡ đăng ký VÀ CHOTTO thật sự hết là trình mở link.
+
+        macOS hỏi người dùng có đổi trình duyệt không (trả lời có thể đến sau khi cửa sổ đóng): ``finish_uninstall`` chờ,
+        họ từ chối thì giữ agent và bật lại tự khởi động, không thì link từ Zalo mất bảo vệ.
+        """
+        self.uninstall_idle.wait(60)
+        if not self.quit_agent_on_close:
+            return False
+        from .service.app import finish_uninstall
+
+        quit_now = finish_uninstall()
+        if not quit_now:
+            self.quit_agent_on_close = False
+        return quit_now
 
     def app_window_op(self, op: str) -> None:
         """Thu nhỏ / phóng to / đóng cửa sổ ứng dụng."""

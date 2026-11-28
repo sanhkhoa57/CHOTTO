@@ -27,11 +27,11 @@ import logging
 import logging.handlers
 import sys
 import time
-from typing import Any, Final
+from typing import Final
 
 from chotto import platforms
 from chotto.platforms import detect_caller
-from chotto.config import data_dir, load_config, load_rules, save_config
+from chotto.config import data_dir, load_config, load_rules
 from chotto.core.url import SUPPORTED_SCHEMES, URLParseError, get_scheme, parse_url
 
 _LOG = logging.getLogger("chotto")
@@ -130,14 +130,20 @@ def _run_command(target: str | None, argument: str | None, force: bool, gui: boo
 
         print(json.dumps(Engine(load_config()).inspect(argument).to_dict(), ensure_ascii=False, indent=2))
     elif target == "install":
-        cfg: dict[str, Any] = dict(load_config())
-        print(platforms.install(cfg))
-        save_config(cfg)
+        from chotto.service.app import install_action
+
+        print(install_action())
     elif target == "uninstall":
         from chotto.service.agent import stop_agent
 
         print(platforms.uninstall(load_config()))
-        stop_agent()
+        if sys.platform == "darwin":
+            from chotto.service.app import finish_uninstall
+
+            if not finish_uninstall():                # người dùng từ chối đổi trình duyệt: CHOTTO vẫn nhận link
+                print("Chưa xác nhận được việc đổi trình duyệt: CHOTTO vẫn chạy để bảo vệ link.")
+                return 1
+        stop_agent()                                  # Windows: bộ gỡ cài đặt gọi lệnh này, luôn tắt agent
     elif target == "agent":
         from chotto.service.app import run_resident
 
@@ -173,9 +179,9 @@ def _run_command(target: str | None, argument: str | None, force: bool, gui: boo
         print(f"Tổng cộng {count} mục." if count else "Không cập nhật; danh sách cũ được giữ nguyên.")
         return 0 if count else 1
     elif target == "export-log" and argument:
-        from chotto import logdb
+        from chotto.service.app import export_action
 
-        print(f"Đã xuất {logdb.export_csv(argument)} dòng.")
+        print(export_action(argument))               # cùng chốt với giao diện (không ghi vào thư mục dữ liệu)
     elif target is None and _is_mac_bundle():
         # CHOTTO.app thường trú: mở bằng link thì không hiện cài đặt; người dùng tự mở app thì hiện.
         from chotto.service.app import run_resident

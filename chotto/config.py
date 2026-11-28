@@ -5,13 +5,16 @@ kiểu không bao giờ làm CHOTTO ngừng hoạt động, chỉ khiến khóa 
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import re
 import sys
 import tempfile
-from collections.abc import Mapping
+import threading
+import time
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any, Final, Literal, TypedDict, cast
 
@@ -22,14 +25,17 @@ __all__ = [
     "Config",
     "RulesError",
     "atomic_write_text",
+    "config_lock",
     "config_stamp",
     "data_dir",
+    "file_lock",
     "friction_seconds_for",
     "load_config",
     "load_popular_domains",
     "load_rules",
     "resource_path",
     "save_config",
+    "update_config",
     "validate_config",
 ]
 
@@ -311,14 +317,32 @@ def load_config() -> Config:
     try:
         raw = json.loads(path.read_text("utf-8"))
     except FileNotFoundError:
-        return validate_config({})
+        return _fail_closed(validate_config({}))         # file bị xóa mà PIN còn: không được thành "tắt"
     except (OSError, ValueError):
         _LOG.exception("Không đọc được %s, dùng cấu hình mặc định", path)
-        return validate_config({})
+        return _fail_closed(validate_config({}))
     if not isinstance(raw, dict):
         _LOG.error("%s không phải JSON object, dùng cấu hình mặc định", path)
-        return validate_config({})
-    return validate_config(raw)
+        return _fail_closed(validate_config({}))
+    cfg = validate_config(raw)
+    if not isinstance(raw.get("guardian_enabled"), bool):      # thiếu khóa hay sai kiểu; chỉ ``false`` rõ ràng mới là tắt
+        return _fail_closed(cfg)
+    if cfg["guardian_enabled"] and raw.get("guardian_warn_policy") not in ("pin", "lock"):
+        cfg["guardian_warn_policy"] = "lock"               # đang giám hộ mà chính sách hỏng: dùng mức chặt nhất
+    return cfg
+
+
+def _fail_closed(cfg: Config) -> Config:
+    """Cấu hình hỏng không được tắt Bảo vệ Gia đình: còn file PIN (``guardian.bin``) thì coi như đang bật."""
+    if cfg["guardian_enabled"] or not (data_dir() / "guardian.bin").exists():
+        return cfg
+    from . import guardian                    # trễ: guardian nhập config
+
+    if guardian.has_pin():                    # PIN đã xác nhận (hay file hỏng); đặt dở chưa xác nhận thì không tính
+        _LOG.warning("Cấu hình hỏng nhưng đã có PIN giám hộ: giữ Bảo vệ Gia đình BẬT, link WARN khóa hẳn")
+        cfg["guardian_enabled"] = True
+        cfg["guardian_warn_policy"] = "lock"     # không tin được lựa chọn cũ: dùng mức chặt nhất
+    return cfg
 
 
 def config_stamp() -> tuple[int, int] | None:
@@ -328,6 +352,78 @@ def config_stamp() -> tuple[int, int] | None:
     except OSError:
         return None
     return info.st_mtime_ns, info.st_size
+
+
+@contextlib.contextmanager
+def file_lock(path: Path, timeout: float = 10.0) -> Iterator[None]:
+    """Khóa độc quyền liên tiến trình dựa trên file (``msvcrt`` trên Windows, ``fcntl`` trên POSIX).
+
+    Raises:
+        TimeoutError: Không lấy được khóa trong ``timeout`` giây (là ``OSError``).
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with _CONFIG_THREAD_LOCK, open(path, "a+b") as handle:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                if sys.platform == "win32":
+                    import msvcrt
+
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"Không lấy được khóa {path}") from None
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            if sys.platform == "win32":
+                import msvcrt
+
+                handle.seek(0)
+                with contextlib.suppress(OSError):
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+_CONFIG_THREAD_LOCK = threading.RLock()   # RLock: update_config lồng nhau trong cùng luồng không tự khóa chết
+
+
+def config_lock() -> contextlib.AbstractContextManager[None]:
+    """Khóa của ``config.json``: giữ trong lúc vừa kiểm Guardian vừa làm việc nó cho phép (không ai bật/tắt xen giữa).
+
+    Không lồng: đang giữ thì không gọi ``update_config`` (khóa file của hệ điều hành không cho cùng tiến trình lấy lại).
+    """
+    return file_lock(data_dir() / "config.json.lock")
+
+
+def update_config(change: Callable[[dict[str, Any]], bool | None]) -> bool:
+    """Đọc cấu hình mới nhất, cho ``change`` sửa tại chỗ rồi ghi, tất cả dưới MỘT khóa liên tiến trình.
+
+    Mọi nơi ghi ``config.json`` (cửa sổ cài đặt HTML/Tk, nhân vật, cài đặt) phải đi qua đây: đọc-kiểm-ghi rời rạc
+    thì bản chụp cũ của nơi này có thể ghi đè thay đổi của nơi khác (vd. tắt lại Guardian Mode vừa bật).
+
+    Returns:
+        ``False`` nếu ``change`` trả ``False`` (không ghi gì), ngược lại ``True``.
+
+    Raises:
+        OSError: Không lấy được khóa hoặc không ghi được.
+    """
+    with config_lock():
+        cfg: dict[str, Any] = dict(load_config())
+        if change(cfg) is False:
+            return False
+        save_config(cfg)
+        return True
 
 
 def save_config(cfg: Mapping[str, Any]) -> None:

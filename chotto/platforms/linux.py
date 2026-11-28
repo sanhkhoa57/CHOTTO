@@ -58,6 +58,11 @@ def is_default_handler() -> None:
     return None
 
 
+def handler_released() -> bool:
+    """Linux không đăng ký handler: không có gì để nhả."""
+    return True
+
+
 def install(cfg: MutableMapping[str, Any]) -> str:
     """Không đăng ký handler trên Linux."""
     return _UNSUPPORTED
