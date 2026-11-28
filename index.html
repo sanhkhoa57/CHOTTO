@@ -217,6 +217,15 @@ details[open] summary::after{transform:rotate(45deg)}
 .mx-who:focus-visible{outline:2px solid var(--k1);outline-offset:4px}
 .mx-who img{display:block;height:128px;width:auto;user-select:none;-webkit-user-drag:none}
 .mx-hint{margin:0;font:500 12px/1.3 "Onest","Segoe UI",system-ui,sans-serif;color:var(--k21);text-align:right;text-shadow:0 0 6px var(--k0),0 0 2px var(--k0)}
+.mx-fig{position:relative;pointer-events:auto}
+.mx-hide,.mx-show{all:unset;box-sizing:border-box;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:grid;place-items:center;background:#fff;color:#15101a;box-shadow:0 0 0 2px #15101a,3px 3px 0 #15101a}
+.mx-hide{position:absolute;top:0;right:-4px;width:26px;height:26px;border-radius:50%;font:700 16px/1 "Onest","Segoe UI",system-ui,sans-serif;opacity:.8;transition:opacity .15s}
+.mx-hide:hover,.mx-hide:focus-visible{opacity:1}
+.mx-hide::after{content:"";position:absolute;inset:-9px}
+.mx-show{pointer-events:auto;width:52px;height:52px;border-radius:50%;overflow:hidden;align-items:start}
+.mx-show img{width:52px;height:auto;margin-top:4px;user-select:none;-webkit-user-drag:none}
+.mx-hide:focus-visible,.mx-show:focus-visible{outline:2px solid var(--k1);outline-offset:3px}
+.mx-show[hidden],.mx.off>:not(.mx-show){display:none!important}
 .mx-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (max-width:600px){.mx{right:10px;bottom:10px;width:calc(100vw - 20px)}.mx-who img{height:96px}.mx-bub{font-size:15px}}
 @media (prefers-reduced-motion:reduce){.mx-bub.pop{animation:none}}
@@ -937,8 +946,12 @@ details[open] summary::after{transform:rotate(45deg)}
     <button type="submit" id="mxSend">Gửi</button>
     <button type="button" class="mx-x" id="mxClose" aria-label="Đóng (Esc)">✕</button>
   </form>
+  <div class="mx-fig">
   <button type="button" class="mx-who" id="mxWho" aria-label="Chotto, linh vật chống lừa đảo. Nhấn đúp hoặc nhấn Enter để hỏi đáp, soi link"><img id="mxImg" src="chotto/mascot/assets/web/pose_0.png" alt="" width="254" height="508" decoding="async"></button>
+  <button type="button" class="mx-hide" id="mxHide" aria-label="Ẩn Chotto" title="Ẩn Chotto">–</button>
+  </div>
   <p class="mx-hint">Double-click vào tui để hỏi đáp / soi link</p>
+  <button type="button" class="mx-show" id="mxShow" aria-label="Hiện Chotto" title="Hiện Chotto" hidden><img src="chotto/mascot/assets/web/pose_0.png" alt="" width="254" height="508" decoding="async"></button>
 </div>
 
 <script>
@@ -947,6 +960,7 @@ details[open] summary::after{transform:rotate(45deg)}
   'use strict';
   var $ = function (s) { return document.querySelector(s); };
   var bub = $('#mxBub'), form = $('#mxForm'), inp = $('#mxIn'), send = $('#mxSend'), who = $('#mxWho'), img = $('#mxImg');
+  var mx = $('#mx'), hideBtn = $('#mxHide'), showBtn = $('#mxShow');
   var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var NS = 'http://www.w3.org/2000/svg';
 
@@ -1064,6 +1078,7 @@ details[open] summary::after{transform:rotate(45deg)}
   // ----- nói: đổi kiểu, đổi pose, nảy lên, gõ chữ -----
   var typeT = 0, hideT = 0, busy = false;
   function say(kind, text, pose, keep) {
+    if (mx.classList.contains('off')) return;                          // đang ẩn: không bật bong bóng che nội dung
     clearTimeout(typeT); clearTimeout(hideT);
     bub.setAttribute('data-k', kind); bub.hidden = false;
     img.src = 'chotto/mascot/assets/web/pose_' + pose + '.png';
@@ -1128,6 +1143,18 @@ details[open] summary::after{transform:rotate(45deg)}
   who.addEventListener('dblclick', openChat);
   who.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); openChat(); } });
   $('#mxClose').addEventListener('click', closeChat);
+  // Ẩn/hiện nhân vật (màn hình nhỏ dễ bị che nội dung); nhớ lựa chọn trong localStorage
+  function setOff(off, focus) {
+    if (off && !form.hidden) closeChat();
+    clearTimeout(typeT); clearTimeout(hideT);
+    if (off) bub.hidden = true;
+    mx.classList.toggle('off', off); showBtn.hidden = !off;
+    try { localStorage.setItem('chotto-mascot-off', off ? '1' : '0'); } catch (e) {}
+    if (focus) (off ? showBtn : who).focus();
+  }
+  hideBtn.addEventListener('click', function () { setOff(true, true); });
+  showBtn.addEventListener('click', function () { setOff(false, true); });
+  try { if (localStorage.getItem('chotto-mascot-off') === '1') setOff(true, false); } catch (e) {}
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     if (chatOpen()) { closeChat(); return; }
