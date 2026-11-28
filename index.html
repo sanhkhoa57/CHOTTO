@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chotto – Download</title>
-<link rel="icon" type="image/png" href="favicon.png">
-<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="favicon.png?v=2">
+<link rel="apple-touch-icon" href="icon.png?v=2">
 <link rel="stylesheet" href="chotto/web/fonts/fonts.css">
 <script>try{var t=localStorage.getItem('chotto-theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <style>
@@ -229,7 +229,7 @@ details[open] summary::after{transform:rotate(45deg)}
     <div class="bar" style="position: relative; top: 0; max-width: 1120px; height: 56px; margin: 0 auto; padding: 0 9px 0 22px; box-sizing: border-box; border-radius: 16px; display: flex; align-items: center; gap: 32px">
       <div style="flex: 1 1 0; display: flex; align-items: center">
         <a href="#" id="logo" style="display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.01em">
-          <img src="icon.png" alt="" width="34" height="34" style="border-radius:22%;display:block">
+          <img src="icon.png?v=2" alt="" width="34" height="34" style="border-radius:22%;display:block">
           Chotto
         </a>
       </div>
@@ -266,7 +266,8 @@ details[open] summary::after{transform:rotate(45deg)}
         </a>
         <a class="btn btn-o" href="#tai-xuong" data-t="otherVer" style="height: 48px; padding: 0 22px; font-size: 16px"></a>
       </div>
-      <p class="fade mono" style="margin: 18px 0 0; font-size: 13px; animation-delay: .8s"><a href="#tai-xuong" style="color: var(--k55); text-decoration: underline; text-underline-offset: 3px">x86 · ARM</a><a class="navl community-mobile" href="community/" data-t="navCommunity">Cộng đồng</a></p>
+      <p class="fade" data-t="heroMeta" style="margin: 18px 0 0; font-size: 14px; color: var(--k54); animation-delay: .75s"></p>
+      <p class="fade mono" style="margin: 6px 0 0; font-size: 13px; animation-delay: .8s"><a href="#tai-xuong" style="color: var(--k55); text-decoration: underline; text-underline-offset: 3px">Windows · macOS · Android (beta) · Chrome</a><a class="navl community-mobile" href="community/" data-t="navCommunity">Cộng đồng</a></p>
     </div>
 
     <div class="wrap" style="position: relative; z-index: 2; margin-top: 76px">
@@ -274,7 +275,7 @@ details[open] summary::after{transform:rotate(45deg)}
         <div aria-hidden="true" style="position: absolute; inset: 10% 0 -10%; background: radial-gradient(closest-side, var(--k56), transparent); filter: blur(60px); z-index: -1"></div>
         <figure role="img" data-ta="aria-label:mockAria" style="margin: 0; border-radius: 16px; background: var(--k57); box-shadow: inset 0 0 0 1px var(--k38), inset 0 1px 0 var(--k22), 0 50px 120px -30px var(--k58); overflow: hidden; text-align: left">
           <div style="height: 64px; display: flex; align-items: center; gap: 14px; padding: 0 20px; box-shadow: inset 0 -1px 0 var(--k31)">
-            <img src="icon.png" alt="" width="30" height="30" style="border-radius:22%;display:block">
+            <img src="icon.png?v=2" alt="" width="30" height="30" style="border-radius:22%;display:block">
             <span style="flex: 1; min-width: 0; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><span id="typed" style="color: var(--k6)"></span><i style="display: inline-block; width: 2px; height: 20px; margin-left: 2px; vertical-align: -4px; background: var(--k8); animation: caret 1s steps(1) infinite"></i></span>
             <span class="key">Zalo</span>
           </div>
@@ -324,7 +325,7 @@ details[open] summary::after{transform:rotate(45deg)}
           <p data-t="how1D" style="margin: 8px 0 0; font-size: 15px; color: var(--k21)"></p>
         </div>
         <div class="card rv" style="padding: 28px 24px; transition-delay: .08s">
-          <div style="width: 48px; height: 48px; border-radius: 10px; background: var(--k59); box-shadow: inset 0 0 0 1px var(--k41), 0 0 24px -4px var(--k42); display: grid; place-items: center"><img src="icon.png" alt="" width="46" height="46" style="border-radius:22%;display:block"></div>
+          <div style="width: 48px; height: 48px; border-radius: 10px; background: var(--k59); box-shadow: inset 0 0 0 1px var(--k41), 0 0 24px -4px var(--k42); display: grid; place-items: center"><img src="icon.png?v=2" alt="" width="46" height="46" style="border-radius:22%;display:block"></div>
           <h3 data-t="how2T" style="margin: 22px 0 0; font-size: 20px; font-weight: 500; letter-spacing: .2px"></h3>
           <p data-t="how2D" style="margin: 8px 0 0; font-size: 15px; color: var(--k21)"></p>
         </div>
@@ -440,7 +441,7 @@ details[open] summary::after{transform:rotate(45deg)}
         navLabel: 'Main', navHow: 'How it works', navDl: 'Download', navInstall: 'Install', navFaq: 'FAQ', navCommunity: 'Community', langLabel: 'Language', themeLabel: 'Switch light or dark theme',
         hero: 'Think before you click',
         heroSub: 'Chotto checks every link you tap in Zalo before it opens',
-        otherVer: 'Other versions', archs: 'Available for x86 (64-bit) and ARM.', heroMeta: 'Version 1.5.0 · Free · No account needed',
+        otherVer: 'Other versions', heroMeta: 'Official release · Version 1.5.0 · Free · No account needed',
         dlWin: 'Download for Windows', dlMac: 'Download for macOS', dlAndroid: 'Download for Android (beta)',
         mockAria: 'Chotto checks one link after another and gives a verdict',
         resultsLbl: 'Check results', openLink: 'Open link', close: 'Close',
@@ -500,7 +501,7 @@ details[open] summary::after{transform:rotate(45deg)}
       navLabel: 'Mục chính', navHow: 'Cách hoạt động', navDl: 'Tải xuống', navInstall: 'Cài đặt', navFaq: 'Hỏi đáp', navCommunity: 'Cộng đồng', langLabel: 'Ngôn ngữ', themeLabel: 'Đổi giao diện sáng hoặc tối',
       hero: 'Chậm một nhịp, rồi hãy bấm',
       heroSub: 'Chotto kiểm tra mọi link bạn bấm trong Zalo trước khi mở',
-      otherVer: 'Các phiên bản khác', archs: 'Có bản x86 (64-bit) và ARM.', heroMeta: 'Phiên bản 1.5.0 · Miễn phí · Không cần tài khoản',
+      otherVer: 'Các phiên bản khác', heroMeta: 'Bản chính thức · Phiên bản 1.5.0 · Miễn phí · Không cần tài khoản',
       dlWin: 'Tải cho Windows', dlMac: 'Tải cho macOS', dlAndroid: 'Tải cho Android (beta)',
       mockAria: 'Chotto kiểm tra lần lượt từng link và đưa ra kết luận',
       resultsLbl: 'Kết quả kiểm tra', openLink: 'Mở link', close: 'Đóng',
