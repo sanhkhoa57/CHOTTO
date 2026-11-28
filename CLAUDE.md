@@ -5,8 +5,8 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 
 ## Trạng thái (cập nhật 2026-11-05)
 - Bản hiện tại **v1.5.0**, nhánh `main` trên https://github.com/sanhkhoa57/CHOTTO (repo công khai, trang tải chạy bằng GitHub Pages từ `index.html`).
-- v1.5.0 = giao diện HTML mới (phong cách "luxury": nền đen ấm, vàng đồng, chữ serif) thay giao diện Tk cũ, song ngữ EN/VI. Icon chính: `assets/anime.png`
-  (sinh `.ico/.icns/PNG` bằng `tools/make_icon.py`, cần Pillow).
+- v1.5.0 = giao diện HTML mới (phong cách "luxury": nền đen ấm, vàng đồng, chữ serif) thay giao diện Tk cũ, song ngữ EN/VI. Logo chính: `assets/logo.png` (từ 2026-11-28, đặt trên ô trắng bo góc vì nét đen chìm trên nền tối; cả web và Android)
+  (sinh mọi biểu tượng bằng `tools/make_icon.py`, cần Pillow).
 - **Windows: xong và đã thử.** Bộ cài Inno Setup (`platforms/PC/windows/chotto.iss`, build bằng `platforms/PC/windows/build_windows.bat`, giao diện bộ cài tiếng Anh). Gói tải nằm trong `downloads/`:
   `CHOTTO-Windows.zip` (Setup + README.txt) và `chotto-extension-chrome.zip` (extension + README.txt); tạo bằng `tools/build_downloads.py`,
   nội dung hướng dẫn ở `packaging/guides/*.txt`. Đừng chạy `unins000.exe` khi thử: nó gỡ đăng ký handler đang dùng.

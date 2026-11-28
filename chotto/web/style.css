@@ -42,7 +42,7 @@ h1, h2, p { text-wrap: pretty; }
 .tb .ctl svg { width: 10px; height: 10px; stroke: var(--muted); stroke-width: 1.1; fill: none; }
 .tb .ctl:hover svg { stroke: var(--ink); }
 
-.mark { width: 22px; height: 22px; display: inline-block; flex: none; background: url(icon.png) center / contain no-repeat; }
+.mark { width: 28px; height: 28px; display: inline-block; flex: none; background: url(icon.png) center / contain no-repeat; }
 .mark i { display: none; }
 .mark--lg { width: 38px; height: 38px; }
 

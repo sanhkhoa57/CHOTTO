@@ -25,7 +25,7 @@ Desktop (Windows/macOS, pywebview + HTML), tiện ích Chrome/Edge, Android (Kot
 - Chưa ký số (Windows SmartScreen, macOS chưa công chứng).
 
 ## Brand Commitments
-Tên Chotto, nhà phát triển AECCUS. Icon chính `assets/anime.png`. Chưa ràng buộc phong cách thị giác (người dùng đã đổi hướng nhiều lần).
+Tên Chotto, nhà phát triển AECCUS. Logo chính `assets/logo.png`. Chưa ràng buộc phong cách thị giác (người dùng đã đổi hướng nhiều lần).
 
 ## Evidence on Hand
 Mã nguồn, bộ vector kiểm thử (`tests/data`), ảnh chụp giao diện trong `docs/ui`. Không có số liệu người dùng thật hay lời chứng thực: không được bịa.

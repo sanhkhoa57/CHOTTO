@@ -43,7 +43,7 @@ h1, h2, p { text-wrap: pretty; }
 .tb .ctl svg { width: 10px; height: 10px; stroke: var(--muted); stroke-width: 1.1; fill: none; }
 .tb .ctl:hover svg { stroke: var(--ink); }
 
-.mark { width: 22px; height: 22px; display: inline-block; flex: none; background: url(icon.png) center / contain no-repeat; }
+.mark { width: 28px; height: 28px; display: inline-block; flex: none; background: url(icon.png) center / contain no-repeat; }
 .mark i { display: none; }
 .mark--lg { width: 38px; height: 38px; }
 
@@ -123,7 +123,7 @@ body { background: var(--bg); font-family: var(--sans); }
 .tb-brand { font: 800 16px/1 var(--sans); letter-spacing: -.01em; color: var(--ink); }
 .tb .ctl:hover { background: rgba(58, 37, 71, .07); }
 .tb .ctl svg { stroke: var(--ink); }
-.mark { width: 24px; height: 24px; }
+.mark { width: 30px; height: 30px; }
 
 .main { overflow-y: auto; padding: 6px 22px 112px; min-width: 0; scroll-behavior: smooth; }
 .page-h { margin: 0; font: 800 30px/1.1 var(--sans); letter-spacing: -.025em; color: var(--ink); }

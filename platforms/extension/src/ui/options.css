@@ -9,7 +9,7 @@ body { background: var(--bg); overflow: hidden; display: grid; place-items: cent
 .tb { padding-right: 20px; }
 .tb .brand { display: flex; align-items: center; gap: 8px; }
 .tb-brand { font: 800 16px/1 var(--sans); letter-spacing: -.01em; color: var(--ink); }
-.mark { width: 24px; height: 24px; }
+.mark { width: 30px; height: 30px; }
 .main { padding-top: 10px; }
 .main:has(> [data-pane="log"]:not([hidden])) { overflow: hidden; padding-bottom: 78px; }
 .guard { padding-top: 160px; }

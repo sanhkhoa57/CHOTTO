@@ -8,5 +8,5 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="chotto_bg">#FFFBF6F1</color>
-    <color name="ic_launcher_background">#FFFEFEFE</color>
+    <color name="ic_launcher_background">#FFFFFFFF</color>
 </resources>
