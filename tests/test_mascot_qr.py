@@ -192,6 +192,16 @@ class MascotFlowTest(unittest.TestCase):
         self.panel, self.bubble, self.scan = FakePanel(), FakeBubble(), FakeScan()
         self.mascot._panel, self.mascot._bubble, self.mascot._scan = self.panel, self.bubble, self.scan  # type: ignore[assignment]
         self.mascot._enabled, self.mascot._lang = True, "vi"
+        qr_on = patch("chotto.platforms.overlay.QR_SUPPORTED", True)   # luồng quét QR (Windows) kiểm được trên mọi máy
+        qr_on.start()
+        self.addCleanup(qr_on.stop)
+
+    def test_without_qr_double_click_opens_chat_directly(self) -> None:
+        with patch("chotto.platforms.overlay.QR_SUPPORTED", False):    # macOS: không có quét QR
+            with patch.object(self.mascot, "_open_chat") as open_chat:
+                self.mascot._open_choices()
+        open_chat.assert_called_once()
+        self.assertEqual(self.panel.shown, [])
 
     def test_double_click_offers_two_boxes_and_does_not_open_chat_yet(self) -> None:
         self.mascot._open_choices()
@@ -256,12 +266,12 @@ class ScanPipelineTest(unittest.TestCase):
         job, root, events = self._scan()
         order: list[str] = []
 
-        def overlay(_root: Any, _image: Any, _origin: Any, _hint: str, _u: float, done: Any) -> object:
+        def overlay(_root: Any, _image: Any, _origin: Any, _hint: str, _u: float, done: Any, _scale: float) -> object:
             order.append("overlay")
             done("cropped")
             return object()
 
-        with patch.object(scan.snip, "grab_screen", side_effect=lambda: (order.append("grab"), ("img", (0, 0)))[1]), \
+        with patch.object(scan.snip, "grab_screen", side_effect=lambda: (order.append("grab"), ("img", (0, 0), 1.0))[1]), \
                 patch.object(scan.snip, "SnipOverlay", side_effect=overlay), \
                 patch.object(scan.qr, "scan", return_value=qr.QrReport("none", "x")):
             job.start("vi")
@@ -285,6 +295,21 @@ class ScanPipelineTest(unittest.TestCase):
             self._drain(root)
         self.assertFalse(job.capturing)
         self.assertEqual(events[-1].status, "failed")
+
+    def test_other_permission_errors_are_plain_failures(self) -> None:
+        job, root, events = self._scan()                                   # Windows: không hiện câu nhắc quyền của Mac
+        with patch.object(scan.snip, "grab_screen", side_effect=PermissionError("khác")), self.assertLogs("chotto", "ERROR"):
+            job.start("vi")
+            self._drain(root)
+        self.assertEqual(events[-1], qr.QrReport("failed", qr.texts("vi")["failed"]))
+
+    def test_missing_screen_permission_is_explained(self) -> None:
+        job, root, events = self._scan()
+        with patch.object(scan.snip, "grab_screen", side_effect=scan.snip.ScreenPermissionError("macOS")):
+            job.start("vi")
+            self._drain(root)
+        self.assertFalse(job.capturing)
+        self.assertEqual(events[-1], qr.QrReport("failed", qr.texts("vi")["permission"]))
 
 
 if __name__ == "__main__":

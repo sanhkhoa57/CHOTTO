@@ -9,7 +9,7 @@ nói chuyện với agent bằng từng dòng JSON:
                  {"op": "settings"}   {"op": "quit"}
   host → agent:  {"op": "ready", "pid"}
                  {"op": "decision", "id", "proceed", "dwell_ms"}
-                 {"op": "settings_closed"}
+                 {"op": "settings_closed", "quit"}   (quit = vừa gỡ đăng ký trong cửa sổ: agent tắt sau khi cửa sổ đóng)
                  {"op": "config_changed"}   (cửa sổ ứng dụng vừa lưu cài đặt: agent đọc lại ngay, ví dụ nhân vật taskbar)
 
 Chính sách an toàn: host tự kiểm lại thời gian khóa nút "vẫn mở" (không tin JavaScript), đóng cửa sổ
@@ -417,9 +417,13 @@ class AppApi:
                 return refusal
         try:
             if name == "install":
-                return {"ok": True, "message": service.install_action(lang)}
+                message = service.install_action(lang)
+                self._host.quit_agent_on_close = False
+                return {"ok": True, "message": message}
             if name == "uninstall":
-                return {"ok": True, "message": service.uninstall_action(lang)}
+                message = service.uninstall_action(lang, stop_agent=False)   # tắt agent ngay = đóng luôn cửa sổ này
+                self._host.quit_agent_on_close = True
+                return {"ok": True, "message": message}
             if name == "update":
                 return {"ok": True, "message": service.update_action(lang)}
             if name == "clear_log":
@@ -459,6 +463,7 @@ class Host:
         self._wire = wire
         self._webview = webview
         self._read_line = read_line
+        self.quit_agent_on_close = False     # vừa gỡ đăng ký trong cửa sổ ứng dụng: đóng cửa sổ thì agent tắt
         self._frictions: dict[int, tuple[Any, FrictionApi]] = {}
         self._app_window: Any = None
         self._app_maximized = False
@@ -548,6 +553,7 @@ class Host:
             background_color=BG if theme == "dark" else _APP_BG, text_select=True,
             hidden=osw.HIDE_UNTIL_LOADED, **self._centered(_APP_W, _APP_H))   # Windows: ẩn hẳn tới khi trang tải xong (không nháy)
         self._app_window = window
+        osw.show_in_dock(True, None if getattr(sys, "frozen", False) else str(web_root().parent.parent / "assets" / "logo.png"))
         osw.reload_on_show(window, str(web_root() / "app.html"))
         window.events.closed += self._on_settings_closed
         _when_shown(window, lambda: osw.center_on_screen(window, _APP_W, _APP_H))
@@ -595,10 +601,11 @@ class Host:
 
     def _on_settings_closed(self) -> None:
         self._app_window = None
+        osw.show_in_dock(False)
         from . import mascot
 
         mascot.set_place_flag(False)                 # đóng cửa sổ ứng dụng = hết chế độ chọn vị trí
-        self._wire.send({"op": "settings_closed"})
+        self._wire.send({"op": "settings_closed", "quit": self.quit_agent_on_close})
 
     def app_window_op(self, op: str) -> None:
         """Thu nhỏ / phóng to / đóng cửa sổ ứng dụng."""
@@ -768,6 +775,7 @@ class Host:
         """Khởi động pywebview trên luồng chính (chặn đến khi thoát)."""
         self._keeper = self._webview.create_window("Chotto", html="<title>Chotto</title>", hidden=True,
                                                    background_color=BG)
+        osw.show_in_dock(False)                  # macOS: chỉ có icon Dock khi cửa sổ ứng dụng mở (open_settings)
         self._webview.start(self.serve, private_mode=True)
         return 0
 

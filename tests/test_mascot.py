@@ -360,8 +360,24 @@ class FakeRoot:
 class TaskbarMascotFailSafeTest(unittest.TestCase):
     """Cửa sổ nhân vật: không bao giờ ném lỗi ra agent."""
 
+    def setUp(self) -> None:
+        handler = patch.object(mascot.taskbar, "is_default_handler", return_value=True)   # CHOTTO đang là trình mở link
+        handler.start()
+        self.addCleanup(handler.stop)
+
     def tearDown(self) -> None:
         save_config(DEFAULTS)
+
+    def test_hidden_when_chotto_is_not_the_link_handler(self) -> None:
+        m, calls = self._start_with(mascot_enabled=True, mascot_startup="login")
+        m._poll()                                                                       # đang là trình mở link: hiện
+        with patch.object(mascot.taskbar, "is_default_handler", return_value=False):   # người dùng giữ Safari
+            m._poll()
+        self.assertEqual(calls, ["show", "hide"])
+        with patch.object(mascot.taskbar, "is_default_handler", return_value=None):    # không xác định: vẫn hiện
+            m._poll()
+        self.assertEqual(calls, ["show", "hide", "show"])
+        m.stop()
 
     def test_disabled_by_default_creates_nothing(self) -> None:
         save_config(DEFAULTS)

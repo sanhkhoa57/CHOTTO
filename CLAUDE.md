@@ -62,7 +62,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Xóa nhật ký có ở cả 3 nền tảng: Desktop `logdb.clear()` + tác vụ `clear_log` (có hộp xác nhận), extension thông điệp `log-clear`, Android `LogDb.clear()`.
 - `platforms/android`: `ParityTest` đọc vector bằng đường dẫn tương đối `../../../tests/data` (đổi chỗ thư mục thì sửa).
 - `build_windows.bat` PHẢI giữ CRLF trong thư mục làm việc (LF + chữ Việt trong REM làm `cmd` chạy sai và để lại file rác như `(3`). Sau khi sửa file bằng công cụ, đổi lại CRLF.
-- Gói `downloads/CHOTTO-macOS.zip` chỉ dựng được trên Mac; đã cũ hơn Windows/Android/extension (dựng lại 2026-11-23).
+- Gói `downloads/CHOTTO-macOS.zip` chỉ dựng được trên Mac (dựng lại 2026-11-28). `build_downloads.py` đóng gói nguyên `dist/CHOTTO.app`: ký lại ad-hoc (`--sign -`) TRƯỚC khi đóng gói, xong thì ký lại bằng chứng chỉ riêng. Dung lượng trên trang tải (`size:` trong `index.html`, tính theo MiB của file .zip) phải sửa tay mỗi lần dựng lại gói.
 
 ## Cấu trúc `chotto/` (sắp xếp lại 2026-11-23)
 - Mọi code phụ thuộc hệ điều hành nằm trong `chotto/platforms/` (`windows.py`, `macos.py`, `linux.py` + `common.py`; thủ thuật
@@ -142,7 +142,27 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Giao diện: `web/guardian.js` + `guardian.css` (dùng chung app + màn cảnh báo), Tk: `ui_guardian.py`. Xem thử: `friction.html?demo&vi&guard=deny|pin&level=WARN`, `app.html?demo&vi&guard#settings`.
 - Giới hạn đã biết: `main.py uninstall` (bộ gỡ cài gọi nó), sửa tay `config.json`, đổi trình duyệt mặc định trong Cài đặt hệ điều hành, và link không đến từ Zalo vẫn không bị PIN chặn. Extension và Android CHƯA có Guardian Mode (không có kênh đồng bộ với Desktop).
 
-## Nhân vật trên macOS (2026-11-28, CHƯA thử trên Mac thật)
-- Mã nhân vật gọi cửa sổ qua `chotto/platforms/overlay.py`: Windows = `win32_window` (y như cũ), macOS = `cocoa_overlay.py` (Tk `-transparent` + Canvas nền `systemTransparent` + `PhotoImage` alpha; AppKit chỉnh mức cửa sổ/mọi Desktop). Đứng trên mép Dock (`visibleFrame`), đơn vị point (DPI = 1, Retina sẽ hơi mờ).
-- Tk trên macOS CHỈ chạy ở luồng chính: `MascotRunner(main_root=window)` dùng chung Tk của agent (không tạo luồng `chotto-mascot-tk`). Khi cảnh báo đang mở, nhân vật chạy theo nhịp "bơm" Tk của `webui.present`.
-- macOS chưa có quét QR (`overlay.QR_SUPPORTED`): nhấn đúp = mở thẳng ô chat; menu chuột phải (Button-2/Ctrl+click) bỏ mục quét. Ô chat là cửa sổ CÓ thanh tiêu đề (`BORDERLESS_INPUT`). Khóa API riêng lưu Keychain (`security`, dịch vụ `vn.chotto.mascot-byok`). AI Local vẫn chỉ Windows.
+## Nhân vật trên macOS (2026-11-28, đã thử trên Mac thật)
+- Mã nhân vật gọi cửa sổ qua `chotto/platforms/overlay.py`: Windows = `win32_window` (y như cũ), macOS = `cocoa_overlay.py`. Đứng trên mép Dock (`visibleFrame`), đơn vị point.
+- Tk trên macOS CHỈ chạy ở luồng chính: `MascotRunner(main_root=window)` dùng chung Tk của agent. Khi cảnh báo đang mở, nhân vật chạy theo nhịp "bơm" Tk của `webui.present`.
+- **Bẫy Tk 9 Aqua (nền đen):** `-transparent` phải đặt NGAY sau khi tạo Toplevel, trước `overrideredirect`/`update_idletasks` (`overlay.prepare`); đặt lại lần 2 hay Tk vẽ lại trong cửa sổ trong suốt đều ra đen. Nên khung hình vẽ bằng CALayer gắn vào superview của content view (`cocoa_overlay._Layer`); content view Tk alpha 0 nhưng vẫn nhận chuột. Cửa sổ mở ở `-alpha 0`, hiện sau khung đầu (hết chớp ô đen).
+- Nhân vật chỉ hiện khi CHOTTO đang là trình mở link (`is_default_handler() is not False` trong `_reconcile`). Trạng thái handler đọc trực tiếp `NSWorkspace.URLForApplicationToOpenURL_` (plist LSHandlers ghi trễ); `app.js` hỏi lại mỗi giây tối đa 30 giây sau khi cài/gỡ.
+- Dock: agent đặt Accessory sau `tk.Tk()` (`osw.hide_from_dock`, Tk tự đặt lại chính sách lúc khởi tạo); ui-host chỉ hiện icon khi cửa sổ cài đặt mở (`show_in_dock`).
+- Ô chat: không có nút gửi/✕ trên Mac (chỉ `ov.BORDERLESS_INPUT` = Windows). Nhấn đúp = 2 ô "Quét QR"/"Hỏi Chotto" như Windows.
+- **Quét QR trên Mac:** `cocoa_overlay.grab_main_screen` (chỉ màn hình CHÍNH, ảnh Retina gấp 2; `snip` hiển thị theo point, cắt trên ảnh gốc qua `_full_box`). Thiếu quyền → `ScreenPermissionError`, tự mở pane Cài đặt. Esc: cửa sổ không viền không nhận phím → nghe bằng `NSEvent` local monitor (`watch_escape`, đã build 2026-11-28, chờ người dùng thử).
+- **AI Local trên Mac:** tải `llama-bNNNN-bin-macos-{arm64,x64}.tar.gz` (giải nén `filter="data"`, chmod 755), lưu ở `data_dir()/local_ai` (KHÔNG ghi vào `.app` kẻo hỏng chữ ký). Đã chạy được (Qwen 0.5B).
+- Khóa API riêng lưu Keychain (`security`, dịch vụ `vn.chotto.mascot-byok`). `zxing-cpp` cài cho cả win32 + darwin; `macos_setup.py` thêm gói `zxingcpp` và `Quartz`.
+- Kiểm code Windows từ Mac: `.venv/bin/mypy --strict --platform win32 main.py chotto`.
+
+## Thiết lập + thử trên MacBook (từng bước)
+1. Cài: `uv sync` (Python 3.15 của uv), Node.js (cho test so `mascot.js`). Chạy mã nguồn: `uv run main.py` (KHÔNG `python3`).
+2. Test: `.venv/bin/python -m unittest discover -s tests` (404 bài, 4 bỏ qua) + mypy như trên.
+3. Tắt app cũ: `~/Applications/CHOTTO.app/Contents/MacOS/CHOTTO agent-stop; pkill -f CHOTTO.app/Contents/MacOS`.
+4. Build: `mv pyproject.toml pyproject.toml.bak && .venv/bin/python platforms/PC/macos/macos_setup.py py2app; mv pyproject.toml.bak pyproject.toml`, rồi `codesign --force --deep --sign - dist/CHOTTO.app`.
+5. Cài: chép `dist/CHOTTO.app` vào `~/Applications`, `/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f ~/Applications/CHOTTO.app`, `open ~/Applications/CHOTTO.app`.
+6. Trong app: bấm "Đặt làm trình mở link" → macOS hỏi → chọn CHOTTO (giữ Safari thì nhân vật không hiện).
+7. **Quyền Ghi màn hình (cho Quét QR) — bẫy lớn:** ký ad-hoc thì macOS nhận app theo cdhash, MỖI LẦN BUILD LẠI là mất quyền (log tccd: "Failed to match existing code requirement"; xem bằng `log show --last 5m --predicate 'process == "tccd" AND eventMessage CONTAINS[c] "ScreenCapture"'`). Cách làm: `tccutil reset ScreenCapture vn.chotto.app` → Cài đặt > Quyền riêng tư & Bảo mật > **Bản ghi âm thanh hệ thống & màn hình** > **+** > Cmd+Shift+G `~/Applications` > CHOTTO > bật → `agent-stop` rồi mở lại. (`CGRequestScreenCaptureAccess` KHÔNG tự thêm CHOTTO vào danh sách.) Chạy bằng `uv run` từ terminal VS Code thì quyền tính cho VS Code, không phải CHOTTO.
+8. **Đã làm (2026-11-28): ký bằng chứng chỉ tự tạo cố định** để build lại KHÔNG mất quyền. Keychain riêng `~/.chotto-signing/sign.keychain-db` (mật khẩu `chotto`, chỉ dùng trên máy này, đã thêm vào danh sách tìm kiếm keychain của user), chứng chỉ "CHOTTO Local Signing" SHA1 `7F73F65882B8930D604AD1E13017633ED2CC5AAC`. Thay bước ký ở bước 4 bằng:
+   `security unlock-keychain -p chotto ~/.chotto-signing/sign.keychain-db && codesign --force --deep --keychain ~/.chotto-signing/sign.keychain-db --sign 7F73F65882B8930D604AD1E13017633ED2CC5AAC dist/CHOTTO.app`
+   Kiểm: `codesign -dr - dist/CHOTTO.app` phải ra `identifier "vn.chotto.app" and certificate leaf = H"7f73…"` (không phải cdhash). Cấp quyền Ghi màn hình MỘT lần theo bước 7 là giữ mãi. Mất thư mục `~/.chotto-signing` thì tạo chứng chỉ mới (openssl, EKU codeSigning) và cấp quyền lại. Bản phát hành cho người khác vẫn ký ad-hoc (`--sign -`).
+9. Thử đủ vòng: link trong Zalo → cảnh báo; nhấn đúp nhân vật → Quét QR (kéo chọn, Esc/chuột phải hủy) / Hỏi Chotto; AI Local tải model + chat; gỡ handler → trạng thái đổi trong vài giây.

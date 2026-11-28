@@ -36,6 +36,8 @@ TEXT: Final[dict[str, dict[str, str]]] = {
         "none": "I couldn't find a QR code there. Try selecting a bit wider!",
         "failed": "I couldn't capture or read the screen. Please try again.",
         "missing": "QR scanning isn't available in this install (missing the zxing-cpp library).",
+        "permission": "I need screen recording permission to see the QR code. I've opened Privacy & Security > "
+                      "Screen & System Audio Recording: turn on CHOTTO (not listed? click + and pick CHOTTO), then reopen CHOTTO.",
         "text": "The QR code says:",
         "SAFE": "No warning signs found for {domain}, but that isn't a guarantee.",
         "WARN": "Careful, {domain} looks suspicious!",
@@ -52,6 +54,9 @@ TEXT: Final[dict[str, dict[str, str]]] = {
         "none": "Tui không thấy mã QR nào trong vùng đó. Thử kéo rộng hơn chút nha!",
         "failed": "Tui chưa chụp hoặc đọc được màn hình. Bạn thử lại nha!",
         "missing": "Bản cài này chưa quét được QR (thiếu thư viện zxing-cpp).",
+        "permission": "Tui cần quyền ghi màn hình mới thấy được mã QR. Tui đã mở Quyền riêng tư & Bảo mật > "
+                      "Bản ghi âm thanh hệ thống & màn hình: bật CHOTTO (chưa có thì bấm + chọn CHOTTO) rồi mở lại "
+                      "CHOTTO nha.",
         "text": "Mã QR ghi là:",
         "SAFE": "Tui chưa thấy dấu hiệu lừa đảo ở {domain}, nhưng chưa chắc 100% đâu nha.",
         "WARN": "Cẩn thận, {domain} đáng ngờ đó!",

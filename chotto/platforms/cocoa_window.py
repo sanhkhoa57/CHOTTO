@@ -7,9 +7,39 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-__all__ = ["activate", "center_on_screen", "reload_on_show"]
+__all__ = ["activate", "center_on_screen", "hide_from_dock", "reload_on_show", "show_in_dock"]
 
 _LOG = logging.getLogger("chotto")
+_REGULAR, _ACCESSORY = 0, 1      # NSApplicationActivationPolicy: có icon Dock / không có icon (vẫn hiện được cửa sổ, lấy được focus)
+
+
+def hide_from_dock() -> None:
+    """Không hiện icon trên Dock cho tiến trình này. Gọi trên luồng chính, SAU khi tạo ``tk.Tk()`` (Tk tự đặt lại "có icon")."""
+    try:
+        from AppKit import NSApplication  # type: ignore[import-untyped,import-not-found,unused-ignore]
+
+        NSApplication.sharedApplication().setActivationPolicy_(_ACCESSORY)
+    except Exception:  # noqa: BLE001 - chỉ là hiển thị
+        _LOG.debug("Không ẩn được icon Dock", exc_info=True)
+
+
+def show_in_dock(visible: bool, icon: str | None = None) -> None:
+    """Hiện/ẩn icon Dock của tiến trình giao diện (pywebview); ``icon`` = ảnh thay icon Python khi chạy từ mã nguồn."""
+    try:
+        from AppKit import NSApplication, NSImage  # type: ignore[import-untyped,import-not-found,unused-ignore]
+        from PyObjCTools import AppHelper  # type: ignore[import-untyped,import-not-found,unused-ignore]
+
+        def apply() -> None:
+            app = NSApplication.sharedApplication()
+            app.setActivationPolicy_(_REGULAR if visible else _ACCESSORY)
+            if visible and icon:
+                image = NSImage.alloc().initWithContentsOfFile_(icon)
+                if image is not None:
+                    app.setApplicationIconImage_(image)
+
+        AppHelper.callAfter(apply)
+    except Exception:  # noqa: BLE001 - chỉ là hiển thị
+        _LOG.debug("Không đổi được icon Dock", exc_info=True)
 
 
 def reload_on_show(window: Any, url: str) -> None:

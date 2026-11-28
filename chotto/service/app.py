@@ -79,10 +79,15 @@ def install_action(lang: str = "vi") -> str:
     return detail if lang == "vi" else msg(lang, "installed")
 
 
-def uninstall_action(lang: str = "vi") -> str:
-    """Tác vụ gỡ đăng ký: gỡ handler, tắt tự khởi động và tắt agent đang chạy."""
+def uninstall_action(lang: str = "vi", stop_agent: bool = True) -> str:
+    """Tác vụ gỡ đăng ký: gỡ handler, tắt tự khởi động và tắt agent đang chạy.
+
+    ``stop_agent=False``: cửa sổ ứng dụng HTML gọi (nó là tiến trình con của agent, tắt agent ngay thì
+    cửa sổ đóng theo); agent tự tắt khi cửa sổ đó đóng (``settings_closed`` kèm ``quit``).
+    """
     detail = platforms.uninstall(load_config())
-    agent_mod.stop_agent()
+    if stop_agent:
+        agent_mod.stop_agent()
     return detail if lang == "vi" else msg(lang, "uninstalled")
 
 
@@ -198,10 +203,14 @@ def _create_root() -> tk.Tk | None:
 
         created = tk.Tk()
         created.withdraw()
-        return created
     except Exception:  # noqa: BLE001 - không có Tk: vẫn xử lý link với chính sách fail-safe
         _LOG.exception("Không khởi tạo được Tk")
         return None
+    from ..platforms import window as osw
+
+    # macOS: tiến trình Tk (agent, nhân vật, launcher) không chiếm icon Dock; icon CHOTTO thuộc cửa sổ ứng dụng (ui-host).
+    osw.hide_from_dock()
+    return created
 
 
 def run_once(url: str | None = None, force: bool = False, gui: bool = False, caller: Caller | None = None) -> int:

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 from ..config import MASCOT_DEFAULT_COLORS, MASCOT_FPS_RANGE, config_stamp, data_dir, load_config
-from ..platforms import any_process_running
+from ..platforms import any_process_running, is_default_handler
 from ..platforms import overlay as ov
 from ..util import clamp as _clamp
 from . import qr, speech
@@ -309,8 +309,13 @@ class TaskbarMascot:
         self._sync_pin()
 
     def _reconcile(self) -> None:
-        """Hiện/ẩn theo công tắc; chế độ "zalo" thì chỉ hiện khi Zalo đang chạy."""
-        want = self._switch_on and (self._startup != "zalo" or any_process_running(self._zalo_names))
+        """Hiện/ẩn theo công tắc; chế độ "zalo" thì chỉ hiện khi Zalo đang chạy.
+
+        CHOTTO không phải trình mở link (chưa đặt, hoặc người dùng giữ trình duyệt cũ) thì không hiện: nhân vật là dấu hiệu
+        "đang được bảo vệ". Không xác định được (``None``) thì vẫn hiện.
+        """
+        want = (self._switch_on and is_default_handler() is not False
+                and (self._startup != "zalo" or any_process_running(self._zalo_names)))
         if want and not self._enabled:
             self._show()
         elif not want and self._enabled:
@@ -444,6 +449,7 @@ class TaskbarMascot:
         height = int(488 * big * 1.03 + 30 * self._unit + 4)
         window = tk.Toplevel(self._root)
         window.withdraw()
+        ov.prepare(window)                       # macOS: trước overrideredirect, nếu không nền ra đen
         window.overrideredirect(True)
         window.attributes("-topmost", True)
         canvas = tk.Canvas(window, width=width, height=height, highlightthickness=0, bd=0)       # chỉ để nhận chuột; hình vẽ qua LayeredSurface

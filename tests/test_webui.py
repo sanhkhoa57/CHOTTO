@@ -389,5 +389,33 @@ class LogSummaryTests(unittest.TestCase):
             self.assertEqual(logdb.recent(), [])
 
 
+class UninstallKeepsWindowTests(unittest.TestCase):
+    """Gỡ đăng ký trong cửa sổ ứng dụng: không tắt agent ngay (cửa sổ là con của agent), tắt khi cửa sổ đóng."""
+
+    def test_settings_closed_with_quit_stops_agent(self) -> None:
+        web = WebUI()
+        with patch("chotto.service.agent.stop_agent") as stop:
+            web._on_message({"op": "settings_closed"})  # noqa: SLF001
+            time.sleep(0.05)
+            stop.assert_not_called()
+            web._on_message({"op": "settings_closed", "quit": True})  # noqa: SLF001
+            for _ in range(50):
+                if stop.called:
+                    break
+                time.sleep(0.01)
+            stop.assert_called_once()
+
+    def test_app_uninstall_defers_agent_stop(self) -> None:
+        host = Host(Wire(open(os.devnull, "w")), object(), lambda: "")
+        api = AppApi(host)
+        with patch("chotto.service.app.uninstall_action", return_value="đã gỡ") as uninstall, \
+                patch("chotto.service.app.install_action", return_value="đã cài"):
+            self.assertTrue(api.action("uninstall")["ok"])
+            self.assertEqual(uninstall.call_args.kwargs, {"stop_agent": False})
+            self.assertTrue(host.quit_agent_on_close)
+            self.assertTrue(api.action("install")["ok"])
+            self.assertFalse(host.quit_agent_on_close)
+
+
 if __name__ == "__main__":
     unittest.main()

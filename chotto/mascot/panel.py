@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
-from ..platforms import win32_window as w32
+from ..platforms import overlay as ov
 from . import speech
 
 if TYPE_CHECKING:
@@ -109,8 +109,8 @@ class ActionPanel:
         self._on_change = on_change
         self._win: Any = None
         self._canvas: Any = None
-        self._hwnd = 0
-        self._surface: w32.LayeredSurface | None = None
+        self._hwnd: Any = 0
+        self._surface: Any = None                                 # ``overlay.Surface``
         self._areas: dict[str, Rect] = {}
         self._actions: Callable[[str], None] | None = None
         self._frame = b""
@@ -128,6 +128,7 @@ class ActionPanel:
 
         win = tk.Toplevel(self._root)
         win.withdraw()
+        ov.prepare(win)                                          # macOS: trước overrideredirect, nếu không nền ra đen
         win.overrideredirect(True)
         win.attributes("-topmost", True)
         canvas = tk.Canvas(win, width=1, height=1, highlightthickness=0, bd=0, takefocus=1)
@@ -137,9 +138,9 @@ class ActionPanel:
         win.bind("<Escape>", lambda _e: self.close())
         win.bind("<FocusOut>", lambda _e: self._focus_lost())
         win.update_idletasks()
-        self._hwnd = w32.toplevel_hwnd(int(win.winfo_id()))
-        w32.make_tool_window(self._hwnd)
-        w32.enable_layered(self._hwnd)
+        self._hwnd = ov.handle(win)
+        ov.make_tool_window(self._hwnd)
+        ov.enable_layered(self._hwnd)
         self._win, self._canvas = win, canvas
 
     def show(self, kind: speech.Kind, text: str, buttons: Sequence[Button], on_action: Callable[[str], None],
@@ -150,20 +151,20 @@ class ActionPanel:
         self._actions = on_action
         self._size = image.size
         self._frame = image.convert("RGBa").tobytes("raw", "BGRa")
-        old, self._surface = self._surface, w32.LayeredSurface(self._hwnd, *image.size)
+        old, self._surface = self._surface, ov.Surface(self._hwnd, *image.size)
         if old is not None:
             old.close()
         self._canvas.configure(width=image.width, height=image.height)
         was_visible, self.visible = self.visible, True
         self._xy = None
         self._modal = False                                      # chưa có focus thì chưa xét "mất focus"
-        w32.set_noactivate(self._hwnd, not modal)
+        ov.set_noactivate(self._hwnd, not modal)
         self._win.deiconify()
         self._win.attributes("-topmost", True)
         if self._anchor is not None:
             self.place(*self._anchor)
         if modal:
-            self._previous = w32.foreground_window()
+            self._previous = ov.foreground()
             self._win.after(60, self._take_focus)
         if not was_visible:
             self._on_change(True)
@@ -171,6 +172,7 @@ class ActionPanel:
     def _take_focus(self) -> None:
         if not self.visible or self._win is None:
             return
+        ov.allow_typing()                                        # macOS: CHOTTO chạy nền, phải lên trước mới nhận Esc/focus
         self._win.focus_force()
         self._canvas.focus_force()
         self._win.after(250, self._arm)
@@ -215,10 +217,10 @@ class ActionPanel:
         self.visible = self._modal = False
         previous, self._previous = self._previous, 0
         if self._win is not None:
-            w32.set_noactivate(self._hwnd, True)
+            ov.set_noactivate(self._hwnd, True)
             self._win.withdraw()
-        if previous and previous != self._hwnd:
-            w32.set_foreground(previous)
+        if previous and previous != ov.own(self._hwnd):
+            ov.set_foreground(previous)
         self._on_change(False)
 
     def destroy(self) -> None:

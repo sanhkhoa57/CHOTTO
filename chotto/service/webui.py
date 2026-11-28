@@ -157,6 +157,10 @@ class WebUI:
                 waiter.event.set()
         elif op == "settings_closed":
             self._settings_open = False
+            if message.get("quit") is True:              # vừa gỡ đăng ký trong cửa sổ: giờ mới tắt agent
+                from . import agent
+
+                threading.Thread(target=agent.stop_agent, name="chotto-quit", daemon=True).start()
         elif op == "config_changed":
             callback = self.on_config_changed
             if callback is not None:

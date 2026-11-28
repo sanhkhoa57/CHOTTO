@@ -161,12 +161,33 @@ def _set_url_handler(bundle: str) -> bool:
     return True
 
 
+def _live_https_handler() -> str | None:
+    """Bundle id (chữ thường) đang mở link https, hỏi thẳng LaunchServices qua NSWorkspace; ``None`` nếu không hỏi được.
+
+    Đọc plist ``LSHandlers`` thì chậm hàng chục giây sau khi người dùng đổi (macOS ghi file trễ), nên ưu tiên cách này.
+    """
+    try:
+        import AppKit  # type: ignore[import-untyped,import-not-found,unused-ignore]
+
+        app_url = AppKit.NSWorkspace.sharedWorkspace().URLForApplicationToOpenURL_(
+            AppKit.NSURL.URLWithString_("https://example.com"))
+        bundle = AppKit.NSBundle.bundleWithURL_(app_url) if app_url is not None else None
+        ident = bundle.bundleIdentifier() if bundle is not None else None
+        return str(ident).lower() if ident else None
+    except Exception:  # noqa: BLE001 - thiếu PyObjC: lùi về đọc plist
+        _LOG.debug("Không hỏi được LaunchServices qua NSWorkspace", exc_info=True)
+        return None
+
+
 def is_default_handler() -> bool:
     """CHOTTO có đang là trình mở link https mặc định không.
 
     Raises:
         OSError, ValueError: Không đọc được cấu hình LaunchServices.
     """
+    live = _live_https_handler()
+    if live is not None:
+        return live == OWN_BUNDLE
     return _handler_for(_ls_handlers(), "https") == OWN_BUNDLE
 
 

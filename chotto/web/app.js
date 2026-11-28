@@ -149,7 +149,7 @@
     });
     $$("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== name));
     if (name === "check") setTimeout(() => $("#checkInput").focus(), 30);
-    if (name === "home" || name === "log") refresh();
+    if (name === "home" || name === "log" || name === "settings") refresh();
     if (name === "settings") buddyLoad();
   }
   $$("[data-tab]").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); tab(a.dataset.tab); }));
@@ -686,7 +686,19 @@
     } finally {
       if (button) { button.disabled = false; button.textContent = label; }
       refresh();
+      if (name === "install" || name === "uninstall") watchHandler();
     }
+  }
+  // macOS hỏi xác nhận trong hộp thoại riêng (không chờ được): hỏi lại trạng thái tới khi đổi, tối đa 30 giây.
+  let handlerWatch = 0;
+  function watchHandler() {
+    clearInterval(handlerWatch);
+    const before = state && state.default_handler;
+    let left = 30;
+    handlerWatch = setInterval(async () => {
+      await refresh();
+      if (--left <= 0 || (state && state.default_handler !== before)) clearInterval(handlerWatch);
+    }, 1000);
   }
   $$("[data-action]").forEach((b) => b.addEventListener("click", () => runAction(b.dataset.action, b)));
   $("#guardInstall").addEventListener("click", (e) => runAction("install", e.currentTarget));

@@ -6,10 +6,12 @@ Lớp phủ hiện ảnh chụp đã làm mờ trên toàn bộ màn hình ảo;
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Final
 
 from ..platforms import win32_window as w32
+from ..platforms.cocoa_overlay import ScreenPermissionError
 from . import qr
 
 if TYPE_CHECKING:
@@ -17,34 +19,47 @@ if TYPE_CHECKING:
 
     from PIL import Image
 
-__all__ = ["SnipOverlay", "grab_screen"]
+__all__ = ["ScreenPermissionError", "SnipOverlay", "grab_screen"]
 
 _LOG = logging.getLogger("chotto")
 _DIM: Final[float] = 0.45                      # độ sáng còn lại của phần ngoài vùng chọn
 _ACCENT: Final[str] = "#f2a33a"
+_MAC: Final[bool] = sys.platform == "darwin"
 
 
-def grab_screen() -> tuple[Image.Image, tuple[int, int]]:
-    """(ảnh toàn bộ màn hình ảo, góc trái trên của nó theo toạ độ màn hình).
+def grab_screen() -> tuple[Image.Image, tuple[int, int], float]:
+    """(ảnh màn hình, góc trái trên của nó theo toạ độ màn hình, số pixel ảnh trên một đơn vị toạ độ Tk).
+
+    Windows: cả màn hình ảo, pixel vật lý (tỉ lệ 1). macOS: màn hình chính, ảnh Retina gấp đôi point của Tk.
 
     Raises:
+        ScreenPermissionError: macOS chưa cấp quyền Ghi màn hình.
         OSError: Không chụp được (màn hình khóa, phiên từ xa đã ngắt...).
     """
+    if _MAC:
+        from ..platforms import cocoa_overlay
+
+        image, scale = cocoa_overlay.grab_main_screen()
+        return image, (0, 0), scale
     from PIL import ImageGrab
 
     left, top = w32.virtual_screen_origin()
-    return ImageGrab.grab(all_screens=True).convert("RGB"), (left, top)
+    return ImageGrab.grab(all_screens=True).convert("RGB"), (left, top), 1.0
 
 
 class SnipOverlay:
     """Một lần chọn vùng: gọi ``on_done`` đúng MỘT lần với ảnh đã cắt, hoặc ``None`` nếu hủy."""
 
     def __init__(self, root: tk.Tk, image: Image.Image, origin: tuple[int, int], hint: str, unit_dpi: float,
-                 on_done: Callable[[Image.Image | None], None]) -> None:
+                 on_done: Callable[[Image.Image | None], None], scale: float = 1.0) -> None:
         import tkinter as tk
 
+        from PIL import Image as PILImage
         from PIL import ImageTk
 
+        self._full, self._scale = image, scale            # ảnh gốc (cắt từ đây cho nét) và tỉ lệ pixel/toạ độ Tk
+        if scale != 1.0:                                  # macOS Retina: hiển thị theo point
+            image = image.resize((round(image.width / scale), round(image.height / scale)), PILImage.Resampling.LANCZOS)
         self._image = image
         self._on_done = on_done
         self._done = False
@@ -53,9 +68,11 @@ class SnipOverlay:
         self._pending = False
         self._armed = False
         self._bright: Any = None                           # PhotoImage vùng chọn (giữ tham chiếu để Tk không mất ảnh)
+        self._esc: Any = None                              # macOS: bộ theo dõi phím Esc (NSEvent)
 
         win = tk.Toplevel(root)
         win.withdraw()
+        win.title(f"chotto-overlay-snip-{id(win)}")          # macOS: để tìm NSWindow (``raise_overlay``)
         win.overrideredirect(True)
         win.attributes("-topmost", True)
         canvas = tk.Canvas(win, width=image.width, height=image.height, highlightthickness=0, bd=0, cursor="crosshair", bg="#000")
@@ -72,15 +89,24 @@ class SnipOverlay:
             canvas.bind("<B1-Motion>", lambda e: self._drag(e.x, e.y))
             canvas.bind("<ButtonRelease-1>", lambda e: self._release(e.x, e.y))
             canvas.bind("<Button-3>", lambda _e: self.cancel())
+            canvas.bind("<Button-2>", lambda _e: self.cancel())           # macOS: chuột phải
             win.bind("<Escape>", lambda _e: self.cancel())
             win.bind("<FocusOut>", lambda _e: self._focus_lost())
             win.geometry(f"{image.width}x{image.height}+{origin[0]}+{origin[1]}")
             win.deiconify()
             win.update_idletasks()
-            hwnd = w32.toplevel_hwnd(int(win.winfo_id()))
-            w32.set_window_rect(hwnd, (origin[0], origin[1], origin[0] + image.width, origin[1] + image.height))
-            win.attributes("-topmost", True)
-            w32.force_foreground(hwnd)
+            if _MAC:
+                from ..platforms import cocoa_overlay
+
+                win.update()                                   # NSWindow phải có rồi mới nâng lên được
+                cocoa_overlay.raise_overlay(win)
+                # Esc của Tk không tới cửa sổ không viền trên Aqua → nghe phím qua NSEvent
+                self._esc = cocoa_overlay.watch_escape(lambda: win.after(0, self.cancel))
+            else:
+                hwnd = w32.toplevel_hwnd(int(win.winfo_id()))
+                w32.set_window_rect(hwnd, (origin[0], origin[1], origin[0] + image.width, origin[1] + image.height))
+                win.attributes("-topmost", True)
+                w32.force_foreground(hwnd)
             win.focus_force()
             canvas.focus_force()
             win.after(400, self._arm)
@@ -153,7 +179,14 @@ class SnipOverlay:
             self._start = None
             self._redraw()
             return
-        self._finish(qr.crop(self._image, box))
+        self._finish(qr.crop(self._full, self._full_box(box)))
+
+    def _full_box(self, box: qr.Box) -> qr.Box:
+        """Vùng chọn (toạ độ hiển thị) đổi sang pixel của ảnh gốc."""
+        if self._scale == 1.0:
+            return box
+        x0, y0, x1, y1 = (round(v * self._scale) for v in box)
+        return (x0, y0, min(x1, self._full.width), min(y1, self._full.height))
 
     def cancel(self) -> None:
         self._finish(None)
@@ -167,6 +200,11 @@ class SnipOverlay:
     def _destroy(self) -> None:
         self._done = True
         self._dim = self._bright = None
+        if self._esc is not None:
+            from ..platforms import cocoa_overlay
+
+            cocoa_overlay.unwatch_escape(self._esc)
+            self._esc = None
         try:
             self._win.destroy()
         except Exception:  # noqa: BLE001

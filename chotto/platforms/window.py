@@ -20,7 +20,9 @@ __all__ = [
     "center_on_screen",
     "enable_snap",
     "fade",
+    "hide_from_dock",
     "reload_on_show",
+    "show_in_dock",
     "set_icon",
     "watch_session_end",
 ]
@@ -59,6 +61,18 @@ def center_on_screen(window: Any, width: int, max_height: int, margin: int = 24)
             cocoa_window.center_on_screen(window, width, max_height, margin)
     except Exception:  # noqa: BLE001 - chỉ là vị trí hiển thị, không được làm hỏng cửa sổ
         _LOG.debug("Không căn giữa được cửa sổ", exc_info=True)
+
+
+def hide_from_dock() -> None:
+    """macOS: tiến trình này không có icon trên Dock (agent chạy nền). Gọi trên luồng chính sau khi tạo ``tk.Tk()``."""
+    if _MAC:
+        cocoa_window.hide_from_dock()
+
+
+def show_in_dock(visible: bool, icon: str | None = None) -> None:
+    """macOS: hiện icon Dock khi cửa sổ ứng dụng mở, ẩn khi đóng (chỉ một icon CHOTTO trên Dock)."""
+    if _MAC:
+        cocoa_window.show_in_dock(visible, icon)
 
 
 def set_icon(window: Any, ico: str) -> None:

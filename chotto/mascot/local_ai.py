@@ -23,6 +23,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tarfile
 import threading
 import time
 import urllib.error
@@ -47,8 +48,13 @@ HF_FILE: Final[str] = "https://huggingface.co/{repo}/resolve/main/{file}"
 IDLE_S: Final[float] = 300.0                    # tắt server sau 5 phút không hỏi (giải phóng RAM)
 _CHUNK: Final[int] = 1 << 20
 _UA: Final[dict[str, str]] = {"User-Agent": "CHOTTO-local-ai"}
-_EXE: Final[str] = "llama-server.exe"
+_WIN: Final[bool] = sys.platform == "win32"
+_MAC: Final[bool] = sys.platform == "darwin"
+SUPPORTED: Final[bool] = _WIN or _MAC
+_EXE: Final[str] = "llama-server.exe" if _WIN else "llama-server"
 _CREATE_NO_WINDOW: Final[int] = 0x08000000
+# Windows: không bật cửa sổ console cho tiến trình con. macOS: ``creationflags`` khác 0 là lỗi (0 thì được).
+_NO_WINDOW: Final[int] = _CREATE_NO_WINDOW if _WIN else 0
 
 
 @dataclass(frozen=True)
@@ -108,8 +114,9 @@ def _writable(directory: Path) -> bool:
 def _root() -> Path:
     """Bản cài (PyInstaller ``--onedir``): ``<thư mục CHOTTO>\\local_ai`` cạnh ``CHOTTO.exe``, để xóa thư mục app hay gỡ cài đặt
     là sạch luôn model + engine. Chạy từ mã nguồn/kiểm thử, hoặc thư mục cài không ghi được (vd. Program Files): ``data_dir()``.
+    macOS luôn dùng ``data_dir()``: ghi vào bên trong ``CHOTTO.app`` làm hỏng chữ ký, Gatekeeper có thể chặn app.
     """
-    if getattr(sys, "frozen", False) and not os.environ.get("CHOTTO_DATA_DIR"):
+    if _WIN and getattr(sys, "frozen", False) and not os.environ.get("CHOTTO_DATA_DIR"):
         beside_app = Path(sys.executable).resolve().parent / "local_ai"
         if _writable(beside_app):
             return beside_app
@@ -148,7 +155,7 @@ def is_downloaded(model_id: str) -> bool:
 
 
 def arch() -> str:
-    """``x64`` | ``arm64`` của Windows (kể cả khi Python x64 chạy giả lập trên máy ARM)."""
+    """``x64`` | ``arm64`` của máy (Windows: kể cả khi Python x64 chạy giả lập trên máy ARM; macOS: chip Apple là ``arm64``)."""
     machine = (os.environ.get("PROCESSOR_ARCHITEW6432") or os.environ.get("PROCESSOR_ARCHITECTURE") or platform.machine()).lower()
     return "arm64" if machine in ("arm64", "aarch64") else "x64"
 
@@ -213,14 +220,17 @@ def download_file(url: str, dest: Path, size: int, sha256: str, progress: Progre
         raise LocalAIError("network", str(exc)) from exc
 
 
-def pick_engine_asset(releases: Any, cpu: str) -> tuple[str, str, int, str]:
-    """``(tên, url, kích thước, sha256)`` của gói CPU Windows khớp kiến trúc, lấy từ bản mới nhất CÓ gói đó trong danh sách
-    release của GitHub (mới trước; vài bản không kèm gói chạy hoặc đang tải lên dở thì bỏ qua).
+def pick_engine_asset(releases: Any, cpu: str, system: str = "win32") -> tuple[str, str, int, str]:
+    """``(tên, url, kích thước, sha256)`` của gói chạy khớp hệ điều hành + kiến trúc, lấy từ bản mới nhất CÓ gói đó trong danh
+    sách release của GitHub (mới trước; vài bản không kèm gói chạy hoặc đang tải lên dở thì bỏ qua).
+
+    Windows: ``llama-bNNNN-bin-win-cpu-<cpu>.zip``. macOS: ``llama-bNNNN-bin-macos-<cpu>.tar.gz`` (có Metal, chạy GPU của chip Apple).
 
     Raises:
         LocalAIError: ``notfound`` (không bản nào có gói hợp lệ kèm ``digest`` SHA256).
     """
-    pattern = re.compile(rf"^llama-.+-bin-win-cpu-{re.escape(cpu)}\.zip$")
+    kind = f"macos-{cpu}" if system == "darwin" else f"win-cpu-{cpu}"
+    pattern = re.compile(rf"^llama-.+-bin-{re.escape(kind)}\.(zip|tar\.gz)$")
     assets = [asset for release in (releases if isinstance(releases, list) else [])
               if isinstance(release, dict) and not release.get("draft") for asset in release.get("assets", [])]
     for asset in assets:
@@ -228,11 +238,18 @@ def pick_engine_asset(releases: Any, cpu: str) -> tuple[str, str, int, str]:
         digest = str(asset.get("digest") or "")
         if pattern.match(name) and digest.startswith("sha256:") and isinstance(asset.get("size"), int):
             return name, str(asset["browser_download_url"]), int(asset["size"]), digest.split(":", 1)[1]
-    raise LocalAIError("notfound", f"không có gói win-cpu-{cpu} kèm SHA256")
+    raise LocalAIError("notfound", f"không có gói {kind} kèm SHA256")
 
 
 def safe_extract(archive: Path, dest: Path) -> None:
-    """Giải nén, từ chối mục đi ra ngoài ``dest`` (zip slip)."""
+    """Giải nén ``.zip`` hoặc ``.tar.gz``, từ chối mục đi ra ngoài ``dest`` (zip slip, liên kết trỏ ra ngoài, đường dẫn tuyệt đối)."""
+    if archive.name.endswith(".tar.gz"):
+        try:
+            with tarfile.open(archive, "r:gz") as tf:
+                tf.extractall(dest, filter="data")     # bộ lọc "data": chặn đường dẫn/symlink ra ngoài, bỏ setuid, thiết bị
+        except (tarfile.TarError, OSError) as exc:
+            raise LocalAIError("checksum", f"gói không hợp lệ: {exc}") from exc
+        return
     root = dest.resolve()
     with zipfile.ZipFile(archive) as zf:
         for member in zf.infolist():
@@ -243,10 +260,10 @@ def safe_extract(archive: Path, dest: Path) -> None:
 
 
 def install_engine(progress: Progress, cancel: threading.Event) -> None:
-    """Tải gói ``llama.cpp`` chính thức mới nhất (CPU, đúng kiến trúc), kiểm SHA256, giải nén vào ``bin``."""
-    if sys.platform != "win32":
+    """Tải gói ``llama.cpp`` chính thức mới nhất (đúng hệ điều hành + kiến trúc), kiểm SHA256, giải nén vào ``bin``."""
+    if not SUPPORTED:
         raise LocalAIError("unsupported")
-    name, url, size, sha = pick_engine_asset(_fetch_json(ENGINE_RELEASE_API), arch())
+    name, url, size, sha = pick_engine_asset(_fetch_json(ENGINE_RELEASE_API), arch(), sys.platform)
     root = _root()
     archive = root / name
     download_file(url, archive, size, sha, progress, cancel)
@@ -255,11 +272,13 @@ def install_engine(progress: Progress, cancel: threading.Event) -> None:
     try:
         safe_extract(archive, staging)
         exe = next(staging.rglob(_EXE), None)
-        if exe is None:
+        if exe is None or not exe.is_file():
             raise LocalAIError("notfound", f"gói không có {_EXE}")
+        if not _WIN:
+            exe.chmod(0o755)                             # chắc chắn chạy được (tar giữ quyền, phòng gói lạ)
         SERVER.stop()
         shutil.rmtree(bin_dir(), ignore_errors=True)
-        os.replace(exe.parent, bin_dir())               # thư mục chứa exe + các DLL đi kèm
+        os.replace(exe.parent, bin_dir())               # thư mục chứa exe + các DLL/dylib đi kèm
         (bin_dir() / "SOURCE.txt").write_text(f"{name}\n{sha}\n", "utf-8")
     finally:
         shutil.rmtree(staging, ignore_errors=True)
@@ -349,9 +368,15 @@ def _read_record() -> dict[str, Any]:
 
 
 def _pid_is_llama(pid: int) -> bool:
-    """PID còn sống và đúng là ``llama-server.exe`` (phòng PID cũ đã được hệ điều hành cấp cho tiến trình khác)."""
-    if sys.platform != "win32" or pid <= 0:
+    """PID còn sống và đúng là ``llama-server`` (phòng PID cũ đã được hệ điều hành cấp cho tiến trình khác)."""
+    if not SUPPORTED or pid <= 0:
         return False
+    if _MAC:
+        try:
+            out = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "comm="], capture_output=True, text=True, timeout=5).stdout
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return Path(out.strip()).name == _EXE
     try:
         out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"], capture_output=True, text=True,
                              timeout=5, creationflags=_CREATE_NO_WINDOW).stdout
@@ -406,7 +431,7 @@ class LocalServer:
             if self.running and self._model == model.id:
                 return f"http://127.0.0.1:{self._port}"
             self._stop_locked()
-            if sys.platform != "win32":
+            if not SUPPORTED:
                 raise LocalAIError("unsupported")
             if not engine_ready() or not model_path(model).is_file():
                 raise LocalAIError("notfound")
@@ -418,7 +443,7 @@ class LocalServer:
                     [str(server_exe()), "-m", str(model_path(model)), "--host", "127.0.0.1", "--port", str(port),
                      "-c", "4096", "-np", "1"],   # 1 luồng hỏi: bản mới tự chia ngữ cảnh cho nhiều luồng, lời nhắc tiếng Việt sẽ không vừa
                     cwd=str(bin_dir()), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-                    creationflags=_CREATE_NO_WINDOW)
+                    creationflags=_NO_WINDOW)
             except OSError as exc:
                 raise LocalAIError("start", str(exc)) from exc
             finally:
@@ -531,7 +556,7 @@ def delete_model(model_id: str) -> bool:
 def status() -> dict[str, Any]:
     """Dữ liệu cho giao diện: danh mục kèm trạng thái đã tải, engine có chưa, tiến trình tải."""
     return {
-        "supported": sys.platform == "win32",
+        "supported": SUPPORTED,
         "engine_ready": engine_ready(),
         "models": [{"id": m.id, "name": m.name, "short": m.short, "format": m.format, "quant": m.quant,
                     "size_gb": m.size_gb, "ram_gb": m.ram_gb, "downloaded": model_path(m).is_file()} for m in CATALOG],

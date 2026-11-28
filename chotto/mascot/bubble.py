@@ -85,6 +85,7 @@ class SpeechBubble:
         u = self._u
         win = tk.Toplevel(self._root)
         win.withdraw()
+        ov.prepare(win)                          # macOS: trước overrideredirect, nếu không nền ra đen
         win.overrideredirect(True)
         win.attributes("-topmost", True)
         tk.Canvas(win, width=1, height=1, highlightthickness=0, bd=0).pack()                   # chỉ để có cửa sổ; hình đến từ LayeredSurface
@@ -115,10 +116,13 @@ class SpeechBubble:
         entry.pack(side="left", fill="x", expand=True, padx=(round(6 * u), round(4 * u)), pady=round(6 * u), ipady=round(5 * u))
         send = tk.Button(bar, text="Gửi", font=("Segoe UI", -round(13 * u), "bold"), bg=_INK, fg="#ffffff", activebackground="#333",
                          activeforeground="#ffffff", relief="flat", bd=0, padx=round(10 * u), command=self._submit)
-        send.pack(side="left", pady=round(6 * u))
-        close = tk.Button(bar, text="✕", font=("Segoe UI", -round(13 * u), "bold"), bg="#e8e1d6", fg=_INK, relief="flat", bd=0,
-                          padx=round(8 * u), command=self.close_chat)
-        close.pack(side="left", padx=round(6 * u), pady=round(6 * u))
+        if ov.BORDERLESS_INPUT:          # macOS: cửa sổ có thanh tiêu đề (nút đóng đỏ), Enter gửi, Esc đóng -> khỏi cần hai nút
+            send.pack(side="left", pady=round(6 * u))
+            close = tk.Button(bar, text="✕", font=("Segoe UI", -round(13 * u), "bold"), bg="#e8e1d6", fg=_INK, relief="flat",
+                              bd=0, padx=round(8 * u), command=self.close_chat)
+            close.pack(side="left", padx=round(6 * u), pady=round(6 * u))
+        else:
+            entry.pack_configure(padx=round(6 * u))
         entry.bind("<Return>", lambda _e: self._submit())
         entry.bind("<Escape>", lambda _e: self.close_chat())
         self._win, self._barwin, self._bar, self._entry, self._send = win, barwin, bar, entry, send

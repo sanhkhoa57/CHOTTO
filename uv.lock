@@ -95,7 +95,7 @@ dependencies = [
     { name = "pyinstaller", marker = "sys_platform == 'win32'" },
     { name = "pywebview" },
     { name = "setuptools" },
-    { name = "zxing-cpp", marker = "sys_platform == 'win32'" },
+    { name = "zxing-cpp", marker = "sys_platform == 'darwin' or sys_platform == 'win32'" },
 ]
 
 [package.metadata]
@@ -106,7 +106,7 @@ requires-dist = [
     { name = "pyinstaller", marker = "sys_platform == 'win32'", specifier = ">=6.10" },
     { name = "pywebview", specifier = ">=6.0" },
     { name = "setuptools", specifier = ">=70" },
-    { name = "zxing-cpp", marker = "sys_platform == 'win32'", specifier = ">=2.3" },
+    { name = "zxing-cpp", marker = "sys_platform == 'darwin' or sys_platform == 'win32'", specifier = ">=2.3" },
 ]
 
 [[package]]
@@ -498,8 +498,12 @@ version = "3.2.0.post1"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/34/df/d4ca3cdd0d6846045713e46d4012589ad7476b3dc58fcb217f852e228ed1/zxing_cpp-3.2.0.post1.tar.gz", hash = "sha256:3100a9abf498eeca4f271c7033ea66ed3e936983ed4bf8ace72a3e1efd2062de", size = 1446246, upload-time = "2026-11-26T10:05:23.919Z" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/ec/5a6814a853383d73a26c4e8bd4e76fb3454bee84b2db3de0f72b72258437/zxing_cpp-3.2.0.post1-cp312-abi3-macosx_10_13_x86_64.whl", hash = "sha256:4eb8935f8c7126fbc9769acc0588ee29c6c07d2521dddf434283a9b14c602903", size = 930384, upload-time = "2026-11-26T10:04:55.194Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/0c/20c2740238a391f762b47570901b3321804b56be4744dfef7c755ae7c163/zxing_cpp-3.2.0.post1-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:bc36d9681e22145250b9eb4867b6223a6c3162b772ea5c3c75c97cd2dc8b17c0", size = 885207, upload-time = "2026-11-26T10:04:56.522Z" },
     { url = "https://files.pythonhosted.org/packages/68/32/d766f90d188b11d53610bd3ab5d7e4b30b17bceeb397e40cad5d8c316429/zxing_cpp-3.2.0.post1-cp312-abi3-win_amd64.whl", hash = "sha256:b516f8d8c585e8494e9e86a20fd7ed50465f2440147be2d13361857e2db7d403", size = 1207281, upload-time = "2026-11-26T10:05:01.026Z" },
     { url = "https://files.pythonhosted.org/packages/63/7c/b08987b722585d9e5fb852f97717b8952d4da8aea06e4eb224c58472d0f2/zxing_cpp-3.2.0.post1-cp312-abi3-win_arm64.whl", hash = "sha256:db65e2041e469ed44ca8ab0f1533e0fbfe54eb5e442caeea656d962cbfe16320", size = 1327917, upload-time = "2026-11-26T10:05:02.484Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/64/454472382271cf32d20c915fa080b4e958a1ce4372e158e8b3d7948639c2/zxing_cpp-3.2.0.post1-cp315-cp315t-macosx_10_15_x86_64.whl", hash = "sha256:409dd6713ba3a6d9a3f7f49f1d306457f4e7637f53bc409a9554d98e5c67df7d", size = 936058, upload-time = "2026-11-26T10:05:14.128Z" },
+    { url = "https://files.pythonhosted.org/packages/53/82/9d76c8b173d9e8c29ea69b8599726945f01de487a26859844f0a9509fd36/zxing_cpp-3.2.0.post1-cp315-cp315t-macosx_11_0_arm64.whl", hash = "sha256:c6e60dad1e5223452b3be5fe4278d94f160adc2382ef6927b60ea64fd840e1e5", size = 889524, upload-time = "2026-11-26T10:05:15.883Z" },
     { url = "https://files.pythonhosted.org/packages/f2/02/634c976b80b43ade2f9c17438e79291f315b2aa3c0bc652fd62d16f97057/zxing_cpp-3.2.0.post1-cp315-cp315t-win_amd64.whl", hash = "sha256:f55c03ca3d221f4daa933e5817977640ea31119ed6d51dce79c802c9049c6db8", size = 1240608, upload-time = "2026-11-26T10:05:20.657Z" },
     { url = "https://files.pythonhosted.org/packages/3c/ca/c8614f9e894505007318e34939de15a0d38c26d093084d0d8338392b0daa/zxing_cpp-3.2.0.post1-cp315-cp315t-win_arm64.whl", hash = "sha256:56dab06cbe8bc184bd2191394a5834f49527f1f584646b4fe797021ec0265eff", size = 1369337, upload-time = "2026-11-26T10:05:22.141Z" },
 ]

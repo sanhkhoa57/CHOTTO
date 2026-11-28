@@ -408,11 +408,20 @@ class CatalogTests(_TempData):
         app.mkdir(parents=True)
         env = {k: v for k, v in os.environ.items() if k != "CHOTTO_DATA_DIR"}
         with patch.object(sys, "frozen", True, create=True), patch.object(sys, "executable", str(app / "CHOTTO.exe")), \
-                patch.dict(os.environ, env, clear=True):
+                patch.dict(os.environ, env, clear=True), patch.object(local_ai, "_WIN", True):
             self.assertEqual(local_ai._root(), app.resolve() / "local_ai")
             self.assertEqual(local_ai.model_path(local_ai.CATALOG[0]).parent, app.resolve() / "local_ai" / "models")
             with patch.object(local_ai, "_writable", return_value=False), patch.object(local_ai, "data_dir", return_value=Path(self.tmp)):
                 self.assertEqual(local_ai._root(), Path(self.tmp) / "local_ai")     # thư mục cài không ghi được: dự phòng
+
+    def test_mac_app_never_writes_inside_the_bundle(self) -> None:
+        app = Path(self.tmp) / "CHOTTO.app" / "Contents" / "MacOS"
+        app.mkdir(parents=True)
+        env = {k: v for k, v in os.environ.items() if k != "CHOTTO_DATA_DIR"}
+        with patch.object(sys, "frozen", True, create=True), patch.object(sys, "executable", str(app / "CHOTTO")), \
+                patch.dict(os.environ, env, clear=True), patch.object(local_ai, "_WIN", False), \
+                patch.object(local_ai, "data_dir", return_value=Path(self.tmp) / "data"):
+            self.assertEqual(local_ai._root(), Path(self.tmp) / "data" / "local_ai")     # ghi vào .app = hỏng chữ ký
 
     def test_uninstaller_removes_local_ai(self) -> None:
         iss = (ROOT / "platforms/PC/windows/chotto.iss").read_text("utf-8")
@@ -493,6 +502,44 @@ class DownloadTests(_TempData):
         with self.assertRaises(local_ai.LocalAIError):
             local_ai.pick_engine_asset([release], "x64")
         self.assertIn(local_ai.arch(), ("x64", "arm64"))
+
+    def test_engine_asset_for_macos(self) -> None:
+        release = {"assets": [
+            {"name": "llama-b9000-bin-macos-x64.tar.gz", "size": 5, "digest": "sha256:" + "d" * 64, "browser_download_url": "m0"},
+            {"name": "llama-b9000-bin-macos-arm64.tar.gz", "size": 6, "digest": "sha256:" + "e" * 64, "browser_download_url": "m1"},
+            {"name": "llama-b9000-bin-win-cpu-arm64.zip", "size": 7, "digest": "sha256:" + "b" * 64, "browser_download_url": "u1"},
+        ]}
+        self.assertEqual(local_ai.pick_engine_asset([release], "arm64", "darwin"),
+                         ("llama-b9000-bin-macos-arm64.tar.gz", "m1", 6, "e" * 64))
+        self.assertEqual(local_ai.pick_engine_asset([release], "x64", "darwin")[1], "m0")
+        self.assertEqual(local_ai.pick_engine_asset([release], "arm64")[1], "u1")     # mặc định vẫn là gói Windows
+
+    def test_safe_extract_tar_keeps_inner_links_and_blocks_escape(self) -> None:
+        import io
+        import tarfile
+
+        def build(name: str, entries: list[tarfile.TarInfo]) -> Path:
+            path = Path(self.tmp) / name
+            with tarfile.open(path, "w:gz") as tf:
+                for info in entries:
+                    tf.addfile(info, io.BytesIO(b"x" * info.size) if info.isfile() else None)
+            return path
+
+        exe = tarfile.TarInfo("llama-b1/llama-server")
+        exe.size, exe.mode = 1, 0o755
+        lib = tarfile.TarInfo("llama-b1/libggml.1.dylib")
+        lib.size = 1
+        link = tarfile.TarInfo("llama-b1/libggml.dylib")
+        link.type, link.linkname = tarfile.SYMTYPE, "libggml.1.dylib"           # như gói thật: liên kết trong cùng thư mục
+        out = Path(self.tmp) / "ok"
+        local_ai.safe_extract(build("ok.tar.gz", [exe, lib, link]), out)
+        self.assertTrue((out / "llama-b1" / "libggml.dylib").is_symlink())
+        self.assertTrue(os.access(out / "llama-b1" / "llama-server", os.X_OK))
+
+        evil = tarfile.TarInfo("llama-b1/evil")
+        evil.type, evil.linkname = tarfile.SYMTYPE, "../../../etc/passwd"
+        with self.assertRaises(local_ai.LocalAIError):
+            local_ai.safe_extract(build("evil.tar.gz", [evil]), Path(self.tmp) / "bad")
 
     def test_safe_extract_blocks_zip_slip(self) -> None:
         archive = Path(self.tmp) / "a.zip"
