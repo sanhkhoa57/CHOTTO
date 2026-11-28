@@ -62,7 +62,7 @@ Giao tiếp với người dùng bằng **tiếng Việt**. Đọc `README.md` �
 - Xóa nhật ký có ở cả 3 nền tảng: Desktop `logdb.clear()` + tác vụ `clear_log` (có hộp xác nhận), extension thông điệp `log-clear`, Android `LogDb.clear()`.
 - `platforms/android`: `ParityTest` đọc vector bằng đường dẫn tương đối `../../../tests/data` (đổi chỗ thư mục thì sửa).
 - `build_windows.bat` PHẢI giữ CRLF trong thư mục làm việc (LF + chữ Việt trong REM làm `cmd` chạy sai và để lại file rác như `(3`). Sau khi sửa file bằng công cụ, đổi lại CRLF.
-- Gói `downloads/CHOTTO-macOS.zip` chỉ dựng được trên Mac (dựng lại 2026-11-28). `build_downloads.py` đóng gói nguyên `dist/CHOTTO.app`: ký lại ad-hoc (`--sign -`) TRƯỚC khi đóng gói, xong thì ký lại bằng chứng chỉ riêng. Dung lượng trên trang tải (`size:` trong `index.html`, tính theo MiB của file .zip) phải sửa tay mỗi lần dựng lại gói.
+- Gói `downloads/CHOTTO-macOS.zip` chỉ dựng được trên Mac (dựng lại 2026-11-28). `build_downloads.py` đóng gói nguyên `dist/CHOTTO.app`: ký lại ad-hoc (`--sign -`) TRƯỚC khi đóng gói, xong thì ký lại bằng chứng chỉ riêng. Dung lượng trên trang tải (`size:` trong `index.html`) là dung lượng SAU KHI CÀI, MB thập phân như Finder: macOS = `CHOTTO.app`, Android = file APK, extension = thư mục giải nén, Windows = thư mục cài (đo trên Windows; Mac không giải được bộ cài Inno 6.7). KHÔNG phải cỡ file .zip, phải sửa tay mỗi lần dựng lại gói.
 
 ## Cấu trúc `chotto/` (sắp xếp lại 2026-11-23)
 - Mọi code phụ thuộc hệ điều hành nằm trong `chotto/platforms/` (`windows.py`, `macos.py`, `linux.py` + `common.py`; thủ thuật
